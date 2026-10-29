@@ -129,6 +129,16 @@
         .verify-attachment-item .remove-att:hover { color: #EF4444; }
         .verify-upload-btn { display: inline-flex; align-items: center; gap: 4px; padding: 6px 14px; border: 1px dashed #D1D5DB; border-radius: 6px; font-size: 12px; color: #6B7280; cursor: pointer; transition: all 0.2s; background: transparent; }
         .verify-upload-btn:hover { border-color: #2563EB; color: #2563EB; }
+        .att-row { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #F8FAFC; border-radius: 6px; margin-bottom: 6px; }
+        .att-row .file-name { flex: 1; min-width: 0; font-size: 12px; color: #374151; word-break: break-all; }
+        .att-row .att-source { flex: none; font-size: 10px; color: #6B7280; background: #E5E7EB; border-radius: 8px; padding: 1px 6px; }
+        .att-row .att-state { flex: none; font-size: 11px; color: #9CA3AF; }
+        .att-row .att-btn { flex: none; font-size: 12px; color: #2563EB; cursor: pointer; background: none; border: none; padding: 2px 4px; }
+        .att-row .att-btn:hover { text-decoration: underline; }
+        .att-row .att-btn.remove { color: #9CA3AF; }
+        .att-row .att-btn.remove:hover { color: #EF4444; }
+        .att-empty { font-size: 12px; color: #9CA3AF; margin-bottom: 8px; }
+        .detail-text { font-size: 13px; color: #374151; line-height: 1.8; background: #F8FAFC; padding: 12px; border-radius: 6px; white-space: pre-wrap; word-break: break-word; }
         .filter-tip { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; background: #FEF3C7; border: 1px solid #FCD34D; border-radius: 6px; margin-bottom: 12px; font-size: 13px; color: #92400E; }
         .filter-tip .close-tip { cursor: pointer; color: #92400E; font-size: 16px; }
         .toast { position: fixed; top: 20px; right: 20px; padding: 12px 24px; border-radius: 8px; color: #fff; font-size: 14px; z-index: 9999; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
@@ -167,14 +177,14 @@
     <div class="main">
         <div class="header">
             <div class="header-left"><h3>监理通知单</h3><span class="breadcrumb"><a href="index.html">首页</a> / 监理现场工作 / 监理通知单</span></div>
-            <div class="header-right"><div class="notification">🔔<span class="badge">3</span></div><div class="user-info"><div class="user-avatar">张</div><span class="user-name">张监理</span></div></div>
+            <div class="header-right"><div class="notification">🔔<span class="badge">3</span></div><div class="user-info"><div class="user-avatar"></div><span class="user-name"></span></div></div>
         </div>
 
         <div class="content">
             <div class="toolbar">
                 <div class="toolbar-left">
                     <div class="search-box"><span class="search-icon">🔍</span><input type="text" placeholder="搜索通知单编号/内容..." id="searchInput"><button class="btn btn-primary btn-sm" onclick="searchData()" style="margin-left:8px;height:32px;">搜索</button></div>
-                    <select class="filter-select" id="projectFilter"><option value="">全部项目</option><option>城东综合体项目</option><option>滨河路改造工程</option><option>科技产业园二期</option></select>
+                    <select class="filter-select" id="projectFilter"><option value="">全部项目</option></select>
                     <select class="filter-select" id="statusFilter"><option value="">全部状态</option><option value="draft">草稿</option><option value="issued">已下发</option><option value="responded">已回复</option><option value="verified">已验证</option><option value="overdue">已逾期</option></select>
                     <button class="btn btn-primary btn-sm" onclick="filterData()" style="height:36px;">确认</button>
                     <button class="btn btn-outline btn-sm" onclick="resetFilters()" style="height:36px;">重置</button>
@@ -199,51 +209,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr data-status="overdue">
-                            <td style="color:#2563EB;font-weight:500;">TZ-2026-015</td>
-                            <td>城东综合体项目</td>
-                            <td>2026-04-25</td>
-                            <td style="color:#EF4444;">2026-04-28 ⚠️</td>
-                            <td>张监理</td>
-                            <td><span class="status-tag status-overdue">已逾期</span></td>
-                            <td><div class="actions"><button class="btn btn-outline btn-sm" onclick="viewDetail(1)">查看</button><button class="btn btn-outline btn-sm" onclick="respond(1)">回复</button></div></td>
-                        </tr>
-                        <tr data-status="issued">
-                            <td style="color:#2563EB;font-weight:500;">TZ-2026-014</td>
-                            <td>滨河路改造工程</td>
-                            <td>2026-04-26</td>
-                            <td>2026-05-03</td>
-                            <td>李监理</td>
-                            <td><span class="status-tag status-issued">已下发</span></td>
-                            <td><div class="actions"><button class="btn btn-outline btn-sm" onclick="viewDetail(2)">查看</button><button class="btn btn-outline btn-sm" onclick="respond(2)">回复</button></div></td>
-                        </tr>
-                        <tr data-status="responded">
-                            <td style="color:#2563EB;font-weight:500;">TZ-2026-013</td>
-                            <td>城东综合体项目</td>
-                            <td>2026-04-22</td>
-                            <td>2026-04-29</td>
-                            <td>张监理</td>
-                            <td><span class="status-tag status-responded">已回复</span></td>
-                            <td><div class="actions"><button class="btn btn-outline btn-sm" onclick="viewDetail(3)">查看</button><button class="btn btn-success btn-sm" onclick="verify(3)">验证</button></div></td>
-                        </tr>
-                        <tr data-status="verified">
-                            <td style="color:#2563EB;font-weight:500;">TZ-2026-012</td>
-                            <td>科技产业园二期</td>
-                            <td>2026-04-20</td>
-                            <td>2026-04-27</td>
-                            <td>王监理</td>
-                            <td><span class="status-tag status-verified">已验证</span></td>
-                            <td><div class="actions"><button class="btn btn-outline btn-sm" onclick="viewDetail(4)">查看</button></div></td>
-                        </tr>
-                        <tr data-status="draft">
-                            <td style="color:#9CA3AF;">TZ-2026-D01</td>
-                            <td>城东综合体项目</td>
-                            <td>—</td>
-                            <td>—</td>
-                            <td>张监理</td>
-                            <td><span class="status-tag status-draft">草稿</span></td>
-                            <td><div class="actions"><button class="btn btn-outline btn-sm" onclick="openEditModal(6)">编辑</button><button class="btn btn-danger btn-sm" onclick="confirmDelete(6)">删除</button></div></td>
-                        </tr>
+                        <tr data-app-placeholder="1"><td colspan="7" style="text-align:center;color:#9CA3AF;padding:40px;">数据加载中...</td></tr>
                     </tbody>
                 </table>
                 <div class="pagination">
@@ -266,19 +232,20 @@
                 </div>
                 <div class="form-row">
                     <div class="form-group"><label>通知单编号 <span class="required">*</span></label><input type="text" class="form-control" id="noticeCode" placeholder="请输入通知单编号"></div>
-                    <div class="form-group"><label>所属项目 <span class="required">*</span></label><select class="form-control" id="projectSelect" onchange="onProjectChange()"><option value="">请选择项目</option><option>城东综合体项目</option><option>滨河路改造工程</option><option>科技产业园二期</option></select></div>
+                    <div class="form-group"><label>所属项目 <span class="required">*</span></label><select class="form-control" id="projectSelect" onchange="onProjectChange()"><option value="">请选择项目</option></select></div>
+                </div>
+                <div class="form-group"><label>通知单标题 <span class="required">*</span></label><input type="text" class="form-control" id="noticeTitle" placeholder="请输入通知单标题"></div>
+                <div class="form-row">
+                    <div class="form-group"><label>签发人</label><input type="text" class="form-control" id="issuerInput" readonly></div>
+                    <div class="form-group"><label>下发日期 <span class="required">*</span></label><input type="date" class="form-control" id="issueDate"></div>
                 </div>
                 <div class="form-row">
-                    <div class="form-group"><label>签发人</label><input type="text" class="form-control" id="issuerInput" value="张监理" readonly></div>
-                    <div class="form-group"><label>下发日期 <span class="required">*</span></label><input type="date" class="form-control" id="issueDate" value="2026-04-29"></div>
+                    <div class="form-group"><label>回复截止日期</label><input type="date" class="form-control" id="deadlineDate"></div>
+                    <div class="form-group"><label>接收单位名称</label><input type="text" class="form-control" id="receiverUnit" placeholder="请输入接收单位名称"></div>
                 </div>
-                <div class="form-row">
-                    <div class="form-group"><label>回复截止日期 <span class="required">*</span></label><input type="date" class="form-control" id="deadlineDate"></div>
-                    <div class="form-group"><label>接收单位名称 <span class="required">*</span></label><input type="text" class="form-control" id="receiverUnit" placeholder="请输入接收单位名称"></div>
-                </div>
-                <div class="form-group"><label>通知内容</label><textarea class="form-control" placeholder="请详细描述通知内容，包括问题、整改要求等" style="height:120px;"></textarea></div>
-                <div class="form-group"><label>整改要求</label><textarea class="form-control" placeholder="请明确整改要求和期限"></textarea></div>
-                <div class="form-group"><label>关联巡检记录</label><select class="form-control"><option value="">不关联</option><option>XJ-2026-0428-01 A区基础施工</option><option>XJ-2026-0428-02 桥梁桩基</option></select></div>
+                <div class="form-group"><label>通知内容</label><textarea class="form-control" id="noticeContent" placeholder="请详细描述通知内容，包括问题、整改要求等" style="height:120px;"></textarea></div>
+                <div class="form-group"><label>整改要求</label><textarea class="form-control" id="noticeRequirement" placeholder="请明确整改要求和期限"></textarea></div>
+                <div class="form-group"><label>关联巡检记录</label><select class="form-control" id="relatedInspection"><option value="">不关联</option></select></div>
 
                 <div class="doc-section">
                     <h5>
@@ -287,123 +254,19 @@
                     </h5>
                     <div class="doc-desc">根据工程资料目录设置绑定，一个通知单可对应多个目录</div>
                     <div class="doc-tree" id="docTree">
-                        <div class="doc-tree-node" onclick="toggleDocTreeNode(this)">
-                            <span class="expand-icon">▼</span>
-                            <span class="node-icon">🏗️</span>
-                            <span class="node-label" style="font-weight:500;">城东综合体项目</span>
-                            <input type="checkbox" onclick="event.stopPropagation(); toggleParentCheck(this)" data-id="proj-1">
-                        </div>
-                        <div class="doc-tree-children">
-                            <div class="doc-tree-node" onclick="toggleDocTreeNode(this)">
-                                <span class="expand-icon">▼</span>
-                                <span class="node-icon">📁</span>
-                                <span class="node-label">单位工程：主楼</span>
-                                <input type="checkbox" onclick="event.stopPropagation(); toggleParentCheck(this)" data-id="unit-1">
-                            </div>
-                            <div class="doc-tree-children">
-                                <div class="doc-tree-node" onclick="toggleDocTreeNode(this)">
-                                    <span class="expand-icon">▼</span>
-                                    <span class="node-icon">📂</span>
-                                    <span class="node-label">分部工程：地基基础</span>
-                                    <input type="checkbox" onclick="event.stopPropagation(); toggleParentCheck(this)" data-id="fb-1-1">
-                                </div>
-                                <div class="doc-tree-children">
-                                    <div class="doc-tree-node">
-                                        <span class="expand-icon" style="visibility:hidden;">▶</span>
-                                        <span class="node-icon">📄</span>
-                                        <span class="node-label">分项：土方工程</span>
-                                        <input type="checkbox" onclick="event.stopPropagation(); toggleLeafCheck(this)" data-id="fx-1-1-1" data-label="土方工程">
-                                    </div>
-                                    <div class="doc-tree-node">
-                                        <span class="expand-icon" style="visibility:hidden;">▶</span>
-                                        <span class="node-icon">📄</span>
-                                        <span class="node-label">分项：地基处理</span>
-                                        <input type="checkbox" onclick="event.stopPropagation(); toggleLeafCheck(this)" data-id="fx-1-1-2" data-label="地基处理">
-                                    </div>
-                                    <div class="doc-tree-node">
-                                        <span class="expand-icon" style="visibility:hidden;">▶</span>
-                                        <span class="node-icon">📄</span>
-                                        <span class="node-label">分项：桩基工程</span>
-                                        <input type="checkbox" onclick="event.stopPropagation(); toggleLeafCheck(this)" data-id="fx-1-1-3" data-label="桩基工程">
-                                    </div>
-                                </div>
-                                <div class="doc-tree-node" onclick="toggleDocTreeNode(this)">
-                                    <span class="expand-icon">▶</span>
-                                    <span class="node-icon">📂</span>
-                                    <span class="node-label">分部工程：主体结构</span>
-                                    <input type="checkbox" onclick="event.stopPropagation(); toggleParentCheck(this)" data-id="fb-1-2">
-                                </div>
-                                <div class="doc-tree-children collapsed">
-                                    <div class="doc-tree-node">
-                                        <span class="expand-icon" style="visibility:hidden;">▶</span>
-                                        <span class="node-icon">📄</span>
-                                        <span class="node-label">分项：钢筋工程</span>
-                                        <input type="checkbox" onclick="event.stopPropagation(); toggleLeafCheck(this)" data-id="fx-1-2-1" data-label="钢筋工程">
-                                    </div>
-                                    <div class="doc-tree-node">
-                                        <span class="expand-icon" style="visibility:hidden;">▶</span>
-                                        <span class="node-icon">📄</span>
-                                        <span class="node-label">分项：混凝土工程</span>
-                                        <input type="checkbox" onclick="event.stopPropagation(); toggleLeafCheck(this)" data-id="fx-1-2-2" data-label="混凝土工程">
-                                    </div>
-                                </div>
-                                <div class="doc-tree-node" onclick="toggleDocTreeNode(this)">
-                                    <span class="expand-icon">▶</span>
-                                    <span class="node-icon">📂</span>
-                                    <span class="node-label">分部工程：装饰装修</span>
-                                    <input type="checkbox" onclick="event.stopPropagation(); toggleParentCheck(this)" data-id="fb-1-3">
-                                </div>
-                                <div class="doc-tree-children collapsed">
-                                    <div class="doc-tree-node">
-                                        <span class="expand-icon" style="visibility:hidden;">▶</span>
-                                        <span class="node-icon">📄</span>
-                                        <span class="node-label">分项：抹灰工程</span>
-                                        <input type="checkbox" onclick="event.stopPropagation(); toggleLeafCheck(this)" data-id="fx-1-3-1" data-label="抹灰工程">
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="doc-tree-node" onclick="toggleDocTreeNode(this)">
-                                <span class="expand-icon">▶</span>
-                                <span class="node-icon">📁</span>
-                                <span class="node-label">单位工程：裙楼</span>
-                                <input type="checkbox" onclick="event.stopPropagation(); toggleParentCheck(this)" data-id="unit-2">
-                            </div>
-                            <div class="doc-tree-children collapsed">
-                                <div class="doc-tree-node">
-                                    <span class="expand-icon" style="visibility:hidden;">▶</span>
-                                    <span class="node-icon">📄</span>
-                                    <span class="node-label">分项：基础工程</span>
-                                    <input type="checkbox" onclick="event.stopPropagation(); toggleLeafCheck(this)" data-id="fx-2-1-1" data-label="裙楼-基础工程">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="doc-tree-node" onclick="toggleDocTreeNode(this)">
-                            <span class="expand-icon">▶</span>
-                            <span class="node-icon">🏗️</span>
-                            <span class="node-label" style="font-weight:500;">滨河路改造工程</span>
-                            <input type="checkbox" onclick="event.stopPropagation(); toggleParentCheck(this)" data-id="proj-2">
-                        </div>
-                        <div class="doc-tree-children collapsed">
-                            <div class="doc-tree-node">
-                                <span class="expand-icon" style="visibility:hidden;">▶</span>
-                                <span class="node-icon">📄</span>
-                                <span class="node-label">分项：路基工程</span>
-                                <input type="checkbox" onclick="event.stopPropagation(); toggleLeafCheck(this)" data-id="fx-bh-1" data-label="路基工程">
-                            </div>
-                            <div class="doc-tree-node">
-                                <span class="expand-icon" style="visibility:hidden;">▶</span>
-                                <span class="node-icon">📄</span>
-                                <span class="node-label">分项：桥梁工程</span>
-                                <input type="checkbox" onclick="event.stopPropagation(); toggleLeafCheck(this)" data-id="fx-bh-2" data-label="桥梁工程">
-                            </div>
-                        </div>
+                        <div class="demo-placeholder" style="padding:20px;text-align:center;color:#9CA3AF;font-size:13px;">暂无工程资料目录，请先在项目台账维护项目与分部分项</div>
                     </div>
                     <div class="selected-docs" id="selectedDocs">
                         <span class="selected-doc-empty">未选择工程资料目录</span>
                     </div>
                 </div>
 
-                <div class="form-group" style="margin-top:16px;"><label>附件</label><div style="display:flex;gap:8px;"><div style="width:80px;height:80px;border:1px dashed #D1D5DB;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#9CA3AF;font-size:24px;cursor:pointer;">＋</div></div></div>
+                <div class="form-group" style="margin-top:16px;">
+                    <label>附件 <span style="font-weight:400;font-size:11px;color:#9CA3AF;">（上传完成后随通知单一起保存，详情页可直接预览/下载）</span></label>
+                    <div id="createAttachmentList"><div class="att-empty" id="createAttEmpty">暂无附件</div></div>
+                    <button type="button" class="verify-upload-btn" onclick="document.getElementById('createFileInput').click()">+ 添加附件</button>
+                    <input type="file" id="createFileInput" multiple style="display:none" onchange="handleCreateFile(this)">
+                </div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-outline" onclick="closeModal('createModal')">取消</button>
@@ -431,11 +294,11 @@
             <div class="modal-body">
                 <div style="background:#F8FAFC;padding:12px;border-radius:6px;margin-bottom:16px;">
                     <div style="font-size:12px;color:#6B7280;">通知单编号</div>
-                    <div style="font-size:14px;font-weight:500;">TZ-2026-014</div>
+                    <div style="font-size:14px;font-weight:500;" id="respondNoticeCode">—</div>
                 </div>
-                <div class="form-group"><label>回复内容</label><textarea class="form-control" placeholder="请输入回复内容"></textarea></div>
+                <div class="form-group"><label>回复内容 <span class="required">*</span></label><textarea class="form-control" id="replyContent" placeholder="请输入回复内容"></textarea></div>
                 <div class="form-group"><label>整改照片</label><div style="display:flex;gap:8px;flex-wrap:wrap;" id="respondPhotoGrid"><div style="width:80px;height:80px;border:1px dashed #D1D5DB;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#9CA3AF;font-size:24px;cursor:pointer;" onclick="document.getElementById('respondPhotoInput').click()">＋</div></div><input type="file" id="respondPhotoInput" accept="image/*" multiple style="display:none" onchange="handleRespondPhoto(this)"></div>
-                <div class="form-group"><label>回复附件 <span class="required">*</span></label>
+                <div class="form-group"><label>回复附件 <span style="font-weight:400;font-size:11px;color:#9CA3AF;">（可选，提交后可与原附件一并预览/下载）</span></label>
                     <div id="respondAttachmentList">
                         <div style="font-size:12px;color:#9CA3AF;margin-bottom:8px;" id="respondAttTip">暂无附件</div>
                     </div>
@@ -451,8 +314,8 @@
         <div class="modal" style="width:500px;">
             <div class="modal-header"><h3>验证整改结果</h3><button class="modal-close" onclick="closeModal('verifyModal')">✕</button></div>
             <div class="modal-body">
-                <div class="form-group"><label>验证结果 <span class="required">*</span></label><select class="form-control"><option value="pass">验证通过</option><option value="fail">验证不通过</option></select></div>
-                <div class="form-group"><label>验证意见 <span class="required">*</span></label><textarea class="form-control" placeholder="请输入验证意见"></textarea></div>
+                <div class="form-group"><label>验证结果 <span class="required">*</span></label><select class="form-control" id="verifyResult"><option value="pass">验证通过</option><option value="fail">验证不通过</option></select></div>
+                <div class="form-group"><label>验证意见 <span class="required">*</span></label><textarea class="form-control" id="verifyOpinion" placeholder="请输入验证意见"></textarea></div>
                 <div class="verify-upload-section">
                     <h5>📷 现场照片</h5>
                     <div class="verify-photo-grid" id="verifyPhotoGrid">
@@ -481,79 +344,54 @@
             </div>
             <div class="modal-body">
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-                    <div><span style="font-size:12px;color:#9CA3AF;">通知单编号</span><div style="font-size:14px;margin-top:4px;color:#2563EB;font-weight:500;">TZ-2026-015</div></div>
-                    <div><span style="font-size:12px;color:#9CA3AF;">所属项目</span><div style="font-size:14px;margin-top:4px;">城东综合体项目</div></div>
-                    <div><span style="font-size:12px;color:#9CA3AF;">下发日期</span><div style="font-size:14px;margin-top:4px;">2026-04-25</div></div>
-                    <div><span style="font-size:12px;color:#9CA3AF;">回复截止</span><div style="font-size:14px;margin-top:4px;color:#EF4444;">2026-04-28 ⚠️</div></div>
-                    <div><span style="font-size:12px;color:#9CA3AF;">签发人</span><div style="font-size:14px;margin-top:4px;">张监理</div></div>
-                    <div><span style="font-size:12px;color:#9CA3AF;">状态</span><div style="margin-top:4px;"><span class="status-tag status-overdue">已逾期</span></div></div>
+                    <div><span style="font-size:12px;color:#9CA3AF;">通知单编号</span><div id="viewCode" style="font-size:14px;margin-top:4px;color:#2563EB;font-weight:500;">—</div></div>
+                    <div><span style="font-size:12px;color:#9CA3AF;">所属项目</span><div id="viewProject" style="font-size:14px;margin-top:4px;">—</div></div>
+                    <div><span style="font-size:12px;color:#9CA3AF;">下发日期</span><div id="viewIssueDate" style="font-size:14px;margin-top:4px;">—</div></div>
+                    <div><span style="font-size:12px;color:#9CA3AF;">回复截止</span><div id="viewDeadline" style="font-size:14px;margin-top:4px;">—</div></div>
+                    <div><span style="font-size:12px;color:#9CA3AF;">签发人</span><div id="viewIssuer" style="font-size:14px;margin-top:4px;">—</div></div>
+                    <div><span style="font-size:12px;color:#9CA3AF;">状态</span><div id="viewStatus" style="margin-top:4px;"></div></div>
                 </div>
                 <div style="margin-top:20px;padding-top:16px;border-top:1px solid #F3F4F6;">
+                    <h4 style="font-size:14px;font-weight:600;color:#1E3A5F;margin-bottom:8px;">通知标题</h4>
+                    <div id="viewTitle" class="detail-text">—</div>
+                </div>
+                <div style="margin-top:16px;padding-top:16px;border-top:1px solid #F3F4F6;">
                     <h4 style="font-size:14px;font-weight:600;color:#1E3A5F;margin-bottom:8px;">通知内容</h4>
-                    <div style="font-size:13px;color:#374151;line-height:1.8;background:#F8FAFC;padding:12px;border-radius:6px;">关于A区钢筋绑扎间距偏差问题，经现场巡检发现部分梁板钢筋间距超出规范允许偏差范围，要求施工单位于2026年4月28日前完成整改并提交整改报告。</div>
+                    <div id="viewContent" class="detail-text">—</div>
+                </div>
+                <div id="viewReplySection" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid #F3F4F6;">
+                    <h4 style="font-size:14px;font-weight:600;color:#1E3A5F;margin-bottom:8px;">整改回复</h4>
+                    <div id="viewReplyContent" class="detail-text" style="background:#FFF7ED;"></div>
+                </div>
+                <div id="viewPhotoSection" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid #F3F4F6;">
+                    <h4 style="font-size:14px;font-weight:600;color:#1E3A5F;margin-bottom:8px;">现场与整改照片 <span style="font-size:11px;font-weight:400;color:#9CA3AF;">（点击“预览”查看原图）</span></h4>
+                    <div class="verify-attachment-list" id="viewPhotos"></div>
                 </div>
                 <div style="margin-top:16px;padding-top:16px;border-top:1px solid #F3F4F6;">
-                    <h4 style="font-size:14px;font-weight:600;color:#1E3A5F;margin-bottom:8px;">整改要求</h4>
-                    <div style="font-size:13px;color:#374151;line-height:1.8;background:#FFF7ED;padding:12px;border-radius:6px;">1. 对偏差部位进行返工处理；2. 加强钢筋绑扎过程中的自检；3. 整改完成后报监理验收。</div>
-                </div>
-                <div style="margin-top:16px;padding-top:16px;border-top:1px solid #F3F4F6;">
-                    <h4 style="font-size:14px;font-weight:600;color:#1E3A5F;margin-bottom:8px;">新建时附件</h4>
-                    <div style="display:flex;flex-direction:column;gap:6px;">
-                        <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#F8FAFC;border-radius:6px;cursor:pointer;" onclick="alert('下载文件：现场照片1.jpg')" title="点击下载">
-                            <div style="width:28px;height:28px;border-radius:4px;background:#FEF3C7;color:#D97706;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;">IMG</div>
-                            <span style="flex:1;font-size:12px;color:#374151;">现场照片1.jpg</span>
-                            <span style="font-size:12px;color:#2563EB;">📥 下载</span>
-                        </div>
-                        <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#F8FAFC;border-radius:6px;cursor:pointer;" onclick="alert('下载文件：现场照片2.jpg')" title="点击下载">
-                            <div style="width:28px;height:28px;border-radius:4px;background:#FEF3C7;color:#D97706;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;">IMG</div>
-                            <span style="flex:1;font-size:12px;color:#374151;">现场照片2.jpg</span>
-                            <span style="font-size:12px;color:#2563EB;">📥 下载</span>
-                        </div>
-                        <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#F8FAFC;border-radius:6px;cursor:pointer;" onclick="alert('下载文件：钢筋间距检测报告.pdf')" title="点击下载">
-                            <div style="width:28px;height:28px;border-radius:4px;background:#FEE2E2;color:#DC2626;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;">PDF</div>
-                            <span style="flex:1;font-size:12px;color:#374151;">钢筋间距检测报告.pdf</span>
-                            <span style="font-size:12px;color:#2563EB;">📥 下载</span>
-                        </div>
-                        <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#F8FAFC;border-radius:6px;cursor:pointer;" onclick="alert('下载文件：整改方案说明.docx')" title="点击下载">
-                            <div style="width:28px;height:28px;border-radius:4px;background:#DBEAFE;color:#2563EB;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;">DOC</div>
-                            <span style="flex:1;font-size:12px;color:#374151;">整改方案说明.docx</span>
-                            <span style="font-size:12px;color:#2563EB;">📥 下载</span>
-                        </div>
-                    </div>
-                </div>
-                <div style="margin-top:16px;padding-top:16px;border-top:1px solid #F3F4F6;">
-                    <h4 style="font-size:14px;font-weight:600;color:#1E3A5F;margin-bottom:8px;">回复时附件</h4>
-                    <div style="display:flex;flex-direction:column;gap:6px;">
-                        <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#F8FAFC;border-radius:6px;cursor:pointer;" onclick="alert('下载文件：整改照片1.jpg')" title="点击下载">
-                            <div style="width:28px;height:28px;border-radius:4px;background:#FEF3C7;color:#D97706;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;">IMG</div>
-                            <span style="flex:1;font-size:12px;color:#374151;">整改照片1.jpg</span>
-                            <span style="font-size:12px;color:#2563EB;">📥 下载</span>
-                        </div>
-                        <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#F8FAFC;border-radius:6px;cursor:pointer;" onclick="alert('下载文件：整改照片2.jpg')" title="点击下载">
-                            <div style="width:28px;height:28px;border-radius:4px;background:#FEF3C7;color:#D97706;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;">IMG</div>
-                            <span style="flex:1;font-size:12px;color:#374151;">整改照片2.jpg</span>
-                            <span style="font-size:12px;color:#2563EB;">📥 下载</span>
-                        </div>
-                        <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#F8FAFC;border-radius:6px;cursor:pointer;" onclick="alert('下载文件：整改照片3.jpg')" title="点击下载">
-                            <div style="width:28px;height:28px;border-radius:4px;background:#FEF3C7;color:#D97706;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;">IMG</div>
-                            <span style="flex:1;font-size:12px;color:#374151;">整改照片3.jpg</span>
-                            <span style="font-size:12px;color:#2563EB;">📥 下载</span>
-                        </div>
-                        <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#F8FAFC;border-radius:6px;cursor:pointer;" onclick="alert('下载文件：整改完成报告.pdf')" title="点击下载">
-                            <div style="width:28px;height:28px;border-radius:4px;background:#FEE2E2;color:#DC2626;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;">PDF</div>
-                            <span style="flex:1;font-size:12px;color:#374151;">整改完成报告.pdf</span>
-                            <span style="font-size:12px;color:#2563EB;">📥 下载</span>
-                        </div>
-                        <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#F8FAFC;border-radius:6px;cursor:pointer;" onclick="alert('下载文件：验收记录表.xlsx')" title="点击下载">
-                            <div style="width:28px;height:28px;border-radius:4px;background:#D1FAE5;color:#059669;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;">XLS</div>
-                            <span style="flex:1;font-size:12px;color:#374151;">验收记录表.xlsx</span>
-                            <span style="font-size:12px;color:#2563EB;">📥 下载</span>
-                        </div>
-                    </div>
+                    <h4 style="font-size:14px;font-weight:600;color:#1E3A5F;margin-bottom:8px;">附件 <span style="font-size:11px;font-weight:400;color:#9CA3AF;">（点击文件名预览，点击“下载”保存到本地）</span></h4>
+                    <div class="verify-attachment-list" id="viewAttachments"><div class="att-empty">加载中…</div></div>
                 </div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-outline" onclick="closeModal('viewModal')">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="previewModal">
+        <div class="modal" style="width:820px;max-width:94vw;">
+            <div class="modal-header">
+                <h3 id="previewTitle">附件预览</h3>
+                <button class="modal-close" onclick="closePreview()">✕</button>
+            </div>
+            <div class="modal-body" style="padding:16px;">
+                <div id="previewBody" style="min-height:300px;max-height:66vh;overflow:auto;background:#F8FAFC;border-radius:6px;display:flex;align-items:center;justify-content:center;"></div>
+                <div id="previewHint" style="display:none;font-size:12px;color:#6B7280;margin-top:8px;"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="openPreviewInNewTab()">在新窗口打开</button>
+                <button class="btn btn-primary" onclick="downloadCurrentPreview()">下载</button>
+                <button class="btn btn-outline" onclick="closePreview()">关闭</button>
             </div>
         </div>
     </div>
@@ -569,25 +407,414 @@
             setTimeout(function(){ el.classList.remove('show'); setTimeout(function(){ el.remove(); }, 300); }, 2500);
         }
 
-        var currentUser = '张监理';
+        var currentUser = (window.App && App.getUser) ? (App.getUser().userName || '当前用户') : '当前用户';
         var allData = [];
         var filteredData = [];
+        var projectsMap = {};
         var currentPage = 1, pageSize = 10, totalRecords = 0;
+        var loadSeq = 0;
+        var editingId = null, editingRecord = null;
+        var respondTargetId = null, verifyTargetId = null, deleteTargetId = null;
+        var createAttachments = [], respondAttachments = [], verifyAttachments = [];
+        var respondPhotos = [], verifyPhotos = [];
+
+        // ========== 通用工具 ==========
+        function val(id) { var el = document.getElementById(id); return el ? String(el.value || '') : ''; }
+        function setText(id, text) { var el = document.getElementById(id); if (el) el.textContent = (text == null || text === '') ? '—' : String(text); }
+        function today() { return new Date().toISOString().slice(0, 10); }
+        function parseArr(value) {
+            if (!value) return [];
+            if (Array.isArray(value)) return value;
+            try { var arr = JSON.parse(value); return Array.isArray(arr) ? arr : []; } catch (e) { return []; }
+        }
+        // 统一附件结构 { url, name, size, source }，兼容 ["url"] 与 [{url,name,size}] 两种历史格式
+        function normalizeAttachments(value) {
+            var list = parseArr(value), out = [];
+            for (var i = 0; i < list.length; i++) {
+                var raw = typeof list[i] === 'string' ? { url: list[i] } : list[i];
+                if (!raw || !raw.url) continue;
+                out.push({ url: String(raw.url), name: String(raw.name || ''), size: raw.size == null ? '' : raw.size, source: raw.source || '' });
+            }
+            return out;
+        }
+        function extOf(item) {
+            var name = item.name || item.url || '';
+            var dot = name.lastIndexOf('.');
+            return dot < 0 ? '' : name.substring(dot + 1).toLowerCase();
+        }
+        function fileIcon(item) {
+            var ext = extOf(item);
+            if (ext === 'pdf') return { cls: 'pdf', text: 'PDF' };
+            if (ext === 'xls' || ext === 'xlsx') return { cls: 'xls', text: 'XLS' };
+            if (['jpg','jpeg','png','gif','bmp','webp'].indexOf(ext) > -1) return { cls: 'doc', text: 'IMG' };
+            return { cls: 'doc', text: ext ? ext.substring(0, 3).toUpperCase() : 'FILE' };
+        }
+        function canPreview(item) { return ['jpg','jpeg','png','gif','bmp','webp','pdf','txt','csv','log','json','md'].indexOf(extOf(item)) > -1; }
+        function sizeText(size) {
+            var n = Number(size);
+            if (!n || n < 0) return '';
+            if (n < 1024) return n + ' B';
+            if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+            return (n / 1024 / 1024).toFixed(1) + ' MB';
+        }
+        function statusMeta(status) {
+            var map = {
+                draft: { text: '草稿', cls: 'status-draft' },
+                issued: { text: '已下发', cls: 'status-issued' },
+                responded: { text: '已回复', cls: 'status-responded' },
+                verified: { text: '已验证', cls: 'status-verified' },
+                overdue: { text: '已逾期', cls: 'status-overdue' }
+            };
+            return map[status] || { text: status || '—', cls: '' };
+        }
+
+        // ========== 附件：短时链接换取 + 预览/下载 ==========
+        // 存库的是 /api/uploads/... 标识，不能直接当文件地址；
+        // 点击时先用登录态调 /files/access 换 120 秒签名链接，再交给浏览器预览或下载。
+        function resolveFileUrl(item) {
+            if (!window.App || !App.fileUrl) return Promise.reject({ message: '附件服务未加载，请刷新页面重试' });
+            return App.fileUrl(item.url);
+        }
+        // 页内预览：不依赖 window.open，避开浏览器弹窗拦截（拦截时用户只会看到“无反应”）。
+        // 图片直接内嵌、文本读取后展示、PDF 用内嵌框架，其余类型引导下载。
+        var previewState = { item: null, url: '' };
+        function previewAttachment(item) {
+            previewState = { item: item, url: '' };
+            setText('previewTitle', '附件预览 - ' + (item.name || '未命名文件'));
+            var hint = document.getElementById('previewHint');
+            if (hint) { hint.style.display = 'none'; hint.textContent = ''; }
+            var body = document.getElementById('previewBody');
+            if (body) {
+                body.style.alignItems = 'center';
+                body.innerHTML = '';
+                var loading = document.createElement('div');
+                loading.className = 'att-empty';
+                loading.textContent = '正在获取文件…';
+                body.appendChild(loading);
+            }
+            document.getElementById('previewModal').classList.add('show');
+            resolveFileUrl(item).then(function (url) {
+                previewState.url = url;
+                renderPreview(item, url);
+            }).catch(function (e) {
+                var box = document.getElementById('previewBody');
+                if (!box) return;
+                box.innerHTML = '';
+                var err = document.createElement('div');
+                err.className = 'att-empty';
+                err.textContent = (e && e.message) || '附件打开失败，请重试';
+                box.appendChild(err);
+            });
+        }
+        function renderPreview(item, url) {
+            var body = document.getElementById('previewBody');
+            if (!body) return;
+            body.innerHTML = '';
+            var ext = extOf(item);
+            var hint = document.getElementById('previewHint');
+            if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].indexOf(ext) > -1) {
+                body.style.alignItems = 'center';
+                var img = document.createElement('img');
+                img.src = url;
+                img.alt = item.name || '附件图片';
+                img.style.cssText = 'max-width:100%;max-height:64vh;display:block;border-radius:6px;';
+                body.appendChild(img);
+                return;
+            }
+            if (['txt', 'csv', 'log', 'json', 'md'].indexOf(ext) > -1) {
+                body.style.alignItems = 'stretch';
+                var pre = document.createElement('pre');
+                pre.style.cssText = 'width:100%;margin:0;padding:12px;white-space:pre-wrap;word-break:break-word;font-size:12px;line-height:1.7;color:#374151;';
+                pre.textContent = '正在读取内容…';
+                body.appendChild(pre);
+                fetch(url).then(function (resp) { return resp.text(); }).then(function (text) {
+                    pre.textContent = text.length > 200000
+                        ? text.slice(0, 200000) + '\n…（内容过长已截断，请点击“下载”查看完整文件）'
+                        : text;
+                }).catch(function () {
+                    pre.textContent = '内容读取失败，请点击“下载”保存后查看。';
+                });
+                return;
+            }
+            if (ext === 'pdf') {
+                body.style.alignItems = 'stretch';
+                var frame = document.createElement('iframe');
+                frame.src = url;
+                frame.style.cssText = 'width:100%;height:64vh;border:none;border-radius:6px;background:#fff;';
+                body.appendChild(frame);
+                if (hint) { hint.style.display = ''; hint.textContent = '若 PDF 未显示，请点击“在新窗口打开”。'; }
+                return;
+            }
+            body.style.alignItems = 'center';
+            var tip = document.createElement('div');
+            tip.className = 'att-empty';
+            tip.textContent = '该类型不支持页内预览，请点击“下载”保存后查看。';
+            body.appendChild(tip);
+        }
+        function openPreviewInNewTab() {
+            if (!previewState.url) { showToast('文件地址尚未就绪，请稍候重试', 'warning'); return; }
+            var win = window.open(previewState.url, '_blank');
+            if (win) { try { win.opener = null; } catch (e) { } }
+            else showToast('浏览器拦截了新窗口，请允许弹出后重试', 'warning');
+        }
+        function downloadCurrentPreview() {
+            if (previewState.item) downloadAttachment(previewState.item);
+        }
+        function closePreview() {
+            closeModal('previewModal');
+            var body = document.getElementById('previewBody');
+            if (body) body.innerHTML = '';
+            previewState = { item: null, url: '' };
+        }
+        function downloadAttachment(item) {
+            resolveFileUrl(item).then(function (url) {
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = item.name || '';
+                a.rel = 'noopener';
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(function () { if (a.parentNode) a.parentNode.removeChild(a); }, 1000);
+            }).catch(function (e) { showToast((e && e.message) || '附件下载失败，请重试', 'error'); });
+        }
+        function buildAttachmentRow(item, options) {
+            options = options || {};
+            var row = document.createElement('div');
+            row.className = 'att-row';
+            var icon = fileIcon(item);
+            var badge = document.createElement('div');
+            badge.className = 'file-icon ' + icon.cls;
+            badge.textContent = icon.text;
+            row.appendChild(badge);
+            var name = document.createElement('div');
+            name.className = 'file-name';
+            name.textContent = item.name || item.url.split('/').pop();
+            if (!options.removable && canPreview(item)) {
+                name.style.cursor = 'pointer';
+                name.title = '点击预览';
+                name.addEventListener('click', function () { previewAttachment(item); });
+            }
+            row.appendChild(name);
+            if (item.source) {
+                var source = document.createElement('span');
+                source.className = 'att-source';
+                source.textContent = item.source === 'reply' ? '整改回复' : (item.source === 'verify' ? '验证' : '新建');
+                row.appendChild(source);
+            }
+            var state = document.createElement('span');
+            state.className = 'att-state';
+            row.appendChild(state);
+            if (options.removable) {
+                var remove = document.createElement('button');
+                remove.type = 'button';
+                remove.className = 'att-btn remove';
+                remove.title = '移除';
+                remove.textContent = '✕';
+                remove.addEventListener('click', function () { options.onRemove(item); });
+                row.appendChild(remove);
+            } else {
+                if (canPreview(item)) {
+                    var preview = document.createElement('button');
+                    preview.type = 'button'; preview.className = 'att-btn'; preview.textContent = '预览';
+                    preview.addEventListener('click', function () { previewAttachment(item); });
+                    row.appendChild(preview);
+                }
+                var download = document.createElement('button');
+                download.type = 'button'; download.className = 'att-btn'; download.textContent = '下载';
+                download.addEventListener('click', function () { downloadAttachment(item); });
+                row.appendChild(download);
+            }
+            return { row: row, state: state };
+        }
+        function renderStaged(bucket, containerId, rerender) {
+            var container = document.getElementById(containerId);
+            if (!container) return;
+            container.innerHTML = '';
+            if (!bucket.length) {
+                var tip = document.createElement('div');
+                tip.className = 'att-empty';
+                tip.textContent = '暂无附件';
+                container.appendChild(tip);
+                return;
+            }
+            for (var i = 0; i < bucket.length; i++) {
+                var built = buildAttachmentRow(bucket[i], {
+                    removable: true,
+                    onRemove: (function (target) {
+                        return function () {
+                            var idx = bucket.indexOf(target);
+                            if (idx > -1) bucket.splice(idx, 1);
+                            rerender();
+                        };
+                    })(bucket[i])
+                });
+                if (bucket[i].uploading) built.state.textContent = '上传中…';
+                else if (bucket[i].failed) { built.state.textContent = '上传失败'; built.state.style.color = '#EF4444'; }
+                else built.state.textContent = sizeText(bucket[i].size);
+                container.appendChild(built.row);
+            }
+        }
+        function uploadInto(bucket, file, rerender) {
+            var placeholder = { url: '', name: file.name, size: file.size, uploading: true, failed: false };
+            bucket.push(placeholder);
+            rerender();
+            if (!window.App || !App.uploadFile) {
+                placeholder.uploading = false; placeholder.failed = true; rerender();
+                showToast('上传组件未加载，请刷新页面重试', 'error');
+                return;
+            }
+            App.uploadFile(file).then(function (res) {
+                placeholder.url = (res && res.url) || '';
+                placeholder.size = (res && res.size != null) ? res.size : file.size;
+                placeholder.uploading = false;
+                placeholder.failed = !placeholder.url;
+                rerender();
+                if (!placeholder.url) showToast('附件上传失败：' + file.name, 'error');
+            }).catch(function () {
+                placeholder.uploading = false; placeholder.failed = true; rerender();
+                showToast('附件上传失败：' + file.name, 'error');
+            });
+        }
+        function handleFiles(input, bucket, rerender) {
+            var files = input.files || [];
+            for (var i = 0; i < files.length; i++) uploadInto(bucket, files[i], rerender);
+            input.value = '';
+        }
+        function attachmentsJson(bucket) {
+            var list = [];
+            for (var i = 0; i < bucket.length; i++) {
+                if (bucket[i].url) list.push({ url: bucket[i].url, name: bucket[i].name || '', size: bucket[i].size || 0 });
+            }
+            return JSON.stringify(list);
+        }
+        function hasPendingUpload(bucket) {
+            for (var i = 0; i < bucket.length; i++) { if (bucket[i].uploading) return true; }
+            return false;
+        }
+        // 照片与附件同一条链路：先上传拿到存储标识，再写进 photos 字段；
+        // 缩略图只用本地 blob 预览，避免把大图 base64 塞进请求体。
+        function renderPhotoGrid(bucket, gridId, rerender) {
+            var grid = document.getElementById(gridId);
+            if (!grid) return;
+            var add = grid.lastElementChild;
+            while (grid.firstElementChild && grid.firstElementChild !== add) grid.removeChild(grid.firstElementChild);
+            for (var i = 0; i < bucket.length; i++) {
+                var photo = bucket[i];
+                var item = document.createElement('div');
+                item.style.cssText = 'width:80px;height:80px;border:1px solid #D1D5DB;border-radius:6px;position:relative;overflow:hidden;background:#F8FAFC;';
+                var img = document.createElement('img');
+                img.src = photo.preview || photo.url || '';
+                img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:5px;';
+                item.appendChild(img);
+                if (photo.uploading || photo.failed) {
+                    var state = document.createElement('span');
+                    state.style.cssText = 'position:absolute;left:0;right:0;bottom:0;font-size:10px;text-align:center;padding:1px 0;color:#fff;background:' + (photo.failed ? 'rgba(239,68,68,0.9)' : 'rgba(37,99,235,0.85)') + ';';
+                    state.textContent = photo.failed ? '上传失败' : '上传中…';
+                    item.appendChild(state);
+                }
+                var remove = document.createElement('span');
+                remove.style.cssText = 'position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:rgba(239,68,68,0.9);color:#fff;font-size:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;';
+                remove.textContent = '✕';
+                remove.addEventListener('click', (function (target) {
+                    return function () {
+                        var idx = bucket.indexOf(target);
+                        if (idx > -1) bucket.splice(idx, 1);
+                        if (target.preview) { try { URL.revokeObjectURL(target.preview); } catch (e) { } }
+                        rerender();
+                    };
+                })(photo));
+                item.appendChild(remove);
+                grid.insertBefore(item, add);
+            }
+        }
+        function handlePhotos(input, bucket, gridId) {
+            var files = input.files || [];
+            var rerender = function () { renderPhotoGrid(bucket, gridId, rerender); };
+            for (var i = 0; i < files.length; i++) {
+                (function (file) {
+                    var photo = { url: '', name: file.name, size: file.size, uploading: true, failed: false, preview: '' };
+                    try { photo.preview = URL.createObjectURL(file); } catch (e) { }
+                    bucket.push(photo);
+                    rerender();
+                    if (!window.App || !App.uploadFile) {
+                        photo.uploading = false; photo.failed = true; rerender();
+                        showToast('上传组件未加载，请刷新页面重试', 'error');
+                        return;
+                    }
+                    App.uploadFile(file).then(function (res) {
+                        photo.url = (res && res.url) || '';
+                        photo.size = (res && res.size != null) ? res.size : file.size;
+                        photo.uploading = false;
+                        photo.failed = !photo.url;
+                        rerender();
+                        if (!photo.url) showToast('照片上传失败：' + file.name, 'error');
+                    }).catch(function () {
+                        photo.uploading = false; photo.failed = true; rerender();
+                        showToast('照片上传失败：' + file.name, 'error');
+                    });
+                })(files[i]);
+            }
+            input.value = '';
+        }
+        function photosJson(bucket) {
+            var list = [];
+            for (var i = 0; i < bucket.length; i++) {
+                if (bucket[i].url) list.push({ url: bucket[i].url, name: bucket[i].name || '', size: bucket[i].size || 0 });
+            }
+            return JSON.stringify(list);
+        }
+
+        // ========== 项目字典 ==========
+        function loadProjects() {
+            if (!window.App) return Promise.resolve();
+            return App.apiGetPage('/projects', { pageNum: 1, pageSize: 200 }).then(function (page) {
+                var list = page.list || [], opts = '';
+                projectsMap = {};
+                for (var i = 0; i < list.length; i++) {
+                    projectsMap[list[i].id] = list[i].name;
+                    opts += '<option value="' + esc(list[i].id) + '">' + esc(list[i].name) + '</option>';
+                }
+                var ps = document.getElementById('projectSelect');
+                if (ps) ps.innerHTML = '<option value="">请选择项目</option>' + opts;
+                var pf = document.getElementById('projectFilter');
+                if (pf) pf.innerHTML = '<option value="">全部项目</option>' + opts;
+            }).catch(function () { });
+        }
 
         // ========== 加载列表 ==========
+        function mapRow(r) {
+            var deadline = r.deadline || '';
+            var warn = (r.status === 'overdue') || (!!deadline && r.status === 'issued' && deadline < today());
+            return {
+                id: r.id,
+                code: r.code || '',
+                projectId: r.projectId,
+                project: projectsMap[r.projectId] || ('项目#' + (r.projectId || '')),
+                issueDate: (r.noticeDate || '').slice(0, 10),
+                deadline: deadline,
+                deadlineWarn: warn,
+                issuer: r.authorId ? ('用户#' + r.authorId) : '',
+                status: r.status || 'draft',
+                attachments: normalizeAttachments(r.attachments)
+            };
+        }
         function loadData(page) {
             if (!page) page = currentPage;
             var search = (document.getElementById('searchInput').value||'').trim();
             var status = document.getElementById('statusFilter').value||'';
-            App.apiGetPage(API_BASE, { pageNum: page, pageSize: pageSize, code: search || undefined, status: status || undefined })
+            var projectId = document.getElementById('projectFilter') ? document.getElementById('projectFilter').value : '';
+            var seq = ++loadSeq;
+            App.tableLoading(document.querySelector('.table-container tbody'), 7);
+            App.apiGetPage(API_BASE, { pageNum: page, pageSize: pageSize, code: search || undefined, status: status || undefined, projectId: projectId || undefined })
                 .then(function(pageData){
-                    allData = pageData.list || [];
+                    if (seq !== loadSeq) return;
+                    allData = (pageData.list || []).map(mapRow);
                     filteredData = allData.slice();
                     totalRecords = pageData.total || 0;
                     currentPage = pageData.pageNum || page;
                     renderTable();
                 })
-                .catch(function(){ allData = []; filteredData = []; renderTable(); });
+                .catch(function(){ if (seq !== loadSeq) return; allData = []; filteredData = []; renderTable(); });
         }
 
         function esc(s){ return (window.App && App.escape) ? App.escape(s) : String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
@@ -632,7 +859,7 @@
                         '<td><div class="actions">' + actionsHtml + '</div></td>' +
                         '</tr>';
                 }
-                tbody.innerHTML = html;
+                tbody.innerHTML = html || '<tr data-app-placeholder="1"><td colspan="7" style="text-align:center;color:#9CA3AF;padding:40px;">暂无数据</td></tr>';
                 var totalPages = Math.ceil(totalRecords / pageSize) || 1;
                 var paginationInfo = document.querySelector('.pagination-info');
                 if (paginationInfo) {
@@ -652,23 +879,77 @@
 
         function applyFilters() { currentPage = 1; loadData(1); }
 
-        loadData(1);
+        loadProjects().then(function () { loadData(1); });
 
-        function openCreateModal() {
-            document.getElementById('modalTitle').textContent = '新建监理通知单';
-            document.getElementById('issuerInput').value = currentUser;
+        // ========== 新建 / 编辑 ==========
+        function setValue(id, value) { var el = document.getElementById(id); if (el) el.value = value == null ? '' : value; }
+        function resetCreateForm() {
+            ['noticeCode', 'noticeTitle', 'issueDate', 'deadlineDate', 'receiverUnit', 'noticeContent', 'noticeRequirement'].forEach(function (id) { setValue(id, ''); });
+            setValue('issueDate', today());
+            setValue('issuerInput', currentUser);
+            setValue('projectSelect', '');
+            createAttachments = [];
+            renderCreateAttachments();
             clearDocSelection();
+        }
+        function renderCreateAttachments() { renderStaged(createAttachments, 'createAttachmentList', renderCreateAttachments); }
+        function handleCreateFile(input) { handleFiles(input, createAttachments, renderCreateAttachments); }
+        function openCreateModal() {
+            editingId = null; editingRecord = null;
+            resetCreateForm();
+            document.getElementById('modalTitle').textContent = '新建监理通知单';
             document.getElementById('createModal').classList.add('show');
         }
         function openEditModal(id) {
-            document.getElementById('modalTitle').textContent = '编辑通知单';
-            document.getElementById('issuerInput').value = currentUser;
-            document.getElementById('createModal').classList.add('show');
+            App.apiFetch(API_BASE + '/' + id).then(function (rec) {
+                editingId = id;
+                editingRecord = rec;
+                resetCreateForm();
+                setValue('noticeCode', rec.code);
+                setValue('noticeTitle', rec.title);
+                setValue('issueDate', (rec.noticeDate || '').slice(0, 10));
+                setValue('deadlineDate', rec.deadline || '');
+                setValue('projectSelect', rec.projectId == null ? '' : String(rec.projectId));
+                setValue('noticeContent', rec.content || '');
+                createAttachments = normalizeAttachments(rec.attachments);
+                renderCreateAttachments();
+                document.getElementById('modalTitle').textContent = '编辑通知单';
+                document.getElementById('createModal').classList.add('show');
+            }).catch(function () { });
         }
-        function viewDetail(id) { document.getElementById('viewModal').classList.add('show'); }
-        function respond(id) { document.getElementById('respondModal').classList.add('show'); }
-        function verify(id) { document.getElementById('verifyModal').classList.add('show'); }
-        var deleteTargetId = null;
+        function composeContent() {
+            var receiver = val('receiverUnit').trim();
+            var content = val('noticeContent').trim();
+            var requirement = val('noticeRequirement').trim();
+            // 未填写额外字段时原样保留正文，避免编辑时误触“已下发正文不可覆盖”的 409 保护
+            if (!receiver && !requirement) return content;
+            var parts = [];
+            if (receiver) parts.push('接收单位：' + receiver);
+            if (content) parts.push(content);
+            if (requirement) parts.push('整改要求：' + requirement);
+            return parts.join('\n\n');
+        }
+        function buildNoticePayload(status) {
+            var payload = {
+                code: val('noticeCode').trim(),
+                projectId: Number(val('projectSelect')),
+                noticeDate: val('issueDate') || today(),
+                title: val('noticeTitle').trim(),
+                content: composeContent(),
+                deadline: val('deadlineDate') || null,
+                status: status,
+                attachments: attachmentsJson(createAttachments)
+            };
+            if (editingRecord && editingRecord.photos) payload.photos = editingRecord.photos;
+            return payload;
+        }
+        function validateNotice(payload) {
+            if (!payload.code) { showToast('请填写通知单编号', 'warning'); return false; }
+            if (!payload.projectId) { showToast('请选择所属项目', 'warning'); return false; }
+            if (!payload.title) { showToast('请填写通知单标题', 'warning'); return false; }
+            if (hasPendingUpload(createAttachments)) { showToast('附件正在上传，请稍候再保存', 'warning'); return false; }
+            return true;
+        }
         function confirmDelete(id) { deleteTargetId = id; document.getElementById('deleteModal').classList.add('show'); }
         function executeDelete() {
             if (!deleteTargetId) return;
@@ -681,136 +962,171 @@
                 })
                 .catch(function(){ });
         }
+        function submitNotice(payload, message) {
+            var request = editingId
+                ? App.apiFetch(API_BASE + '/' + editingId, { method: 'PUT', body: payload })
+                : App.apiFetch(API_BASE, { method: 'POST', body: payload });
+            request.then(function(){
+                showToast(message, 'success');
+                closeModal('createModal');
+                editingId = null; editingRecord = null;
+                loadData();
+            }).catch(function(){ });
+        }
         function saveDraft() {
-            var title = document.getElementById('noticeTitle') ? document.getElementById('noticeTitle').value.trim() : '';
-            var payload = {
-                code: 'TZ-' + Date.now(),
-                projectId: 1,
-                noticeDate: new Date().toISOString().slice(0,10),
-                authorId: 1,
-                title: title || '通知单草稿',
-                content: '',
-                status: 'draft'
-            };
-            App.apiFetch(API_BASE, { method: 'POST', body: payload })
-                .then(function(){ showToast('草稿已保存', 'success'); closeModal('createModal'); loadData(); })
-                .catch(function(){ });
+            var payload = buildNoticePayload('draft');
+            if (!validateNotice(payload)) return;
+            submitNotice(payload, '草稿已保存');
         }
         function issueNotice() {
-            var receiver = document.getElementById('receiverUnit').value.trim();
-            if (!receiver) { showToast('请填写接收单位名称', 'warning'); return; }
-            var title = document.getElementById('noticeTitle') ? document.getElementById('noticeTitle').value.trim() : '';
-            var deadline = document.getElementById('noticeDeadline') ? document.getElementById('noticeDeadline').value : '';
-            var payload = {
-                code: 'TZ-' + Date.now(),
-                projectId: 1,
-                noticeDate: new Date().toISOString().slice(0,10),
-                authorId: 1,
-                title: title || '监理通知单',
-                content: receiver,
-                deadline: deadline || null,
-                status: 'issued'
-            };
-            var url, method;
-            if (editingId !== null) {
-                url = API_BASE + '/' + editingId; method = 'PUT'; delete payload.code; delete payload.status;
-            } else {
-                url = API_BASE; method = 'POST';
-            }
-            App.apiFetch(url, { method: method, body: payload })
-                .then(function(){ showToast('通知单已下发', 'success'); closeModal('createModal'); loadData(); })
-                .catch(function(){ });
+            var payload = buildNoticePayload('issued');
+            if (!validateNotice(payload)) return;
+            submitNotice(payload, '通知单已下发');
         }
-        var respondTargetId = null;
-        function respond(id) { respondTargetId = id; document.getElementById('respondModal').classList.add('show'); }
+        // ========== 详情 ==========
+        function viewDetail(id) {
+            document.getElementById('viewModal').classList.add('show');
+            setText('viewCode', '加载中…');
+            setText('viewProject', '');
+            setText('viewIssueDate', '');
+            setText('viewDeadline', '');
+            setText('viewIssuer', '');
+            setText('viewTitle', '');
+            setText('viewContent', '');
+            var st = document.getElementById('viewStatus'); if (st) st.innerHTML = '';
+            var rs = document.getElementById('viewReplySection'); if (rs) rs.style.display = 'none';
+            var phs = document.getElementById('viewPhotoSection'); if (phs) phs.style.display = 'none';
+            renderDetailAttachments([]);
+            App.apiFetch(API_BASE + '/' + id).then(renderDetail).catch(function () { closeModal('viewModal'); });
+        }
+        function renderDetail(rec) {
+            var meta = statusMeta(rec.status);
+            setText('viewCode', rec.code);
+            setText('viewProject', projectsMap[rec.projectId] || ('项目#' + (rec.projectId || '')));
+            setText('viewIssueDate', (rec.noticeDate || '').slice(0, 10));
+            setText('viewIssuer', rec.authorId ? ('用户#' + rec.authorId) : '');
+            var deadlineEl = document.getElementById('viewDeadline');
+            if (deadlineEl) {
+                deadlineEl.textContent = rec.deadline || '—';
+                deadlineEl.style.color = (rec.status === 'overdue' || (!!rec.deadline && rec.status === 'issued' && rec.deadline < today())) ? '#EF4444' : '';
+            }
+            var st = document.getElementById('viewStatus');
+            if (st) st.innerHTML = '<span class="status-tag ' + meta.cls + '">' + esc(meta.text) + '</span>';
+            setText('viewTitle', rec.title);
+            setText('viewContent', rec.content);
+            var replySection = document.getElementById('viewReplySection');
+            if (replySection) replySection.style.display = rec.replyContent ? '' : 'none';
+            if (rec.replyContent) setText('viewReplyContent', rec.replyContent);
+            renderDetailPhotos(normalizeAttachments(rec.photos));
+            renderDetailAttachments(normalizeAttachments(rec.attachments));
+        }
+        function renderDetailPhotos(list) {
+            var section = document.getElementById('viewPhotoSection');
+            var container = document.getElementById('viewPhotos');
+            if (!section || !container) return;
+            container.innerHTML = '';
+            if (!list || !list.length) { section.style.display = 'none'; return; }
+            section.style.display = '';
+            for (var i = 0; i < list.length; i++) container.appendChild(buildAttachmentRow(list[i], {}).row);
+        }
+        function renderDetailAttachments(list) {
+            var container = document.getElementById('viewAttachments');
+            if (!container) return;
+            container.innerHTML = '';
+            if (!list || !list.length) {
+                var tip = document.createElement('div');
+                tip.className = 'att-empty';
+                tip.textContent = '该通知单暂无附件';
+                container.appendChild(tip);
+                return;
+            }
+            for (var i = 0; i < list.length; i++) container.appendChild(buildAttachmentRow(list[i], {}).row);
+        }
+
+        // ========== 回复 ==========
+        function renderRespondAttachments() { renderStaged(respondAttachments, 'respondAttachmentList', renderRespondAttachments); }
+        function handleRespondFile(input) { handleFiles(input, respondAttachments, renderRespondAttachments); }
+        function renderRespondPhotos() { renderPhotoGrid(respondPhotos, 'respondPhotoGrid', renderRespondPhotos); }
+        function respond(id) {
+            respondTargetId = id;
+            respondAttachments = [];
+            renderRespondAttachments();
+            respondPhotos = [];
+            renderRespondPhotos();
+            setValue('replyContent', '');
+            setText('respondNoticeCode', '加载中…');
+            document.getElementById('respondModal').classList.add('show');
+            App.apiFetch(API_BASE + '/' + id).then(function (rec) {
+                setText('respondNoticeCode', rec.code);
+            }).catch(function () { setText('respondNoticeCode', ''); });
+        }
         function submitResponse() {
             if (!respondTargetId) return;
-            var replyContent = document.getElementById('replyContent') ? document.getElementById('replyContent').value.trim() : '';
+            var replyContent = val('replyContent').trim();
             if (!replyContent) { showToast('请填写回复内容', 'warning'); return; }
-            App.apiFetch(API_BASE + '/' + respondTargetId + '/reply', { method: 'POST', body: {replyContent: replyContent} })
+            if (hasPendingUpload(respondAttachments) || hasPendingUpload(respondPhotos)) { showToast('照片或附件正在上传，请稍候再提交', 'warning'); return; }
+            var body = { replyContent: replyContent };
+            var json = attachmentsJson(respondAttachments);
+            if (json !== '[]') body.attachments = json;
+            var photoJson = photosJson(respondPhotos);
+            if (photoJson !== '[]') body.photos = photoJson;
+            App.apiFetch(API_BASE + '/' + respondTargetId + '/reply', { method: 'POST', body: body })
                 .then(function(){ showToast('回复已提交', 'success'); closeModal('respondModal'); respondTargetId = null; loadData(); })
                 .catch(function(){ });
         }
-        function handleRespondPhoto(input) {
-            var grid = document.getElementById('respondPhotoGrid');
-            var files = input.files;
-            for (var i = 0; i < files.length; i++) {
-                var file = files[i];
-                var reader = new FileReader();
-                reader.onload = (function(f) {
-                    return function(e) {
-                        var item = document.createElement('div');
-                        item.style.cssText = 'width:80px;height:80px;border:1px solid #D1D5DB;border-radius:6px;position:relative;overflow:hidden;cursor:pointer;';
-                        item.innerHTML = '<img src="' + e.target.result + '" style="width:100%;height:100%;object-fit:cover;border-radius:5px;"><span style="position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:rgba(239,68,68,0.9);color:#fff;font-size:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;" onclick="this.parentElement.remove()">✕</span>';
-                        grid.insertBefore(item, grid.lastElementChild);
-                    };
-                })(file);
-                reader.readAsDataURL(file);
-            }
-            input.value = '';
-        }
-        function handleRespondFile(input) {
-            var list = document.getElementById('respondAttachmentList');
-            var emptyTip = document.getElementById('respondAttTip');
-            if (emptyTip) emptyTip.remove();
-            var files = input.files;
-            for (var i = 0; i < files.length; i++) {
-                var file = files[i];
-                var ext = file.name.split('.').pop().toLowerCase();
-                var iconClass = 'doc';
-                var iconText = ext.toUpperCase().substring(0,3);
-                if (ext === 'pdf') { iconClass = 'pdf'; iconText = 'PDF'; }
-                else if (['xls','xlsx'].indexOf(ext) > -1) { iconClass = 'xls'; iconText = 'XLS'; }
-                var item = document.createElement('div');
-                item.className = 'verify-attachment-item';
-                item.innerHTML = '<div class="file-icon ' + iconClass + '">' + iconText + '</div><div class="file-name">' + file.name + '</div><span class="remove-att" onclick="this.parentElement.remove()">✕</span>';
-                list.appendChild(item);
-            }
-            input.value = '';
+        function handleRespondPhoto(input) { handlePhotos(input, respondPhotos, 'respondPhotoGrid'); }
+
+        // ========== 验证 ==========
+        function renderVerifyAttachments() { renderStaged(verifyAttachments, 'verifyAttachmentList', renderVerifyAttachments); }
+        function handleVerifyFile(input) { handleFiles(input, verifyAttachments, renderVerifyAttachments); }
+        function renderVerifyPhotos() { renderPhotoGrid(verifyPhotos, 'verifyPhotoGrid', renderVerifyPhotos); }
+        function verify(id) {
+            verifyTargetId = id;
+            verifyAttachments = [];
+            renderVerifyAttachments();
+            verifyPhotos = [];
+            renderVerifyPhotos();
+            setValue('verifyResult', 'pass');
+            setValue('verifyOpinion', '');
+            document.getElementById('verifyModal').classList.add('show');
         }
         function submitVerify() {
-            if (!respondTargetId) return;
-            App.apiFetch(API_BASE + '/' + respondTargetId, { method: 'PUT', body: {status: 'verified'} })
-                .then(function(){ showToast('验证结果已提交', 'success'); closeModal('verifyModal'); respondTargetId = null; loadData(); })
-                .catch(function(){ });
-        }
-        function handleVerifyPhoto(input) {
-            var grid = document.getElementById('verifyPhotoGrid');
-            var files = input.files;
-            for (var i = 0; i < files.length; i++) {
-                var file = files[i];
-                var reader = new FileReader();
-                reader.onload = (function(f) {
-                    return function(e) {
-                        var item = document.createElement('div');
-                        item.className = 'verify-photo-item';
-                        item.innerHTML = '<img src="' + e.target.result + '"><span class="remove-photo" onclick="this.parentElement.remove()">✕</span>';
-                        grid.insertBefore(item, grid.lastElementChild);
-                    };
-                })(file);
-                reader.readAsDataURL(file);
+            if (!verifyTargetId) return;
+            var result = val('verifyResult') || 'pass';
+            var opinion = val('verifyOpinion').trim();
+            if (!opinion) { showToast('请填写验证意见', 'warning'); return; }
+            if (hasPendingUpload(verifyAttachments) || hasPendingUpload(verifyPhotos)) { showToast('照片或附件正在上传，请稍候再提交', 'warning'); return; }
+            if (result !== 'pass') {
+                showToast('已记录验证不通过，通知单保持“已回复”，请通知施工单位重新整改', 'warning');
+                closeModal('verifyModal');
+                return;
             }
-            input.value = '';
+            App.apiFetch(API_BASE + '/' + verifyTargetId).then(function (rec) {
+                var merged = normalizeAttachments(rec.attachments);
+                for (var i = 0; i < verifyAttachments.length; i++) {
+                    if (verifyAttachments[i].url) merged.push({ url: verifyAttachments[i].url, name: verifyAttachments[i].name || '', size: verifyAttachments[i].size || 0, source: 'verify' });
+                }
+                var mergedPhotos = normalizeAttachments(rec.photos);
+                for (var j = 0; j < verifyPhotos.length; j++) {
+                    if (verifyPhotos[j].url) mergedPhotos.push({ url: verifyPhotos[j].url, name: verifyPhotos[j].name || '', size: verifyPhotos[j].size || 0, source: 'verify' });
+                }
+                var payload = {
+                    code: rec.code,
+                    projectId: rec.projectId,
+                    noticeDate: (rec.noticeDate || '').slice(0, 10),
+                    title: rec.title,
+                    content: rec.content,
+                    deadline: rec.deadline || null,
+                    priority: rec.priority || null,
+                    photos: mergedPhotos.length ? JSON.stringify(mergedPhotos) : null,
+                    attachments: JSON.stringify(merged),
+                    status: 'verified'
+                };
+                return App.apiFetch(API_BASE + '/' + verifyTargetId, { method: 'PUT', body: payload });
+            }).then(function(){ showToast('验证结果已提交', 'success'); closeModal('verifyModal'); verifyTargetId = null; loadData(); })
+              .catch(function(){ });
         }
-        function handleVerifyFile(input) {
-            var list = document.getElementById('verifyAttachmentList');
-            var emptyTip = list.querySelector('div[style]');
-            if (emptyTip && emptyTip.textContent.indexOf('暂无') > -1) emptyTip.remove();
-            var files = input.files;
-            for (var i = 0; i < files.length; i++) {
-                var file = files[i];
-                var ext = file.name.split('.').pop().toLowerCase();
-                var iconClass = 'doc';
-                var iconText = ext.toUpperCase().substring(0,3);
-                if (ext === 'pdf') { iconClass = 'pdf'; iconText = 'PDF'; }
-                else if (['xls','xlsx'].indexOf(ext) > -1) { iconClass = 'xls'; iconText = 'XLS'; }
-                var item = document.createElement('div');
-                item.className = 'verify-attachment-item';
-                item.innerHTML = '<div class="file-icon ' + iconClass + '">' + iconText + '</div><div class="file-name">' + file.name + '</div><span class="remove-att" onclick="this.parentElement.remove()">✕</span>';
-                list.appendChild(item);
-            }
-            input.value = '';
-        }
+        function handleVerifyPhoto(input) { handlePhotos(input, verifyPhotos, 'verifyPhotoGrid'); }
         function closeModal(id) { document.getElementById(id).classList.remove('show'); }
         function searchData() {
             try {

@@ -303,6 +303,33 @@
         });
     }
 
+    // ---------------- 表格占位（防“数据闪烁”） ----------------
+    // 页面模板不允许写任何示例数据行；表格首屏只显示“数据加载中”，
+    // 拿到接口结果后再渲染真实数据，空数据显示“暂无数据”占位。
+    var LOADING_HTML = '数据加载中...';
+    var EMPTY_HTML = '暂无数据';
+    function placeholderRow(colspan, text) {
+        var n = Number(colspan) > 0 ? Number(colspan) : 1;
+        return '<tr data-app-placeholder="1"><td colspan="' + n + '" style="text-align:center;color:#9CA3AF;padding:40px;">'
+            + escape(text) + '</td></tr>';
+    }
+    function tableLoading(tbody, colspan) {
+        if (!tbody) return;
+        tbody.innerHTML = placeholderRow(colspan, LOADING_HTML);
+    }
+    function tableEmpty(tbody, colspan, text) {
+        if (!tbody) return;
+        tbody.innerHTML = placeholderRow(colspan, text || EMPTY_HTML);
+    }
+    // 并发请求序号：只允许最后一次查询写入界面，避免旧响应覆盖新结果
+    function sequenceGuard() {
+        var latest = 0;
+        return function () {
+            var seq = ++latest;
+            return function () { return seq === latest; };
+        };
+    }
+
     // 分页查询：统一返回 { list, total, pageNum, pageSize }
     function apiGetPage(path, params) {
         var qs = buildQuery(params);
@@ -333,6 +360,57 @@
         return /^\/api\/uploads\/(?:[0-9]{8}\/)?[a-zA-Z0-9_-]+\.[a-zA-Z0-9]+$/.test(normalized) ? normalized : null;
     }
     function fileUrl(value) { return apiFetch('/files/access?' + buildQuery({ url: value }), { silent: true }).then(function (link) { return link.url; }); }
+
+    // ---------------- 认证文件下载 ----------------
+    // 导出 Word / Excel 等二进制响应统一走此处：带 Bearer 令牌，
+    // 文件名优先取响应头 filename*=UTF-8''（中文），回退到调用方给的默认名。
+    function fileNameFromHeader(value) {
+        if (!value) return '';
+        var extended = /filename\*\s*=\s*(?:UTF-8|utf-8)''([^;]+)/i.exec(value);
+        if (extended) {
+            try { return decodeURIComponent(extended[1].trim()); } catch (e) { return extended[1].trim(); }
+        }
+        var plain = /filename\s*=\s*"?([^";]+)"?/i.exec(value);
+        return plain ? plain[1].trim() : '';
+    }
+    function downloadFile(path, fallbackName) {
+        var token = getToken();
+        var url = (path.indexOf('http') === 0 || path.indexOf('/api') === 0) ? path : (API_PREFIX + path);
+        var headers = {};
+        if (token) headers['Authorization'] = 'Bearer ' + token;
+        return fetch(url, { method: 'GET', headers: headers, cache: 'no-store' }).then(function (resp) {
+            if (resp.status === 401) {
+                redirectToLogin();
+                return Promise.reject({ code: 401, message: '未登录或登录已过期' });
+            }
+            if (!resp.ok) {
+                // 导出失败时后端返回 ApiResponse JSON，解析出可读提示而非把错误当文件保存
+                return resp.json().catch(function () { return null; }).then(function (json) {
+                    var msg = (json && json.message) || ('导出失败（' + resp.status + '）');
+                    toast(msg, 'error');
+                    return Promise.reject(json || { code: resp.status, message: msg });
+                });
+            }
+            var name = fileNameFromHeader(resp.headers.get('Content-Disposition')) || fallbackName || '导出文件';
+            return resp.blob().then(function (blob) {
+                var objectUrl = URL.createObjectURL(blob);
+                var link = document.createElement('a');
+                link.href = objectUrl;
+                link.download = name;
+                link.style.display = 'none';
+                document.body.appendChild(link);
+                link.click();
+                setTimeout(function () {
+                    if (link.parentNode) link.parentNode.removeChild(link);
+                    URL.revokeObjectURL(objectUrl);
+                }, 1000);
+                return name;
+            });
+        }, function (err) {
+            toast('网络错误，请检查连接', 'error');
+            return Promise.reject(err || { code: -1, message: '网络错误' });
+        });
+    }
     function protectImages(node, refresh) {
         if (!node || node.nodeType !== 1) return;
         var images = node.matches('img') ? [node] : Array.from(node.querySelectorAll('img'));
@@ -811,10 +889,15 @@
         prompt: promptDialog,
         escape: escape,
         buildQuery: buildQuery,
+        tableLoading: tableLoading,
+        tableEmpty: tableEmpty,
+        placeholderRow: placeholderRow,
+        sequenceGuard: sequenceGuard,
         apiFetch: apiFetch,
         apiGetPage: apiGetPage,
         uploadFile: uploadFile,
         fileUrl: fileUrl,
+        downloadFile: downloadFile,
         initTopbar: initTopbar,
         refreshUnreadBadge: refreshUnreadBadge
     };

@@ -158,14 +158,16 @@
     <div class="main">
         <div class="header">
             <div class="header-left"><h3>会议纪要</h3><span class="breadcrumb"><a href="index.html">首页</a> / 监理现场工作 / 会议纪要</span></div>
-            <div class="header-right"><div class="notification">🔔<span class="badge" id="notifBadge" style="display:none;">3</span></div><div class="user-info"><div class="user-avatar">张</div><span class="user-name">张监理</span></div></div>
+            <div class="header-right"><div class="notification">🔔<span class="badge" id="notifBadge" style="display:none;">0</span></div><div class="user-info"><div class="user-avatar"></div><span class="user-name"></span></div></div>
         </div>
 
         <div class="content">
             <div class="toolbar">
                 <div class="toolbar-left">
                     <div class="search-box"><span class="search-icon">🔍</span><input type="text" placeholder="搜索会议纪要..." id="searchInput"><button class="btn btn-primary btn-sm" onclick="searchData()" style="margin-left:8px;height:32px;">搜索</button></div>
-                    <select class="filter-select" id="projectFilter"><option value="">全部项目</option><option>城东综合体项目</option><option>滨河路改造工程</option><option>科技产业园二期</option></select>
+                    <select class="filter-select" id="projectFilter">
+                            <option value="">全部项目</option>
+                        </select>
                     <select class="filter-select" id="statusFilter"><option value="">全部状态</option><option value="draft">草稿</option><option value="submitted">已提交</option></select>
                     <button class="btn btn-primary btn-sm" onclick="filterData()" style="height:36px;">确认</button><button class="btn btn-outline btn-sm" onclick="resetFilters()" style="height:36px;">重置</button>
                 </div>
@@ -189,46 +191,7 @@
                         </tr>
                     </thead>
                     <tbody id="tableBody">
-                        <tr>
-                            <td style="color:#2563EB;font-weight:500;">HY-2026-012</td>
-                            <td>城东综合体项目</td>
-                            <td>第16周监理例会</td>
-                            <td>例会</td>
-                            <td>2026-04-28 14:00</td>
-                            <td>张监理</td>
-                            <td><span class="status-tag status-submitted">已提交</span></td>
-                            <td><div class="actions"><button class="btn btn-outline btn-sm" onclick="viewDetail(1)">查看</button><button class="btn btn-outline btn-sm" onclick="openEditModal(1)">编辑</button></div></td>
-                        </tr>
-                        <tr>
-                            <td style="color:#2563EB;font-weight:500;">HY-2026-011</td>
-                            <td>滨河路改造工程</td>
-                            <td>桩基施工专题会</td>
-                            <td>专题会</td>
-                            <td>2026-04-25 10:00</td>
-                            <td>张监理</td>
-                            <td><span class="status-tag status-submitted">已提交</span></td>
-                            <td><div class="actions"><button class="btn btn-outline btn-sm" onclick="viewDetail(2)">查看</button></div></td>
-                        </tr>
-                        <tr>
-                            <td style="color:#2563EB;font-weight:500;">HY-2026-010</td>
-                            <td>城东综合体项目</td>
-                            <td>第15周监理例会</td>
-                            <td>例会</td>
-                            <td>2026-04-21 14:00</td>
-                            <td>张监理</td>
-                            <td><span class="status-tag status-submitted">已提交</span></td>
-                            <td><div class="actions"><button class="btn btn-outline btn-sm" onclick="viewDetail(3)">查看</button></div></td>
-                        </tr>
-                        <tr>
-                            <td style="color:#9CA3AF;">HY-2026-D01</td>
-                            <td>科技产业园二期</td>
-                            <td>安全专项会议</td>
-                            <td>安全会</td>
-                            <td>—</td>
-                            <td>张监理</td>
-                            <td><span class="status-tag status-draft">草稿</span></td>
-                            <td><div class="actions"><button class="btn btn-outline btn-sm" onclick="openEditModal(4)">编辑</button><button class="btn btn-danger btn-sm" onclick="confirmDelete(4)">删除</button></div></td>
-                        </tr>
+                        <tr data-app-placeholder="1"><td colspan="8" style="text-align:center;color:#9CA3AF;padding:40px;">数据加载中...</td></tr>
                     </tbody>
                 </table>
                 <div class="pagination">
@@ -245,7 +208,9 @@
             <div class="modal-body">
                 <div class="form-row">
                     <div class="form-group"><label>编号 <span class="required">*</span></label><input type="text" class="form-control" id="minutesNo" placeholder="请输入编号，如 HY-2026-012"></div>
-                    <div class="form-group"><label>所属项目 <span class="required">*</span></label><select class="form-control" id="projectSelect"><option value="">请选择项目</option><option>城东综合体项目</option><option>滨河路改造工程</option><option>科技产业园二期</option></select></div>
+                    <div class="form-group"><label>所属项目 <span class="required">*</span></label><select class="form-control" id="projectSelect">
+                            <option value="">请选择项目</option>
+                        </select></div>
                 </div>
                 <div class="form-row">
                     <div class="form-group"><label>会议主题 <span class="required">*</span></label><input type="text" class="form-control" id="meetingTopic" placeholder="请输入会议主题"></div>
@@ -255,7 +220,7 @@
                 </div>
                 <div class="form-row">
                     <div class="form-group"><label>会议类别 <span class="required">*</span></label><select class="form-control" id="meetingCategory"><option value="">请选择</option><option>例会</option><option>专题会</option><option>安全会</option><option>其他</option></select></div>
-                    <div class="form-group"><label>记录人 <span class="required">*</span></label><div class="readonly-field">张监理</div></div>
+                    <div class="form-group"><label>记录人 <span class="required">*</span></label><div class="readonly-field" id="minutesAuthor">—</div></div>
                 </div>
                 <div class="form-group"><label>会议内容</label><textarea class="form-control" id="meetingContent" placeholder="请详细记录会议内容" style="height:150px;"></textarea></div>
                 <div class="form-group"><label>会议决议</label><textarea class="form-control" id="meetingResolution" placeholder="请记录会议决议"></textarea></div>
@@ -299,12 +264,12 @@
             <div class="modal-body">
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
                     <div><span style="font-size:12px;color:#9CA3AF;">纪要编号</span><div style="font-size:14px;margin-top:4px;color:#2563EB;font-weight:500;">HY-2026-012</div></div>
-                    <div><span style="font-size:12px;color:#9CA3AF;">所属项目</span><div style="font-size:14px;margin-top:4px;">城东综合体项目</div></div>
+                    <div><span style="font-size:12px;color:#9CA3AF;">所属项目</span><div style="font-size:14px;margin-top:4px;">—</div></div>
                     <div><span style="font-size:12px;color:#9CA3AF;">会议主题</span><div style="font-size:14px;margin-top:4px;">第16周监理例会</div></div>
                     <div><span style="font-size:12px;color:#9CA3AF;">会议类别</span><div style="font-size:14px;margin-top:4px;">例会</div></div>
                     <div><span style="font-size:12px;color:#9CA3AF;">会议时间</span><div style="font-size:14px;margin-top:4px;">2026-04-28 14:00</div></div>
                     <div><span style="font-size:12px;color:#9CA3AF;">会议地点</span><div style="font-size:14px;margin-top:4px;">项目部会议室</div></div>
-                    <div><span style="font-size:12px;color:#9CA3AF;">记录人</span><div style="font-size:14px;margin-top:4px;">张监理</div></div>
+                    <div><span style="font-size:12px;color:#9CA3AF;">记录人</span><div style="font-size:14px;margin-top:4px;">—</div></div>
                     <div><span style="font-size:12px;color:#9CA3AF;">状态</span><div style="margin-top:4px;"><span class="status-tag status-submitted">已提交</span></div></div>
                 </div>
                 <div style="margin-top:20px;padding-top:16px;border-top:1px solid #F3F4F6;">
@@ -345,68 +310,7 @@
                     </div>
                 </div>
                 <div class="dir-tree-container" id="dirTreeContainer">
-                    <div class="dir-tree-node" onclick="selectDirNode(this, '城东综合体项目')" data-path="城东综合体项目">
-                        <span class="expand" onclick="event.stopPropagation();toggleDirExpand(this)">▼</span><span class="node-icon">🏗️</span> 城东综合体项目
-                    </div>
-                    <div class="dir-tree-children">
-                        <div class="dir-tree-node" onclick="selectDirNode(this, '城东综合体项目 / 主楼')" data-path="城东综合体项目 / 主楼">
-                            <span class="expand" onclick="event.stopPropagation();toggleDirExpand(this)">▼</span><span class="node-icon">📁</span> 单位工程：主楼
-                        </div>
-                        <div class="dir-tree-children">
-                            <div class="dir-tree-node" onclick="selectDirNode(this, '城东综合体项目 / 主楼 / 地基基础')" data-path="城东综合体项目 / 主楼 / 地基基础">
-                                <span class="expand" onclick="event.stopPropagation();toggleDirExpand(this)">▼</span><span class="node-icon">📂</span> 分部工程：地基基础
-                            </div>
-                            <div class="dir-tree-children">
-                                <div class="dir-tree-node" onclick="selectDirNode(this, '城东综合体项目 / 主楼 / 地基基础 / 土方工程')" data-path="城东综合体项目 / 主楼 / 地基基础 / 土方工程"><span class="node-icon">📄</span> 分项：土方工程</div>
-                                <div class="dir-tree-node" onclick="selectDirNode(this, '城东综合体项目 / 主楼 / 地基基础 / 地基处理')" data-path="城东综合体项目 / 主楼 / 地基基础 / 地基处理"><span class="node-icon">📄</span> 分项：地基处理</div>
-                                <div class="dir-tree-node" onclick="selectDirNode(this, '城东综合体项目 / 主楼 / 地基基础 / 桩基工程')" data-path="城东综合体项目 / 主楼 / 地基基础 / 桩基工程"><span class="node-icon">📄</span> 分项：桩基工程</div>
-                            </div>
-                            <div class="dir-tree-node" onclick="selectDirNode(this, '城东综合体项目 / 主楼 / 主体结构')" data-path="城东综合体项目 / 主楼 / 主体结构">
-                                <span class="expand" onclick="event.stopPropagation();toggleDirExpand(this)">▶</span><span class="node-icon">📂</span> 分部工程：主体结构
-                            </div>
-                            <div class="dir-tree-children collapsed">
-                                <div class="dir-tree-node" onclick="selectDirNode(this, '城东综合体项目 / 主楼 / 主体结构 / 钢筋工程')" data-path="城东综合体项目 / 主楼 / 主体结构 / 钢筋工程"><span class="node-icon">📄</span> 分项：钢筋工程</div>
-                                <div class="dir-tree-node" onclick="selectDirNode(this, '城东综合体项目 / 主楼 / 主体结构 / 混凝土工程')" data-path="城东综合体项目 / 主楼 / 主体结构 / 混凝土工程"><span class="node-icon">📄</span> 分项：混凝土工程</div>
-                            </div>
-                        </div>
-                        <div class="dir-tree-node" onclick="selectDirNode(this, '城东综合体项目 / 裙楼')" data-path="城东综合体项目 / 裙楼">
-                            <span class="expand" onclick="event.stopPropagation();toggleDirExpand(this)">▶</span><span class="node-icon">📁</span> 单位工程：裙楼
-                        </div>
-                        <div class="dir-tree-children collapsed">
-                            <div class="dir-tree-node" onclick="selectDirNode(this, '城东综合体项目 / 裙楼 / 地基基础')" data-path="城东综合体项目 / 裙楼 / 地基基础"><span class="node-icon">📂</span> 分部工程：地基基础</div>
-                            <div class="dir-tree-node" onclick="selectDirNode(this, '城东综合体项目 / 裙楼 / 主体结构')" data-path="城东综合体项目 / 裙楼 / 主体结构"><span class="node-icon">📂</span> 分部工程：主体结构</div>
-                        </div>
-                    </div>
-                    <div class="dir-tree-node" onclick="selectDirNode(this, '滨河路改造工程')" data-path="滨河路改造工程">
-                        <span class="expand" onclick="event.stopPropagation();toggleDirExpand(this)">▶</span><span class="node-icon">🏗️</span> 滨河路改造工程
-                    </div>
-                    <div class="dir-tree-children collapsed">
-                        <div class="dir-tree-node" onclick="selectDirNode(this, '滨河路改造工程 / 道路工程')" data-path="滨河路改造工程 / 道路工程">
-                            <span class="expand" onclick="event.stopPropagation();toggleDirExpand(this)">▶</span><span class="node-icon">📁</span> 单位工程：道路工程
-                        </div>
-                        <div class="dir-tree-children collapsed">
-                            <div class="dir-tree-node" onclick="selectDirNode(this, '滨河路改造工程 / 道路工程 / 路基工程')" data-path="滨河路改造工程 / 道路工程 / 路基工程"><span class="node-icon">📂</span> 分部工程：路基工程</div>
-                            <div class="dir-tree-node" onclick="selectDirNode(this, '滨河路改造工程 / 道路工程 / 路面工程')" data-path="滨河路改造工程 / 道路工程 / 路面工程"><span class="node-icon">📂</span> 分部工程：路面工程</div>
-                        </div>
-                        <div class="dir-tree-node" onclick="selectDirNode(this, '滨河路改造工程 / 桥梁工程')" data-path="滨河路改造工程 / 桥梁工程">
-                            <span class="expand" onclick="event.stopPropagation();toggleDirExpand(this)">▶</span><span class="node-icon">📁</span> 单位工程：桥梁工程
-                        </div>
-                        <div class="dir-tree-children collapsed">
-                            <div class="dir-tree-node" onclick="selectDirNode(this, '滨河路改造工程 / 桥梁工程 / 基础工程')" data-path="滨河路改造工程 / 桥梁工程 / 基础工程"><span class="node-icon">📂</span> 分部工程：基础工程</div>
-                        </div>
-                    </div>
-                    <div class="dir-tree-node" onclick="selectDirNode(this, '科技产业园二期')" data-path="科技产业园二期">
-                        <span class="expand" onclick="event.stopPropagation();toggleDirExpand(this)">▶</span><span class="node-icon">🏗️</span> 科技产业园二期
-                    </div>
-                    <div class="dir-tree-children collapsed">
-                        <div class="dir-tree-node" onclick="selectDirNode(this, '科技产业园二期 / 厂房A')" data-path="科技产业园二期 / 厂房A">
-                            <span class="expand" onclick="event.stopPropagation();toggleDirExpand(this)">▶</span><span class="node-icon">📁</span> 单位工程：厂房A
-                        </div>
-                        <div class="dir-tree-children collapsed">
-                            <div class="dir-tree-node" onclick="selectDirNode(this, '科技产业园二期 / 厂房A / 地基基础')" data-path="科技产业园二期 / 厂房A / 地基基础"><span class="node-icon">📂</span> 分部工程：地基基础</div>
-                            <div class="dir-tree-node" onclick="selectDirNode(this, '科技产业园二期 / 厂房A / 主体结构')" data-path="科技产业园二期 / 厂房A / 主体结构"><span class="node-icon">📂</span> 分部工程：主体结构</div>
-                        </div>
-                    </div>
+                    <div class="demo-placeholder" style="padding:24px;text-align:center;color:#9CA3AF;font-size:13px;">暂无项目目录，请先在“项目台账”创建项目</div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -539,26 +443,29 @@
             var pf = document.getElementById('projectFilter'); if (pf && pf.value) params.projectId = pf.value;
             var sf = document.getElementById('statusFilter'); if (sf && sf.value) params.status = sf.value;
             var si = document.getElementById('searchInput'); if (si && si.value.trim()) params.code = si.value.trim();
+            var seq = ++loadSeq;
+            // 先抹掉上一屏内容再请求，避免旧数据在等待期间残留
+            App.tableLoading(document.getElementById('tableBody'), 8);
             return App.apiGetPage('/meeting-minutes', params).then(function (page) {
+                if (seq !== loadSeq) return; // 丢弃过期响应
                 allData = (page.list || []).map(mapRow);
                 filteredData = allData.slice();
                 renderTable();
-            }).catch(function () { allData = []; filteredData = []; renderTable(); });
+            }).catch(function () {
+                if (seq !== loadSeq) return;
+                allData = []; filteredData = []; renderTable();
+            });
         }
         function closeModal(id) { document.getElementById(id).classList.remove('show'); }
-        var allData = [
-            { id: 1, no: 'HY-2026-012', project: '城东综合体项目', topic: '第16周监理例会', category: '例会', time: '2026-04-28 14:00', uploader: '张监理', status: 'submitted' },
-            { id: 2, no: 'HY-2026-011', project: '滨河路改造工程', topic: '桩基施工专题会', category: '专题会', time: '2026-04-25 10:00', uploader: '张监理', status: 'submitted' },
-            { id: 3, no: 'HY-2026-010', project: '城东综合体项目', topic: '第15周监理例会', category: '例会', time: '2026-04-21 14:00', uploader: '张监理', status: 'submitted' },
-            { id: 4, no: 'HY-2026-D01', project: '科技产业园二期', topic: '安全专项会议', category: '安全会', time: '—', uploader: '张监理', status: 'draft' }
-        ];
+        var allData = [];
+        var loadSeq = 0;
         var filteredData = allData.slice();
 
         function renderTable() {
             try {
                 var tbody = document.getElementById('tableBody');
                 if (!filteredData.length) {
-                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#9CA3AF;padding:40px;">暂无匹配数据</td></tr>';
+                    tbody.innerHTML = '<tr data-app-placeholder="1"><td colspan="8" style="text-align:center;color:#9CA3AF;padding:40px;">暂无数据，点击右上角“新建”开始记录</td></tr>';
                 } else {
                     var html = '';
                     for (var i = 0; i < filteredData.length; i++) {

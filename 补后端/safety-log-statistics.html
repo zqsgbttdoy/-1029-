@@ -100,7 +100,7 @@
     <div class="main">
         <div class="header">
             <div class="header-left"><h3>安全日志统计</h3><span class="breadcrumb"><a href="index.html">首页</a> / 数据统计 / 安全日志统计</span></div>
-            <div class="header-right"><div class="notification">🔔<span class="badge" id="notifBadge" style="display:none;">0</span></div><div class="user-info"><div class="user-avatar">张</div><span class="user-name">张监理</span></div></div>
+            <div class="header-right"><div class="notification">🔔<span class="badge" id="notifBadge" style="display:none;">0</span></div><div class="user-info"><div class="user-avatar"></div><span class="user-name"></span></div></div>
         </div>
 
         <div class="content">
@@ -164,6 +164,7 @@
                             </tr>
                         </thead>
                         <tbody id="tableBody">
+                            <tr data-app-placeholder="1"><td colspan="8" style="text-align:center;color:#9CA3AF;padding:40px;">数据加载中...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -177,7 +178,7 @@
             <div class="modal-body">
                 <div class="submit-detail-row">
                     <div class="submit-detail-label">当前项目</div>
-                    <div class="submit-detail-value" id="modalProject">城东综合体项目</div>
+                    <div class="submit-detail-value" id="modalProject">—</div>
                 </div>
                 <div class="submit-detail-row">
                     <div class="submit-detail-label">当前日期</div>
@@ -185,7 +186,7 @@
                 </div>
                 <div class="submit-detail-row">
                     <div class="submit-detail-label">提交人</div>
-                    <div class="submit-detail-value">张监理</div>
+                    <div class="submit-detail-value" id="modalSubmitter">—</div>
                 </div>
                 <div class="submit-detail-row">
                     <div class="submit-detail-label">提交状态</div>
@@ -234,24 +235,46 @@
 
         function loadData() {
             var pid = document.getElementById('projectSelect').value;
-            var params = { pageNum: 1, pageSize: 2000 };
-            if (pid) params.projectId = pid;
-            return apiGetPage('/safety-logs', params).then(function(res) {
-                rawLogs = res.list || [];
-                queryData();
-            });
+            var baseParams = { pageSize: 2000 };
+            if (pid) baseParams.projectId = pid;
+            var all = [];
+            var pageNum = 1;
+            var maxPages = 20;
+            function fetchPage() {
+                var params = Object.assign({}, baseParams, { pageNum: pageNum });
+                return apiGetPage('/safety-logs', params).then(function(res) {
+                    var list = res.list || [];
+                    all = all.concat(list);
+                    var total = Number(res.total || 0);
+                    pageNum++;
+                    if (all.length < total && list.length > 0 && pageNum <= maxPages) return fetchPage();
+                    if (all.length < total) {
+                        console.error('安全日志统计取数未完成：已取 ' + all.length + ' 条，接口总数 ' + total + ' 条，统计结果可能少计');
+                    }
+                    rawLogs = all;
+                    queryData();
+                });
+            }
+            return fetchPage();
         }
 
         function aggregate(logs) {
             var groups = {};
             var today = getTodayStr();
+            function ensureGroup(pid) {
+                if (!groups[pid]) groups[pid] = { name: projectsMap[pid] || ('项目#' + pid), totalDays: 0, passed: 0, todaySubmitted: false, submittedBy: '', submittedAt: '', days: {}, approvedDays: {} };
+                return groups[pid];
+            }
+            Object.keys(projectsMap).forEach(function(pid) { ensureGroup(pid); });
             logs.forEach(function(l) {
                 var pid = l.projectId;
-                if (!groups[pid]) groups[pid] = { name: projectsMap[pid] || ('项目#' + pid), totalDays: 0, passed: 0, todaySubmitted: false, submittedBy: '', submittedAt: '' };
-                var g = groups[pid];
-                g.totalDays++;
-                if (l.status === 'approved') g.passed++;
-                if ((l.logDate || '') === today) {
+                var g = ensureGroup(pid);
+                var dayKey = String(l.logDate || '');
+                var status = String(l.status || '');
+                var submitted = status !== '' && status !== 'draft' && status !== 'unsubmitted';
+                if (dayKey && !g.days[dayKey]) { g.days[dayKey] = true; g.totalDays++; }
+                if (submitted && status === 'approved' && dayKey && !g.approvedDays[dayKey]) { g.approvedDays[dayKey] = true; g.passed++; }
+                if (submitted && dayKey === today) {
                     g.todaySubmitted = true;
                     if (l.submittedBy) g.submittedBy = l.submittedBy;
                     if (l.submittedAt) g.submittedAt = String(l.submittedAt).replace('T', ' ').slice(0, 19);
@@ -274,7 +297,7 @@
             var html = '';
             for (var i = 0; i < list.length; i++) {
                 var p = list[i];
-                var rate = Math.round((p.passed / p.totalDays) * 100);
+                var rate = p.totalDays > 0 ? Math.round((p.passed / p.totalDays) * 100) : 0;
                 var fillClass = rate >= 80 ? 'green' : (rate >= 60 ? 'orange' : 'red');
 
                 var statusHtml = '';
@@ -285,7 +308,7 @@
                 }
 
                 var submitterHtml = p.todaySubmitted ? App.escape(p.submittedBy) : '<span style="color:#9CA3AF;">—</span>';
-                var submitTimeHtml = p.todaySubmitted ? p.submittedAt : '<span style="color:#9CA3AF;">—</span>';
+                var submitTimeHtml = p.todaySubmitted ? App.escape(p.submittedAt) : '<span style="color:#9CA3AF;">—</span>';
 
                 var origIndex = projectData.indexOf(p);
                 var actionHtml = '';
@@ -306,7 +329,7 @@
                     '<td>' + actionHtml + '</td>' +
                 '</tr>';
             }
-            tbody.innerHTML = html;
+            tbody.innerHTML = html || '<tr data-app-placeholder="1"><td colspan="8" style="text-align:center;color:#9CA3AF;padding:40px;">暂无数据</td></tr>';
         }
 
         function updateStats(data) {
@@ -350,7 +373,7 @@
             var p = projectData[index];
             var bodyHtml = '<div class="submit-detail-row">' +
                 '<div class="submit-detail-label">项目名称</div>' +
-                '<div class="submit-detail-value">' + p.name + '</div>' +
+                '<div class="submit-detail-value">' + App.escape(p.name) + '</div>' +
             '</div>' +
             '<div class="submit-detail-row">' +
                 '<div class="submit-detail-label">提交日期</div>' +
@@ -358,11 +381,11 @@
             '</div>' +
             '<div class="submit-detail-row">' +
                 '<div class="submit-detail-label">提交人</div>' +
-                '<div class="submit-detail-value">' + p.submittedBy + '</div>' +
+                '<div class="submit-detail-value">' + App.escape(p.submittedBy) + '</div>' +
             '</div>' +
             '<div class="submit-detail-row">' +
                 '<div class="submit-detail-label">提交时间</div>' +
-                '<div class="submit-detail-value">' + p.submittedAt + '</div>' +
+                '<div class="submit-detail-value">' + App.escape(p.submittedAt) + '</div>' +
             '</div>' +
             '<div class="submit-detail-row">' +
                 '<div class="submit-detail-label">提交状态</div>' +

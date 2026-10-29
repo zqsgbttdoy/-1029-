@@ -148,8 +148,8 @@
                 <span class="breadcrumb"><a href="index.html">首页</a> / 项目管理 / 项目台账</span>
             </div>
             <div class="header-right">
-                <div class="notification">🔔<span class="badge" id="notifBadge" style="display:none;">3</span></div>
-                <div class="user-info"><div class="user-avatar">张</div><span class="user-name">张监理</span></div>
+                <div class="notification">🔔<span class="badge" id="notifBadge" style="display:none;">0</span></div>
+                <div class="user-info"><div class="user-avatar"></div><span class="user-name"></span></div>
             </div>
         </div>
 
@@ -241,9 +241,6 @@
                         <label>总监理师 <span class="required">*</span></label>
                         <select class="form-control" id="chiefEngineer">
                             <option value="">请选择</option>
-                            <option value="1">张监理</option>
-                            <option value="2">李监理</option>
-                            <option value="3">王监理</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -382,8 +379,13 @@
             if (id != null) openEditModal(id);
         }
 
-        function confirmDelete(id, name) {
+        function confirmDelete(id) {
             deleteTargetId = id;
+            var name = '';
+            var src = (typeof allData !== 'undefined' && allData) ? allData : [];
+            for (var i = 0; i < src.length; i++) {
+                if (String(src[i].id) === String(id)) { name = src[i].name || ''; break; }
+            }
             document.getElementById('deleteConfirmText').textContent = '确定要删除项目"' + name + '"吗？';
             document.getElementById('deleteModal').classList.add('show');
         }
@@ -428,15 +430,10 @@
         function closeModal(id) {
             document.getElementById(id).classList.remove('show');
         }
-        var allData = [
-            { id: 1, code: 'PRJ-2026-001', name: '城东综合体项目', buildUnit: '城东建设集团', chief: '张监理', startDate: '2026-01-15', status: 'active' },
-            { id: 2, code: 'PRJ-2026-002', name: '滨河路改造工程', buildUnit: '市政建设公司', chief: '李监理', startDate: '2026-02-01', status: 'active' },
-            { id: 3, code: 'PRJ-2026-003', name: '科技产业园二期', buildUnit: '科技城开发公司', chief: '王监理', startDate: '2026-03-10', status: 'active' },
-            { id: 4, code: 'PRJ-2025-015', name: '西湖景观提升工程', buildUnit: '园林建设集团', chief: '赵监理', startDate: '2025-06-01', status: 'completed' },
-            { id: 5, code: 'PRJ-2026-004', name: '新城水厂扩建项目', buildUnit: '水务集团', chief: '陈监理', startDate: '2026-04-01', status: 'paused' },
-            { id: 6, code: 'PRJ-2026-005', name: '开发区学校建设项目', buildUnit: '教育建设公司', chief: '待分配', startDate: '2026-05-01', status: 'planning' }
-        ];
-        var filteredData = allData.slice();
+        // 页面不内置任何示例项目：首屏只显示“数据加载中”，接口返回后按实际数据渲染。
+        var allData = [];
+        var filteredData = [];
+        var loadSeq = 0;
 
         function mapRow(r) {
             return {
@@ -464,14 +461,20 @@
         }
         function loadData() {
             if (!window.App) return Promise.resolve();
+            var seq = ++loadSeq;
             var params = { pageNum: 1, pageSize: 200 };
             var sf = document.getElementById('statusFilter'); if (sf && sf.value) params.status = sf.value;
             var si = document.getElementById('searchInput'); if (si && si.value.trim()) params.name = si.value.trim();
+            App.tableLoading(document.getElementById('tableBody'), 7);
             return App.apiGetPage('/projects', params).then(function (page) {
+                if (seq !== loadSeq) return; // 丢弃过期响应，避免旧数据覆盖新结果
                 allData = (page.list || []).map(mapRow);
                 filteredData = allData.slice();
                 renderTable();
-            }).catch(function () { allData = []; filteredData = []; renderTable(); });
+            }).catch(function () {
+                if (seq !== loadSeq) return;
+                allData = []; filteredData = []; renderTable();
+            });
         }
 
         function renderTable() {
@@ -485,7 +488,7 @@
                         var d = filteredData[i];
                         var statusMap = { active: ['status-active', '进行中'], completed: ['status-completed', '已完成'], paused: ['status-paused', '已暂停'], planning: ['status-planning', '筹备中'] };
                         var s = statusMap[d.status] || ['status-active', '进行中'];
-                        html += '<tr><td>' + App.escape(d.code) + '</td><td>' + App.escape(d.name) + '</td><td>' + App.escape(d.buildUnit) + '</td><td>' + App.escape(d.chief) + '</td><td>' + App.escape(d.startDate) + '</td><td><span class="status-tag ' + s[0] + '">' + s[1] + '</span></td><td><div class="actions"><button class="btn btn-outline btn-sm" onclick="viewProject(' + d.id + ')">查看</button><button class="btn btn-outline btn-sm" onclick="openEditModal(' + d.id + ')">编辑</button><button class="btn btn-danger btn-sm" onclick="confirmDelete(' + d.id + ',\'' + App.escape(d.name) + '\')">删除</button></div></td></tr>';
+                        html += '<tr><td>' + App.escape(d.code) + '</td><td>' + App.escape(d.name) + '</td><td>' + App.escape(d.buildUnit) + '</td><td>' + App.escape(d.chief) + '</td><td>' + App.escape(d.startDate) + '</td><td><span class="status-tag ' + s[0] + '">' + s[1] + '</span></td><td><div class="actions"><button class="btn btn-outline btn-sm" onclick="viewProject(' + d.id + ')">查看</button><button class="btn btn-outline btn-sm" onclick="openEditModal(' + d.id + ')">编辑</button><button class="btn btn-danger btn-sm" onclick="confirmDelete(' + d.id + ')">删除</button></div></td></tr>';
                     }
                     tbody.innerHTML = html;
                 }

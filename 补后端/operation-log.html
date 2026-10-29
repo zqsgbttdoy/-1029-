@@ -95,7 +95,7 @@
     <div class="main">
         <div class="header">
             <div class="header-left"><h3>操作日志</h3><span class="breadcrumb"><a href="index.html">首页</a> / 系统设置 / 操作日志</span></div>
-            <div class="header-right"><div class="notification">🔔<span class="badge" id="notifBadge" style="display:none;">0</span></div><div class="user-info"><div class="user-avatar">张</div><span class="user-name">张监理</span></div></div>
+            <div class="header-right"><div class="notification">🔔<span class="badge" id="notifBadge" style="display:none;">0</span></div><div class="user-info"><div class="user-avatar"></div><span class="user-name"></span></div></div>
         </div>
 
         <div class="content">
@@ -105,7 +105,7 @@
                 <div class="toolbar-left">
                     <div class="search-box"><span style="color:#9CA3AF;margin-right:8px;">🔍</span><input type="text" placeholder="搜索操作内容..." id="searchInput"></div>
                     <select class="filter-select" id="opTypeFilter"><option value="">全部操作类型</option><option value="login">登录</option><option value="create">新建</option><option value="update">编辑</option><option value="delete">删除</option><option value="submit">提交</option><option value="approve">审核</option><option value="export">导出</option></select>
-                    <select class="filter-select" id="operatorFilter"><option value="">全部操作人</option><option>张监理</option><option>李监理</option><option>王监理</option><option>赵总监</option></select>
+                    <select class="filter-select" id="operatorFilter"><option value="">全部操作人</option></select>
                     <select class="filter-select" id="moduleFilter"><option value="">全部模块</option><option>监理日记</option><option>监理通知单</option><option>日常巡检</option><option>项目台账</option></select>
                     <input type="date" class="filter-select" id="startDateFilter">
                     <input type="date" class="filter-select" id="endDateFilter">
@@ -130,96 +130,7 @@
                         </tr>
                     </thead>
                     <tbody id="tableBody">
-                        <tr>
-                            <td>2026-04-29 09:15:23</td>
-                            <td>张监理</td>
-                            <td><span class="op-type op-create">新建</span></td>
-                            <td>监理日记</td>
-                            <td>新建监理日记：2026-04-29 城东综合体项目</td>
-                            <td>192.168.1.105</td>
-                            <td><span class="detail-link" onclick="viewDetail(1)">详情</span></td>
-                        </tr>
-                        <tr>
-                            <td>2026-04-29 09:10:45</td>
-                            <td>张监理</td>
-                            <td><span class="op-type op-login">登录</span></td>
-                            <td>系统</td>
-                            <td>用户登录系统</td>
-                            <td>192.168.1.105</td>
-                            <td><span class="detail-link" onclick="viewDetail(2)">详情</span></td>
-                        </tr>
-                        <tr>
-                            <td>2026-04-28 17:30:12</td>
-                            <td>李监理</td>
-                            <td><span class="op-type op-submit">提交</span></td>
-                            <td>监理通知单</td>
-                            <td>提交监理通知单 TZ-2026-014</td>
-                            <td>192.168.1.108</td>
-                            <td><span class="detail-link" onclick="viewDetail(3)">详情</span></td>
-                        </tr>
-                        <tr>
-                            <td>2026-04-28 16:45:33</td>
-                            <td>赵总监</td>
-                            <td><span class="op-type op-approve">审核</span></td>
-                            <td>监理日志</td>
-                            <td>审核通过监理日志 RZ-2026-04-W4</td>
-                            <td>192.168.1.100</td>
-                            <td><span class="detail-link" onclick="viewDetail(4)">详情</span></td>
-                        </tr>
-                        <tr>
-                            <td>2026-04-28 15:20:18</td>
-                            <td>张监理</td>
-                            <td><span class="op-type op-update">编辑</span></td>
-                            <td>日常巡检</td>
-                            <td>编辑巡检记录 XJ-2026-0428-01，更新整改状态</td>
-                            <td>192.168.1.105</td>
-                            <td><span class="detail-link" onclick="viewDetail(5)">详情</span></td>
-                        </tr>
-                        <tr>
-                            <td>2026-04-28 14:30:55</td>
-                            <td>王监理</td>
-                            <td><span class="op-type op-create">新建</span></td>
-                            <td>日常巡检</td>
-                            <td>新建巡检记录：科技产业园二期主体结构3层</td>
-                            <td>192.168.1.112</td>
-                            <td><span class="detail-link" onclick="viewDetail(6)">详情</span></td>
-                        </tr>
-                        <tr>
-                            <td>2026-04-28 11:22:40</td>
-                            <td>张监理</td>
-                            <td><span class="op-type op-export">导出</span></td>
-                            <td>项目台账</td>
-                            <td>导出项目台账数据</td>
-                            <td>192.168.1.105</td>
-                            <td><span class="detail-link" onclick="viewDetail(7)">详情</span></td>
-                        </tr>
-                        <tr>
-                            <td>2026-04-28 10:05:17</td>
-                            <td>李监理</td>
-                            <td><span class="op-type op-delete">删除</span></td>
-                            <td>工作联系单</td>
-                            <td>删除草稿联系单 LX-2026-D02</td>
-                            <td>192.168.1.108</td>
-                            <td><span class="detail-link" onclick="viewDetail(8)">详情</span></td>
-                        </tr>
-                        <tr>
-                            <td>2026-04-28 08:55:03</td>
-                            <td>李监理</td>
-                            <td><span class="op-type op-login">登录</span></td>
-                            <td>系统</td>
-                            <td>用户登录系统</td>
-                            <td>192.168.1.108</td>
-                            <td><span class="detail-link" onclick="viewDetail(9)">详情</span></td>
-                        </tr>
-                        <tr>
-                            <td>2026-04-28 08:30:22</td>
-                            <td>张监理</td>
-                            <td><span class="op-type op-login">登录</span></td>
-                            <td>系统</td>
-                            <td>用户登录系统</td>
-                            <td>192.168.1.105</td>
-                            <td><span class="detail-link" onclick="viewDetail(10)">详情</span></td>
-                        </tr>
+                        <tr data-app-placeholder="1"><td colspan="7" style="text-align:center;color:#9CA3AF;padding:40px;">数据加载中...</td></tr>
                     </tbody>
                 </table>
                 <div class="pagination">
@@ -242,14 +153,7 @@
         <div class="modal">
             <div class="modal-header"><h3>操作日志详情</h3><button class="modal-close" onclick="closeModal('detailModal')">✕</button></div>
             <div class="modal-body">
-                <div class="detail-row"><div class="detail-label">操作时间</div><div class="detail-value">2026-04-29 09:15:23</div></div>
-                <div class="detail-row"><div class="detail-label">操作人</div><div class="detail-value">张监理</div></div>
-                <div class="detail-row"><div class="detail-label">操作类型</div><div class="detail-value"><span class="op-type op-create">新建</span></div></div>
-                <div class="detail-row"><div class="detail-label">操作模块</div><div class="detail-value">监理日记</div></div>
-                <div class="detail-row"><div class="detail-label">操作内容</div><div class="detail-value">新建监理日记：2026-04-29 城东综合体项目</div></div>
-                <div class="detail-row"><div class="detail-label">IP地址</div><div class="detail-value">192.168.1.105</div></div>
-                <div class="detail-row"><div class="detail-label">浏览器</div><div class="detail-value">Chrome 124.0</div></div>
-                <div class="detail-row"><div class="detail-label">请求参数</div><div class="detail-value" style="background:#F8FAFC;padding:8px;border-radius:4px;font-size:12px;font-family:monospace;word-break:break-all;">{"projectId":"PRJ-2026-001","date":"2026-04-29","weather":"sunny","content":"日常巡检..."}</div></div>
+                <!-- 具体内容由 viewDetail() 根据真实日志渲染 -->
             </div>
             <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('detailModal')">关闭</button></div>
         </div>
@@ -280,8 +184,11 @@
         var allData = [];
         var filteredData = [];
 
+        var loadSeq = 0;
         function loadData() {
+            var seq = ++loadSeq;
             return apiGetPage('/operation-logs', { pageNum: 1, pageSize: 500 }).then(function(res) {
+                if (seq !== loadSeq) return; // 丢弃过期响应，避免旧日志覆盖新结果
                 allData = (res.list || []).map(function(o) {
                     return {
                         id: o.id,
@@ -293,8 +200,22 @@
                         ip: o.ip || '—'
                     };
                 });
+                buildOperatorOptions();
                 filterData();
             });
+        }
+
+        // 操作人下拉只能来自真实日志，不再写死人员姓名
+        function buildOperatorOptions() {
+            var sel = document.getElementById('operatorFilter');
+            if (!sel) return;
+            var names = [];
+            allData.forEach(function (d) {
+                if (d.operator && d.operator !== '—' && names.indexOf(d.operator) === -1) names.push(d.operator);
+            });
+            sel.innerHTML = '<option value="">全部操作人</option>' + names.map(function (n) {
+                return '<option>' + esc(n) + '</option>';
+            }).join('');
         }
 
         function renderTable() {
@@ -308,7 +229,7 @@
                     for (var i = 0; i < filteredData.length; i++) {
                         var d = filteredData[i];
                         var t = typeMap[d.opType] || ['op-login', d.opType];
-                        html += '<tr><td>' + d.time + '</td><td>' + d.operator + '</td><td><span class="op-type ' + t[0] + '">' + t[1] + '</span></td><td>' + d.module + '</td><td>' + d.content + '</td><td>' + d.ip + '</td><td><span class="detail-link" onclick="viewDetail(' + d.id + ')">详情</span></td></tr>';
+                        html += '<tr><td>' + esc(d.time) + '</td><td>' + esc(d.operator) + '</td><td><span class="op-type ' + t[0] + '">' + esc(t[1]) + '</span></td><td>' + esc(d.module) + '</td><td>' + esc(d.content) + '</td><td>' + esc(d.ip) + '</td><td><span class="detail-link" onclick="viewDetail(' + d.id + ')">详情</span></td></tr>';
                     }
                     tbody.innerHTML = html;
                 }

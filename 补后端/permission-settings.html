@@ -39,7 +39,7 @@
         .btn-outline:hover { background: #F9FAFB; }
         .btn-sm { padding: 4px 10px; font-size: 12px; }
         .btn-success { background: #10B981; color: #fff; }
-        .layout { display: grid; grid-template-columns: 280px 1fr; gap: 16px; }
+        .layout { display: grid; grid-template-columns: 280px 1fr; gap: 16px; align-items: start; }
         .role-panel { background: #fff; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); overflow: hidden; }
         .role-header { padding: 16px; border-bottom: 1px solid #E5E7EB; display: flex; align-items: center; justify-content: space-between; }
         .role-header h4 { font-size: 14px; font-weight: 600; color: #1E3A5F; }
@@ -47,7 +47,9 @@
         .role-item { padding: 12px; border-radius: 6px; cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: space-between; transition: background 0.2s; }
         .role-item:hover { background: #F0F5FF; }
         .role-item.active { background: #DBEAFE; color: #1D4ED8; font-weight: 500; }
-        .role-item .role-count { font-size: 11px; color: #9CA3AF; }
+        .role-item .role-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .role-item .role-count { font-size: 11px; color: #6B7280; background: #F3F4F6; border-radius: 10px; padding: 2px 8px; margin-left: 8px; white-space: nowrap; }
+        .role-item.active .role-count { background: #2563EB; color: #fff; }
         .perm-panel { background: #fff; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); overflow: hidden; }
         .perm-header { padding: 16px 20px; border-bottom: 1px solid #E5E7EB; display: flex; align-items: center; justify-content: space-between; }
         .perm-header h4 { font-size: 14px; font-weight: 600; color: #1E3A5F; }
@@ -60,6 +62,40 @@
         .perm-row .perm-actions { display: flex; gap: 16px; }
         .perm-check { display: flex; align-items: center; gap: 4px; font-size: 12px; color: #6B7280; cursor: pointer; }
         .perm-check input[type="checkbox"] { accent-color: #2563EB; }
+        .member-panel { grid-column: 2; background: #fff; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); overflow: hidden; }
+        .member-header { padding: 16px 20px; border-bottom: 1px solid #E5E7EB; display: flex; align-items: center; justify-content: space-between; }
+        .member-header h4 { font-size: 14px; font-weight: 600; color: #1E3A5F; }
+        .member-total { font-size: 12px; color: #2563EB; background: #DBEAFE; border-radius: 12px; padding: 2px 10px; }
+        .member-body { overflow-x: auto; }
+        .member-table { width: 100%; min-width: 600px; border-collapse: collapse; font-size: 13px; }
+        .member-table th { text-align: left; padding: 10px 16px; background: #F9FAFB; color: #6B7280; font-size: 12px; font-weight: 500; border-bottom: 1px solid #E5E7EB; white-space: nowrap; }
+        .member-table td { padding: 10px 16px; border-bottom: 1px solid #F3F4F6; color: #374151; }
+        .member-table tr:last-child td { border-bottom: none; }
+        .member-empty { text-align: center; color: #9CA3AF; padding: 24px; font-size: 13px; }
+        .member-name { display: flex; align-items: center; gap: 8px; }
+        .member-avatar { width: 24px; height: 24px; border-radius: 50%; background: #DBEAFE; color: #1D4ED8; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; flex: none; }
+        .status-tag { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; white-space: nowrap; }
+        .status-active { background: #D1FAE5; color: #059669; }
+        .status-inactive { background: #F3F4F6; color: #6B7280; }
+        .status-leave { background: #FEF3C7; color: #D97706; }
+        .member-tools { display: flex; align-items: center; gap: 8px; }
+        .member-action { white-space: nowrap; }
+        .member-denied { font-size: 12px; color: #9CA3AF; }
+        .btn[disabled] { opacity: .55; cursor: not-allowed; }
+        .btn-primary[disabled]:hover { background: #2563EB; }
+        .candidate-search { display: flex; gap: 8px; margin-bottom: 10px; }
+        .candidate-search .form-control { flex: 1; }
+        .candidate-bar { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: #6B7280; margin-bottom: 8px; }
+        .candidate-bar .check-all { color: #2563EB; cursor: pointer; }
+        .candidate-box { max-height: 300px; overflow-y: auto; border: 1px solid #E5E7EB; border-radius: 8px; }
+        .candidate-item { display: flex; align-items: center; gap: 8px; padding: 9px 14px; border-bottom: 1px solid #F3F4F6; font-size: 13px; color: #374151; cursor: pointer; }
+        .candidate-item:last-child { border-bottom: none; }
+        .candidate-item:hover { background: #F0F5FF; }
+        .candidate-item input { accent-color: #2563EB; flex: none; }
+        .candidate-meta { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 12px; color: #9CA3AF; white-space: nowrap; }
+        .candidate-empty { text-align: center; color: #9CA3AF; padding: 24px; font-size: 13px; }
+        .modal-wide { width: 560px; }
+        @media (max-width: 768px) { .member-panel { grid-column: 1; } }
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
         .modal-overlay.show { display: flex; }
         .modal { background: #fff; border-radius: 12px; width: 450px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); }
@@ -98,7 +134,7 @@
     <div class="main">
         <div class="header">
             <div class="header-left"><h3>权限设置</h3><span class="breadcrumb"><a href="index.html">首页</a> / 团队管理 / 权限设置</span></div>
-            <div class="header-right"><div class="notification">🔔<span class="badge" id="notifBadge" style="display:none;">0</span></div><div class="user-info"><div class="user-avatar">张</div><span class="user-name">张监理</span></div></div>
+            <div class="header-right"><div class="notification">🔔<span class="badge" id="notifBadge" style="display:none;">0</span></div><div class="user-info"><div class="user-avatar"></div><span class="user-name"></span></div></div>
         </div>
 
         <div class="content">
@@ -106,17 +142,13 @@
                 <div class="role-panel">
                     <div class="role-header"><h4>角色列表</h4><button class="btn btn-primary btn-sm" onclick="openCreateModal()">＋ 新建角色</button></div>
                     <div class="role-body">
-                        <div class="role-item active" onclick="selectRole(this,'系统管理员')"><span>🔑 系统管理员</span><span class="role-count">2人</span></div>
-                        <div class="role-item" onclick="selectRole(this,'总监理工程师')"><span>👨‍💼 总监理工程师</span><span class="role-count">3人</span></div>
-                        <div class="role-item" onclick="selectRole(this,'专业监理工程师')"><span>👷 专业监理工程师</span><span class="role-count">8人</span></div>
-                        <div class="role-item" onclick="selectRole(this,'监理员')"><span>👷‍♂️ 监理员</span><span class="role-count">15人</span></div>
-                        <div class="role-item" onclick="selectRole(this,'资料员')"><span>📋 资料员</span><span class="role-count">4人</span></div>
+                        <div style="text-align:center;color:#9CA3AF;padding:20px;">角色加载中...</div>
                     </div>
                 </div>
 
                 <div class="perm-panel">
                     <div class="perm-header">
-                        <h4 id="permTitle">系统管理员 - 权限配置</h4>
+                        <h4 id="permTitle">权限配置</h4>
                         <div style="display:flex;gap:8px;">
                             <button class="btn btn-outline btn-sm" onclick="openEditModal()">编辑角色</button>
                             <button class="btn btn-danger btn-sm" onclick="confirmDelete()">删除角色</button>
@@ -166,6 +198,24 @@
                         <div style="text-align:right;margin-top:16px;"><button class="btn btn-primary" onclick="savePermissions()">保存权限配置</button></div>
                     </div>
                 </div>
+
+                <div class="member-panel">
+                    <div class="member-header">
+                        <h4 id="memberTitle">角色成员</h4>
+                        <div class="member-tools">
+                            <span class="member-total" id="memberTotal">—</span>
+                            <button class="btn btn-primary btn-sm" id="addMemberBtn" onclick="openMemberModal()" disabled>＋ 添加成员</button>
+                        </div>
+                    </div>
+                    <div class="member-body">
+                        <table class="member-table">
+                            <thead><tr><th>姓名</th><th>部门</th><th>职位</th><th>联系电话</th><th>状态</th><th>操作</th></tr></thead>
+                            <tbody id="memberBody">
+                                <tr><td colspan="6" class="member-empty">请选择左侧角色查看成员</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -194,12 +244,49 @@
         </div>
     </div>
 
+    <div class="modal-overlay" id="memberModal">
+        <div class="modal modal-wide">
+            <div class="modal-header"><h3 id="memberModalTitle">添加成员</h3><button class="modal-close" onclick="closeMemberModal()">✕</button></div>
+            <div class="modal-body">
+                <div class="candidate-search">
+                    <input type="text" class="form-control" id="memberKeyword" placeholder="输入姓名关键字搜索，留空显示全部用户">
+                    <button class="btn btn-outline" onclick="searchCandidates()">搜索</button>
+                </div>
+                <div class="candidate-bar">
+                    <span id="candidateHint">勾选后可批量加入当前角色，已在本角色中的用户不重复出现</span>
+                    <span class="check-all" onclick="toggleCandidates(this)">全选/取消</span>
+                </div>
+                <div class="candidate-box" id="candidateBox"><div class="candidate-empty">用户加载中...</div></div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-outline" onclick="closeMemberModal()">取消</button><button class="btn btn-primary" id="memberSaveBtn" onclick="saveMembers()">添加所选</button></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay confirm-modal" id="unbindModal">
+        <div class="modal" style="width:400px;">
+            <div class="modal-header"><h3>确认移除成员</h3><button class="modal-close" onclick="closeUnbindModal()">✕</button></div>
+            <div class="modal-body" style="padding:32px 24px;">
+                <div class="confirm-icon">⚠️</div>
+                <div class="confirm-text" id="unbindText">确定要将该成员从当前角色移除吗？</div>
+                <div class="confirm-sub">仅解除与该角色的绑定，不会删除人员本身</div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-outline" onclick="closeUnbindModal()">取消</button><button class="btn btn-danger" onclick="confirmUnbind()">确认移除</button></div>
+        </div>
+    </div>
+
     <script>
         var roles = [];
         var permTree = [];
         var selectedRoleId = null;
         var editingId = null;
         var permissionsLoaded = false;
+        var deptsMap = {};
+        var memberSeq = 0;
+        var members = [];
+        var candidateSeq = 0;
+        var unbindTargetId = null;
+        var isAdminUser = false;
+        var MEMBER_STATUS = { active: ['status-active', '在职'], inactive: ['status-inactive', '离职'], leave: ['status-leave', '休假'] };
 
         function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
         function roleById(id) { for (var i = 0; i < roles.length; i++) { if (roles[i].id === id) return roles[i]; } return null; }
@@ -215,9 +302,13 @@
                     selectRole(keep);
                 } else {
                     document.getElementById('permTitle').textContent = '权限配置';
+                    document.getElementById('memberTitle').textContent = '角色成员';
+                    document.getElementById('memberTotal').textContent = '—';
+                    document.getElementById('memberBody').innerHTML = '<tr><td colspan="6" class="member-empty">暂无角色</td></tr>';
                 }
             }).catch(function() {
                 document.querySelector('.role-body').innerHTML = '<div style="text-align:center;color:#9CA3AF;padding:20px;">加载失败</div>';
+                document.getElementById('memberBody').innerHTML = '<tr><td colspan="6" class="member-empty">角色加载失败，无法读取成员</td></tr>';
             });
         }
 
@@ -226,9 +317,222 @@
             for (var i = 0; i < roles.length; i++) {
                 var r = roles[i];
                 var active = r.id === selectedRoleId ? ' active' : '';
-                html += '<div class="role-item' + active + '" onclick="selectRole(' + r.id + ')"><span>🔑 ' + esc(r.name) + '</span><span class="role-count">' + esc(r.code || '') + '</span></div>';
+                var count = typeof r.userCount === 'number' ? r.userCount : 0;
+                // onclick 只传数字主键，角色名与编码均经转义后再进入标记
+                html += '<div class="role-item' + active + '" onclick="selectRole(' + r.id + ')" title="角色编码：' + App.escape(r.code || '') + '">'
+                    + '<span class="role-name">🔑 ' + esc(r.name) + '</span>'
+                    + '<span class="role-count">' + count + '人</span></div>';
             }
             document.querySelector('.role-body').innerHTML = html || '<div style="text-align:center;color:#9CA3AF;padding:20px;">暂无角色</div>';
+        }
+
+        function loadDepartments() {
+            return apiGetPage('/departments', { pageNum: 1, pageSize: 500 }).then(function(page) {
+                var list = page.list || [];
+                deptsMap = {};
+                for (var i = 0; i < list.length; i++) deptsMap[list[i].id] = list[i].name;
+            }).catch(function() { /* 部门字典失败只影响部门列展示 */ });
+        }
+
+        function loadMembers(roleId) {
+            var seq = ++memberSeq;
+            var body = document.getElementById('memberBody');
+            var total = document.getElementById('memberTotal');
+            var r = roleById(roleId);
+            members = [];
+            document.getElementById('memberTitle').textContent = (r ? r.name : '') + ' - 成员名单';
+            total.textContent = '…';
+            body.innerHTML = '<tr><td colspan="6" class="member-empty">成员加载中...</td></tr>';
+            syncMemberToolbar();
+            return apiFetch('/roles/' + roleId + '/users').then(function(list) {
+                if (seq !== memberSeq || selectedRoleId !== roleId) return; // 丢弃过期响应，避免切换角色后旧名单覆盖新结果
+                var rows = list || [];
+                members = rows;
+                total.textContent = rows.length + ' 人';
+                if (r) r.userCount = rows.length;
+                renderRoles();
+                syncMemberToolbar();
+                if (!rows.length) {
+                    body.innerHTML = '<tr><td colspan="6" class="member-empty">该角色暂未绑定成员，点击右上角“＋ 添加成员”开始绑定</td></tr>';
+                    return;
+                }
+                var html = '';
+                for (var i = 0; i < rows.length; i++) {
+                    var m = rows[i];
+                    var s = MEMBER_STATUS[m.status] || MEMBER_STATUS.active;
+                    html += '<tr>'
+                        + '<td><span class="member-name"><span class="member-avatar">' + esc((m.name || '?').charAt(0)) + '</span>' + esc(m.name || '—') + '</span></td>'
+                        + '<td>' + esc(deptsMap[m.deptId] || '—') + '</td>'
+                        + '<td>' + esc(m.position || '—') + '</td>'
+                        + '<td>' + esc(m.phone || '—') + '</td>'
+                        + '<td><span class="status-tag ' + s[0] + '">' + s[1] + '</span></td>'
+                        + '<td class="member-action">' + memberActionHtml(m.id) + '</td>'
+                        + '</tr>';
+                }
+                body.innerHTML = html;
+            }).catch(function() {
+                if (seq !== memberSeq || selectedRoleId !== roleId) return;
+                total.textContent = '—';
+                body.innerHTML = '<tr><td colspan="6" class="member-empty">成员加载失败，请刷新重试</td></tr>';
+                syncMemberToolbar();
+            });
+        }
+
+        /** 成员行的移除入口：非 admin 只展示无权限提示，不渲染可点按钮 */
+        function memberActionHtml(userId) {
+            if (!isAdminUser) return '<span class="member-denied">无操作权限</span>';
+            return '<button class="btn btn-outline btn-sm" onclick="askUnbind(' + userId + ')">移除</button>';
+        }
+
+        function syncMemberToolbar() {
+            var btn = document.getElementById('addMemberBtn');
+            if (!btn) return;
+            btn.disabled = !(isAdminUser && selectedRoleId);
+            btn.title = isAdminUser ? '将已有用户绑定到当前角色' : '仅系统管理员可调整角色成员';
+        }
+
+        function askUnbind(userId) {
+            if (!isAdminUser) { App.toast('仅系统管理员可调整角色成员', 'error'); return; }
+            var m = null;
+            for (var i = 0; i < members.length; i++) { if (members[i].id === userId) m = members[i]; }
+            if (!m) { App.toast('成员列表已变化，请刷新后重试'); return; }
+            var r = roleById(selectedRoleId);
+            unbindTargetId = userId;
+            // 姓名与角色名走 textContent 写入，避免拼接进入标记
+            document.getElementById('unbindText').textContent = '确定将“' + (m.name || '') + '”移出角色“' + (r ? r.name : '') + '”吗？';
+            document.getElementById('unbindModal').classList.add('show');
+        }
+
+        function closeUnbindModal() {
+            unbindTargetId = null;
+            document.getElementById('unbindModal').classList.remove('show');
+        }
+
+        function confirmUnbind() {
+            if (!selectedRoleId || !unbindTargetId) { closeUnbindModal(); return; }
+            apiFetch('/roles/' + selectedRoleId + '/users/' + unbindTargetId, { method: 'DELETE' }).then(function() {
+                App.toast('已解除该成员与本角色的绑定');
+                closeUnbindModal();
+                loadMembers(selectedRoleId);
+            }).catch(function(e) {
+                App.toast(e && e.message ? e.message : '解除绑定失败');
+                closeUnbindModal();
+                loadMembers(selectedRoleId);
+            });
+        }
+
+        function openMemberModal() {
+            if (!isAdminUser) { App.toast('仅系统管理员可调整角色成员', 'error'); return; }
+            if (!selectedRoleId) { App.toast('请先选择角色'); return; }
+            var r = roleById(selectedRoleId);
+            document.getElementById('memberModalTitle').textContent = '添加成员 - ' + (r ? r.name : '');
+            document.getElementById('memberKeyword').value = '';
+            document.getElementById('candidateBox').innerHTML = '<div class="candidate-empty">用户加载中...</div>';
+            updateMemberSelectCount(); // 未勾选前不允许提交，避免旧计数残留
+            document.getElementById('memberModal').classList.add('show');
+            searchCandidates();
+        }
+
+        function closeMemberModal() {
+            document.getElementById('memberModal').classList.remove('show');
+        }
+
+        function boundIdMap() {
+            var map = {};
+            for (var i = 0; i < members.length; i++) map[members[i].id] = true;
+            return map;
+        }
+
+        function searchCandidates() {
+            var kw = document.getElementById('memberKeyword').value.trim();
+            var box = document.getElementById('candidateBox');
+            var seq = ++candidateSeq;
+            box.innerHTML = '<div class="candidate-empty">用户加载中...</div>';
+            var query = { pageNum: 1, pageSize: 200 };
+            if (kw) query.name = kw;
+            apiGetPage('/users', query).then(function(page) {
+                if (seq !== candidateSeq) return;
+                var bound = boundIdMap();
+                var list = (page.list || []).filter(function(u) { return !bound[u.id]; });
+                if (!list.length) {
+                    box.innerHTML = '<div class="candidate-empty">' + (kw ? '未找到可添加的用户' : '全部用户均已在该角色中') + '</div>';
+                    updateMemberSelectCount();
+                    return;
+                }
+                var html = '';
+                for (var i = 0; i < list.length; i++) {
+                    var u = list[i];
+                    var s = MEMBER_STATUS[u.status] || MEMBER_STATUS.active;
+                    html += '<label class="candidate-item">'
+                        + '<input type="checkbox" data-uid="' + u.id + '" onchange="updateMemberSelectCount()">'
+                        + '<span class="member-avatar">' + esc((u.name || '?').charAt(0)) + '</span>'
+                        + '<span>' + esc(u.name || '—') + '</span>'
+                        + '<span class="candidate-meta">' + esc(deptsMap[u.deptId] || '—') + ' · ' + esc(u.position || '—')
+                        + ' <span class="status-tag ' + s[0] + '">' + s[1] + '</span></span>'
+                        + '</label>';
+                }
+                box.innerHTML = html;
+                updateMemberSelectCount();
+            }).catch(function() {
+                if (seq !== candidateSeq) return;
+                box.innerHTML = '<div class="candidate-empty">用户列表加载失败，请重试</div>';
+                updateMemberSelectCount();
+            });
+        }
+
+        function selectedCandidateIds() {
+            var ids = [];
+            var checked = document.querySelectorAll('#candidateBox input[type="checkbox"]:checked');
+            for (var i = 0; i < checked.length; i++) {
+                var uid = checked[i].getAttribute('data-uid');
+                if (uid) ids.push(Number(uid));
+            }
+            return ids;
+        }
+
+        function updateMemberSelectCount() {
+            var btn = document.getElementById('memberSaveBtn');
+            var n = selectedCandidateIds().length;
+            btn.textContent = n ? '添加所选(' + n + ')' : '添加所选';
+            btn.disabled = !n;
+        }
+
+        function toggleCandidates(el) {
+            var checkboxes = el.closest('.modal-body').querySelectorAll('#candidateBox input[type="checkbox"]');
+            var allChecked = checkboxes.length > 0;
+            checkboxes.forEach(function(c) { if (!c.checked) allChecked = false; });
+            checkboxes.forEach(function(c) { c.checked = !allChecked; });
+            updateMemberSelectCount();
+        }
+
+        function saveMembers() {
+            if (!selectedRoleId) { closeMemberModal(); return; }
+            var ids = selectedCandidateIds();
+            if (!ids.length) { App.toast('请先勾选要添加的成员'); return; }
+            var roleId = selectedRoleId;
+            var btn = document.getElementById('memberSaveBtn');
+            btn.disabled = true;
+            btn.textContent = '提交中...';
+            // 逐个绑定并汇总结果：部分失败不影响已成功部分，统一以刷新后的成员名单为准
+            var tasks = ids.map(function(id) {
+                return apiFetch('/roles/' + roleId + '/users/' + id, { method: 'POST' })
+                    .then(function() { return true; })
+                    .catch(function(e) { return e && e.message ? e.message : '绑定失败'; });
+            });
+            Promise.all(tasks).then(function(results) {
+                var ok = results.filter(function(r) { return r === true; }).length;
+                var firstError = null;
+                results.forEach(function(r) { if (r !== true && !firstError) firstError = r; });
+                if (ok && !firstError) App.toast('已添加 ' + ok + ' 名成员');
+                else if (ok) App.toast('已添加 ' + ok + ' 人，' + (ids.length - ok) + ' 人失败：' + firstError, 'error');
+                else App.toast(firstError || '添加成员失败', 'error');
+                closeMemberModal();
+                loadMembers(roleId);
+            }).catch(function() {
+                btn.disabled = false;
+                updateMemberSelectCount();
+                App.toast('添加成员请求异常，请刷新重试', 'error');
+            });
         }
 
         function loadPermTree() {
@@ -275,6 +579,7 @@
             var r = roleById(id);
             renderRoles();
             document.getElementById('permTitle').textContent = (r ? r.name : '') + ' - 权限配置';
+            loadMembers(id);
             var boxes = document.querySelectorAll('.perm-body input[type="checkbox"]');
             // 管理员不可被削弱，但勾选状态必须来自真实绑定，不能用全勾选掩盖初始化失败。
             permissionsLoaded = false;
@@ -376,7 +681,12 @@
         if (window.App) {
             App.requireAuth();
             App.initTopbar();
-            loadPermTree().then(loadRoles);
+            isAdminUser = (App.getUser().roles || []).indexOf('admin') >= 0;
+            document.getElementById('memberKeyword').addEventListener('keydown', function(e) {
+                if (e.keyCode === 13) searchCandidates();
+            });
+            // 部门字典与权限树并行加载，角色列表渲染时部门名已可用
+            Promise.all([loadPermTree(), loadDepartments()]).then(loadRoles);
         }
     </script>
 </body>

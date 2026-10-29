@@ -79,7 +79,7 @@
     <div class="main">
         <div class="header">
             <div class="header-left"><h3>日记报表</h3><span class="breadcrumb"><a href="index.html">首页</a> / 数据统计 / 日记报表</span></div>
-            <div class="header-right"><div class="notification">🔔<span class="badge" id="notifBadge" style="display:none;">0</span></div><div class="user-info"><div class="user-avatar">张</div><span class="user-name">张监理</span></div></div>
+            <div class="header-right"><div class="notification">🔔<span class="badge" id="notifBadge" style="display:none;">0</span></div><div class="user-info"><div class="user-avatar"></div><span class="user-name"></span></div></div>
         </div>
 
         <div class="content">
@@ -112,7 +112,7 @@
 
             <div id="tableView">
                 <div class="panel">
-                    <div class="panel-header"><h4>张监理 - 4月日记报表</h4><span style="font-size:12px;color:#6B7280;">城东综合体项目 | 完成率：95%</span></div>
+                    <div class="panel-header"><h4 id="reportTitle">日记报表</h4><span style="font-size:12px;color:#6B7280;" id="reportSummary">请选择人员、项目与月份后查看</span></div>
                     <div class="panel-body" style="padding:0;">
                         <table>
                             <thead>
@@ -126,49 +126,8 @@
                                 </tr>
                             </thead>
                             <tbody id="reportTableBody">
-                                <tr data-status="approved">
-                                    <td>2026-04-28</td><td>周一</td><td>晴</td>
-                                    <td><span class="status-tag status-approved">通过</span></td>
-                                    <td>4</td>
-                                    <td><a href="supervision-diary.html?readonly=true" style="color:#2563EB;text-decoration:none;font-size:12px;">查看日记</a></td>
-                                </tr>
-                                <tr data-status="draft">
-                                    <td>2026-04-27</td><td>周日</td><td>晴</td>
-                                    <td><span class="status-tag status-draft">草稿</span></td>
-                                    <td>2</td>
-                                    <td><a href="supervision-diary.html?readonly=true" style="color:#2563EB;text-decoration:none;font-size:12px;">查看</a></td>
-                                </tr>
-                                <tr data-status="approved">
-                                    <td>2026-04-26</td><td>周六</td><td>小雨</td>
-                                    <td><span class="status-tag status-approved">通过</span></td>
-                                    <td>2</td>
-                                    <td><a href="supervision-diary.html?readonly=true" style="color:#2563EB;text-decoration:none;font-size:12px;">查看日记</a></td>
-                                </tr>
-                                <tr data-status="approved">
-                                    <td>2026-04-25</td><td>周五</td><td>多云</td>
-                                    <td><span class="status-tag status-approved">通过</span></td>
-                                    <td>3</td>
-                                    <td><a href="supervision-diary.html?readonly=true" style="color:#2563EB;text-decoration:none;font-size:12px;">查看日记</a></td>
-                                </tr>
-                                <tr data-status="pending">
-                                    <td>2026-04-24</td><td>周四</td><td>晴</td>
-                                    <td><span class="status-tag status-pending">待审核</span></td>
-                                    <td>5</td>
-                                    <td><a href="supervision-diary.html?readonly=true" style="color:#2563EB;text-decoration:none;font-size:12px;">查看日记</a></td>
-                                </tr>
-                                <tr data-status="rejected">
-                                    <td>2026-04-23</td><td>周三</td><td>晴</td>
-                                    <td><span class="status-tag status-rejected">被驳回</span></td>
-                                    <td>3</td>
-                                    <td><a href="supervision-diary.html?readonly=true" style="color:#2563EB;text-decoration:none;font-size:12px;">查看</a></td>
-                                </tr>
-                                <tr data-status="unsubmitted">
-                                    <td>2026-04-22</td><td>周二</td><td>☁️ 阴</td>
-                                    <td><span class="status-tag status-unsubmitted">未提交</span></td>
-                                    <td>0</td>
-                                    <td><a href="supervision-diary.html?readonly=true" style="color:#2563EB;text-decoration:none;font-size:12px;">查看</a></td>
-                                </tr>
-                            </tbody>
+                        <tr data-app-placeholder="1"><td colspan="6" style="text-align:center;color:#9CA3AF;padding:40px;">数据加载中...</td></tr>
+                    </tbody>
                         </table>
                         <div class="pagination">
                             <div class="pagination-info">共 22 条记录，第 1/3 页</div>
@@ -180,6 +139,7 @@
         </div>
     </div>
 
+    <script src="miniprogram/utils/schema.js"></script>
     <script>
         var allData = [];
         var filteredData = [];
@@ -205,7 +165,7 @@
         }
 
         function recorderName(d) {
-            return d.submittedBy || usersMap[d.authorId] || (d.authorId ? ('用户#' + d.authorId) : '—');
+            return d.authorName || usersMap[d.authorId] || (d.authorId ? ('用户#' + d.authorId) : '原记录未记录人员');
         }
 
         function loadProjects() {
@@ -237,21 +197,38 @@
 
         function loadData() {
             var projectVal = document.getElementById('projectFilter').value;
-            var params = { pageNum: 1, pageSize: 1000 };
-            if (projectVal) params.projectId = projectVal;
-            return apiGetPage('/supervision-diaries', params).then(function(res) {
-                allData = (res.list || []).map(function(d) {
-                    return {
-                        date: d.diaryDate || '',
-                        weekday: weekdayOf(d.diaryDate),
-                        weather: d.weather || '—',
-                        diaryStatus: d.status || 'draft',
-                        relatedCount: countAtt(d),
-                        person: recorderName(d)
-                    };
+            var baseParams = { pageSize: 1000 };
+            if (projectVal) baseParams.projectId = projectVal;
+            var all = [];
+            var pageNum = 1;
+            var maxPages = 20;
+            function fetchPage() {
+                var params = Object.assign({}, baseParams, { pageNum: pageNum });
+                return apiGetPage('/supervision-diaries', params).then(function(res) {
+                    var list = res.list || [];
+                    all = all.concat(list);
+                    var total = Number(res.total || 0);
+                    pageNum++;
+                    if (all.length < total && list.length > 0 && pageNum <= maxPages) return fetchPage();
+                    if (all.length < total) {
+                        console.error('日记报表取数未完成：已取 ' + all.length + ' 条，接口总数 ' + total + ' 条，报表可能少计');
+                    }
+                    allData = all.map(function(d) {
+                        return {
+                            id: d.id,
+                            date: d.diaryDate || '',
+                            weekday: weekdayOf(d.diaryDate),
+                            weather: d.weather || '—',
+                            diaryStatus: d.status || 'draft',
+                            relatedCount: countAtt(d),
+                            person: recorderName(d),
+                            record: d
+                        };
+                    });
+                    queryData();
                 });
-                queryData();
-            });
+            }
+            return fetchPage();
         }
 
         function renderTable() {
@@ -265,7 +242,7 @@
                     for (var i = 0; i < filteredData.length; i++) {
                         var d = filteredData[i];
                         var s = statusMap[d.diaryStatus] || ['status-draft', d.diaryStatus];
-                        html += '<tr data-status="' + d.diaryStatus + '"><td>' + d.date + '</td><td>' + d.weekday + '</td><td>' + escapeHtml(d.weather) + '</td><td><span class="status-tag ' + s[0] + '">' + s[1] + '</span></td><td>' + d.relatedCount + '</td><td><a href="supervision-diary.html?readonly=true" style="color:#2563EB;text-decoration:none;font-size:12px;">查看日记</a></td></tr>';
+                        html += '<tr data-status="' + escapeHtml(d.diaryStatus) + '"><td>' + escapeHtml(d.date) + '</td><td>' + escapeHtml(d.weekday) + '</td><td>' + escapeHtml(d.weather) + '</td><td><span class="status-tag ' + escapeHtml(s[0]) + '">' + escapeHtml(s[1]) + '</span></td><td>' + d.relatedCount + '</td><td><a href="supervision-diary.html?readonly=true&id=' + encodeURIComponent(d.id == null ? '' : d.id) + '" style="color:#2563EB;text-decoration:none;font-size:12px;">查看日记</a></td></tr>';
                     }
                     tbody.innerHTML = html;
                 }
@@ -307,14 +284,23 @@
             } catch (e) { console.error('重置筛选失败：', e); }
         }
 
+        function csvCell(v) {
+            var s = String(v == null ? '' : v).replace(/^[=+@\-\t\r]/, "'$&");
+            if (/[",\r\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+            return s;
+        }
+
         function exportExcel() {
             try {
-                var headers = ['日期', '星期', '天气', '日记状态', '关联资料数'];
+                var fields = FieldSchema.schemas['supervision-diaries'].fields;
+                var headers = ['工程名称', '日期', '星期', '记录人', '审核人及审核记录', '日记状态', '关联资料数'].concat(fields.map(function(f) { return f[1]; }));
                 var statusMap = { draft: '草稿', pending: '待审核', submitted: '待审核', approved: '通过', rejected: '被驳回', unsubmitted: '未提交' };
-                var csvContent = '\uFEFF' + headers.join(',') + '\n';
+                var csvContent = '\uFEFF' + headers.map(csvCell).join(',') + '\n';
                 for (var i = 0; i < filteredData.length; i++) {
                     var d = filteredData[i];
-                    csvContent += [d.date, d.weekday, d.weather, statusMap[d.diaryStatus] || d.diaryStatus, d.relatedCount].join(',') + '\n';
+                    var record = d.record;
+                    csvContent += [projectsMap[record.projectId] || ('项目#' + record.projectId), d.date, d.weekday, d.person, FieldSchema.diaryPeople(record).reviewer, statusMap[d.diaryStatus] || d.diaryStatus, d.relatedCount]
+                        .concat(fields.map(function(f) { return record[f[0]]; })).map(csvCell).join(',') + '\n';
                 }
                 var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
                 var link = document.createElement('a');

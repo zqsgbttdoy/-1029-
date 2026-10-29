@@ -104,7 +104,7 @@
     <div class="main">
         <div class="header">
             <div class="header-left"><h3>日记统计</h3><span class="breadcrumb"><a href="index.html">首页</a> / 数据统计 / 日记统计</span></div>
-            <div class="header-right"><div class="notification">🔔<span class="badge" id="notifBadge" style="display:none;">0</span></div><div class="user-info"><div class="user-avatar">张</div><span class="user-name">张监理</span></div></div>
+            <div class="header-right"><div class="notification">🔔<span class="badge" id="notifBadge" style="display:none;">0</span></div><div class="user-info"><div class="user-avatar"></div><span class="user-name"></span></div></div>
         </div>
 
         <div class="content">
@@ -175,6 +175,7 @@
                             </tr>
                         </thead>
                         <tbody id="statBody">
+                            <tr data-app-placeholder="1"><td colspan="7" style="text-align:center;color:#9CA3AF;padding:24px;">数据加载中...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -209,7 +210,7 @@
         }
 
         function recorderName(d) {
-            return d.submittedBy || usersMap[d.authorId] || (d.authorId ? ('用户#' + d.authorId) : '—');
+            return d.authorName || usersMap[d.authorId] || (d.authorId ? ('用户#' + d.authorId) : '原记录未记录人员');
         }
 
         function onDimensionChange() {
@@ -228,33 +229,49 @@
             }
             var personSearch = document.getElementById('personSearch').value.trim();
             var projectVal = document.getElementById('projectSelect').value;
-            var params = { pageNum: 1, pageSize: 1000 };
-            if (dimension === 'project' && projectVal) params.projectId = projectVal;
-            apiGetPage('/supervision-diaries', params).then(function(res) {
-                var list = (res.list || []).filter(function(d) {
-                    var date = d.diaryDate || '';
-                    if (startDateVal && date && date < startDateVal) return false;
-                    if (endDateVal && date && date > endDateVal) return false;
-                    if (dimension === 'person' && personSearch && recorderName(d).indexOf(personSearch) === -1) return false;
-                    return true;
+            var baseParams = { pageSize: 1000 };
+            if (dimension === 'project' && projectVal) baseParams.projectId = projectVal;
+            var all = [];
+            var pageNum = 1;
+            var maxPages = 20;
+            function fetchPage() {
+                var params = Object.assign({}, baseParams, { pageNum: pageNum });
+                return apiGetPage('/supervision-diaries', params).then(function(res) {
+                    var list = res.list || [];
+                    all = all.concat(list);
+                    var totalCount = Number(res.total || 0);
+                    pageNum++;
+                    if (all.length < totalCount && list.length > 0 && pageNum <= maxPages) return fetchPage();
+                    if (all.length < totalCount) {
+                        console.error('日记统计取数未完成：已取 ' + all.length + ' 条，接口总数 ' + totalCount + ' 条，统计结果可能少计');
+                    }
+                    var filtered = all.filter(function(d) {
+                        var date = d.diaryDate || '';
+                        if (startDateVal && date && date < startDateVal) return false;
+                        if (endDateVal && date && date > endDateVal) return false;
+                        if (dimension === 'person' && personSearch && recorderName(d).indexOf(personSearch) === -1) return false;
+                        return true;
+                    });
+                    renderStats(filtered);
                 });
-                renderStats(list);
-            });
+            }
+            return fetchPage();
         }
 
         function renderStats(list) {
             var total = list.length, approved = 0, rejected = 0, draft = 0;
             var groups = {};
-            list.forEach(function(d) {
+            list.forEach(function(d, idx) {
                 if (d.status === 'approved') approved++;
                 else if (d.status === 'rejected') rejected++;
                 else if (d.status === 'draft') draft++;
                 var name = recorderName(d);
-                if (!groups[name]) groups[name] = { name: name, projects: {}, total: 0, approved: 0, rejected: 0 };
+                if (!groups[name]) groups[name] = { name: name, projects: {}, total: 0, approved: 0, rejected: 0, days: {}, approvedDays: {}, rejectedDays: {} };
                 var g = groups[name];
-                g.total++;
-                if (d.status === 'approved') g.approved++;
-                if (d.status === 'rejected') g.rejected++;
+                var dayKey = d.diaryDate ? String(d.diaryDate) : ('未填日期#' + idx);
+                if (!g.days[dayKey]) { g.days[dayKey] = true; g.total++; }
+                if (d.status === 'approved' && !g.approvedDays[dayKey]) { g.approvedDays[dayKey] = true; g.approved++; }
+                if (d.status === 'rejected' && !g.rejectedDays[dayKey]) { g.rejectedDays[dayKey] = true; g.rejected++; }
                 g.projects[projectsMap[d.projectId] || ('项目#' + d.projectId)] = true;
             });
             document.getElementById('statTotal').textContent = total;

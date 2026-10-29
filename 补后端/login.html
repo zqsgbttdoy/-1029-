@@ -28,6 +28,10 @@
             border: 1px solid #D1D5DB; border-radius: 8px; transition: border-color .15s, box-shadow .15s;
         }
         .form-group input:focus { outline: none; border-color: #2563EB; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12); }
+        .remember-row { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; margin: -4px 0 14px; font-size: 13px; color: #374151; }
+        .remember-row label { display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
+        .remember-row input[type="checkbox"] { width: 15px; height: 15px; accent-color: #2563EB; cursor: pointer; }
+        .remember-tip { font-size: 12px; color: #9CA3AF; }
         .login-btn {
             width: 100%; height: 46px; margin-top: 6px; border: none; border-radius: 8px;
             background: #2563EB; color: #fff; font-size: 15px; font-weight: 600; cursor: pointer;
@@ -61,6 +65,10 @@
                 <label for="password">密码</label>
                 <input type="password" id="password" autocomplete="current-password" placeholder="请输入密码" required>
             </div>
+            <div class="remember-row">
+                <label for="rememberPass"><input type="checkbox" id="rememberPass" checked>记住密码</label>
+                <span class="remember-tip">取消勾选将不再自动保存账号信息</span>
+            </div>
             <button type="submit" class="login-btn" id="loginBtn">登 录</button>
             <div class="login-error" id="loginError"></div>
         </form>
@@ -70,6 +78,49 @@
     <script>
         // 已登录则直接进入首页
         if (App.getToken()) { location.href = 'index.html'; }
+
+        // ---------------- 记住密码 ----------------
+        // 内网场景允许轻量存储：密码经「加盐 + Base64」简单编码后存入 localStorage，不裸存明文。
+        var REMEMBER_KEY = 'supervision.remember.v1';
+        var REMEMBER_SALT = 'sjjl#2026';
+
+        function encodePass(pwd) {
+            try { return btoa(encodeURIComponent(REMEMBER_SALT + pwd)); } catch (e) { return ''; }
+        }
+        function decodePass(encoded) {
+            try {
+                var raw = decodeURIComponent(atob(encoded));
+                return raw.indexOf(REMEMBER_SALT) === 0 ? raw.slice(REMEMBER_SALT.length) : '';
+            } catch (e) { return ''; }
+        }
+        function readRemember() {
+            try { return JSON.parse(localStorage.getItem(REMEMBER_KEY) || 'null'); } catch (e) { return null; }
+        }
+        function saveRemember(username, password) {
+            try { localStorage.setItem(REMEMBER_KEY, JSON.stringify({ username: username, pass: encodePass(password) })); }
+            catch (e) { /* 存储被禁用时不影响登录 */ }
+        }
+        function clearRemember() {
+            try { localStorage.removeItem(REMEMBER_KEY); } catch (e) { /* 忽略 */ }
+        }
+
+        // 打开页面时自动回显上次保存的账号密码
+        (function initRemember() {
+            var saved = readRemember();
+            if (!saved || !saved.username) return;
+            document.getElementById('username').value = saved.username;
+            var pwd = decodePass(saved.pass || '');
+            if (pwd) {
+                document.getElementById('password').value = pwd;
+            }
+        })();
+
+        // 退出登录时顺带清除记忆（登录页内包装 App.logout，不改动 app.js 全局逻辑）
+        var originalLogout = App.logout;
+        App.logout = function () {
+            clearRemember();
+            return originalLogout.apply(App, arguments);
+        };
 
         function showError(msg) {
             var el = document.getElementById('loginError');
@@ -94,6 +145,12 @@
                 body: { username: username, password: password },
                 silent: true
             }).then(function (data) {
+                // 登录成功后按勾选状态处理记住密码：勾选则保存，取消勾选则清除旧记忆
+                if (document.getElementById('rememberPass').checked) {
+                    saveRemember(username, password);
+                } else {
+                    clearRemember();
+                }
                 App.saveSession(data);
                 location.href = 'index.html';
             }).catch(function (err) {

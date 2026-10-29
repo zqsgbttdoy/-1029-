@@ -170,14 +170,16 @@
     <div class="main">
         <div class="header">
             <div class="header-left"><h3>工作联系单</h3><span class="breadcrumb"><a href="index.html">首页</a> / 监理现场工作 / 工作联系单</span></div>
-            <div class="header-right"><div class="notification">🔔<span class="badge">3</span></div><div class="user-info"><div class="user-avatar">张</div><span class="user-name">张监理</span></div></div>
+            <div class="header-right"><div class="notification">🔔<span class="badge">3</span></div><div class="user-info"><div class="user-avatar"></div><span class="user-name"></span></div></div>
         </div>
 
         <div class="content">
             <div class="toolbar">
                 <div class="toolbar-left">
                     <div class="search-box"><span class="search-icon">🔍</span><input type="text" placeholder="搜索联系单编号/内容..." id="searchInput"><button class="btn btn-primary btn-sm" onclick="searchData()" style="margin-left:8px;height:32px;">搜索</button></div>
-                    <select class="filter-select" id="projectFilter"><option value="">全部项目</option><option>城东综合体项目</option><option>滨河路改造工程</option><option>科技产业园二期</option></select>
+                    <select class="filter-select" id="projectFilter">
+                            <option value="">全部项目</option>
+                        </select>
                     <select class="filter-select" id="statusFilter"><option value="">全部状态</option><option value="draft">草稿</option><option value="sent">已发送</option><option value="replied">已回复</option><option value="verified">已验证</option><option value="overdue">已逾期</option></select>
                     <button class="btn btn-primary btn-sm" onclick="filterData()" style="height:36px;">确认</button>
                     <button class="btn btn-outline btn-sm" onclick="resetFilters()" style="height:36px;">重置</button>
@@ -202,42 +204,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr data-status="overdue">
-                            <td style="color:#2563EB;font-weight:500;">LX-2026-008</td>
-                            <td>城东综合体项目</td>
-                            <td>张监理</td>
-                            <td>施工单位</td>
-                            <td>2026-04-27</td>
-                            <td><span class="status-tag status-overdue">已逾期</span></td>
-                            <td><div class="actions"><button class="btn btn-outline btn-sm" onclick="viewDetail(1)">查看</button><button class="btn btn-outline btn-sm" onclick="reply(1)">回复</button></div></td>
-                        </tr>
-                        <tr data-status="replied">
-                            <td style="color:#2563EB;font-weight:500;">LX-2026-007</td>
-                            <td>滨河路改造工程</td>
-                            <td>张监理</td>
-                            <td>建设单位</td>
-                            <td>2026-04-25</td>
-                            <td><span class="status-tag status-replied">已回复</span></td>
-                            <td><div class="actions"><button class="btn btn-outline btn-sm" onclick="viewDetail(2)">查看</button><button class="btn btn-success btn-sm" onclick="verify(2)">验证</button></div></td>
-                        </tr>
-                        <tr data-status="verified">
-                            <td style="color:#2563EB;font-weight:500;">LX-2026-006</td>
-                            <td>科技产业园二期</td>
-                            <td>张监理</td>
-                            <td>设计单位</td>
-                            <td>2026-04-22</td>
-                            <td><span class="status-tag status-verified">已验证</span></td>
-                            <td><div class="actions"><button class="btn btn-outline btn-sm" onclick="viewDetail(3)">查看</button></div></td>
-                        </tr>
-                        <tr data-status="draft">
-                            <td style="color:#9CA3AF;">LX-2026-D01</td>
-                            <td>城东综合体项目</td>
-                            <td>张监理</td>
-                            <td>施工单位</td>
-                            <td>—</td>
-                            <td><span class="status-tag status-draft">草稿</span></td>
-                            <td><div class="actions"><button class="btn btn-outline btn-sm" onclick="openEditModal(4)">编辑</button><button class="btn btn-danger btn-sm" onclick="confirmDelete(4)">删除</button></div></td>
-                        </tr>
+                        <tr data-app-placeholder="1"><td colspan="7" style="text-align:center;color:#9CA3AF;padding:40px;">数据加载中...</td></tr>
                     </tbody>
                 </table>
                 <div class="pagination">
@@ -260,10 +227,12 @@
                 </div>
                 <div class="form-row">
                     <div class="form-group"><label>联系单编号 <span class="required">*</span></label><input type="text" class="form-control" id="contactCode" placeholder="请输入联系单编号"></div>
-                    <div class="form-group"><label>所属项目 <span class="required">*</span></label><select class="form-control" id="projectSelect" onchange="onProjectChange()"><option value="">请选择项目</option><option>城东综合体项目</option><option>滨河路改造工程</option><option>科技产业园二期</option></select></div>
+                    <div class="form-group"><label>所属项目 <span class="required">*</span></label><select class="form-control" id="projectSelect" onchange="onProjectChange()">
+                            <option value="">请选择项目</option>
+                        </select></div>
                 </div>
                 <div class="form-row">
-                    <div class="form-group"><label>发送方</label><input type="text" class="form-control" id="senderInput" value="张监理" readonly></div>
+                    <div class="form-group"><label>发送方</label><input type="text" class="form-control" id="senderInput" value="" readonly></div>
                     <div class="form-group"><label>发送日期 <span class="required">*</span></label><input type="date" class="form-control" id="sendDate" value="2026-04-29"></div>
                 </div>
                 <div class="form-row">
@@ -271,7 +240,7 @@
                     <div class="form-group"><label>接收单位名称 <span class="required">*</span></label><input type="text" class="form-control" id="receiverUnit" placeholder="请输入接收单位名称"></div>
                 </div>
                 <div class="form-group"><label>联系内容</label><textarea class="form-control" placeholder="请详细描述联系内容" style="height:120px;"></textarea></div>
-                <div class="form-group"><label>关联巡检记录</label><select class="form-control"><option value="">不关联</option><option>XJ-2026-0428-01 A区基础施工</option><option>XJ-2026-0428-02 桥梁桩基</option></select></div>
+                <div class="form-group"><label>关联巡检记录</label><select class="form-control" id="relatedInspection"><option value="">不关联</option></select></div>
 
                 <div class="doc-section">
                     <h5>
@@ -280,102 +249,7 @@
                     </h5>
                     <div class="doc-desc">根据工程资料目录设置绑定，一个联系单可对应多个目录</div>
                     <div class="doc-tree" id="docTree">
-                        <div class="doc-tree-node" onclick="toggleDocTreeNode(this)">
-                            <span class="expand-icon">▼</span>
-                            <span class="node-icon">🏗️</span>
-                            <span class="node-label" style="font-weight:500;">城东综合体项目</span>
-                            <input type="checkbox" onclick="event.stopPropagation(); toggleParentCheck(this)" data-id="proj-1">
-                        </div>
-                        <div class="doc-tree-children">
-                            <div class="doc-tree-node" onclick="toggleDocTreeNode(this)">
-                                <span class="expand-icon">▼</span>
-                                <span class="node-icon">📁</span>
-                                <span class="node-label">单位工程：主楼</span>
-                                <input type="checkbox" onclick="event.stopPropagation(); toggleParentCheck(this)" data-id="unit-1">
-                            </div>
-                            <div class="doc-tree-children">
-                                <div class="doc-tree-node" onclick="toggleDocTreeNode(this)">
-                                    <span class="expand-icon">▼</span>
-                                    <span class="node-icon">📂</span>
-                                    <span class="node-label">分部工程：地基基础</span>
-                                    <input type="checkbox" onclick="event.stopPropagation(); toggleParentCheck(this)" data-id="fb-1-1">
-                                </div>
-                                <div class="doc-tree-children">
-                                    <div class="doc-tree-node">
-                                        <span class="expand-icon" style="visibility:hidden;">▶</span>
-                                        <span class="node-icon">📄</span>
-                                        <span class="node-label">分项：土方工程</span>
-                                        <input type="checkbox" onclick="event.stopPropagation(); toggleLeafCheck(this)" data-id="fx-1-1-1" data-label="土方工程">
-                                    </div>
-                                    <div class="doc-tree-node">
-                                        <span class="expand-icon" style="visibility:hidden;">▶</span>
-                                        <span class="node-icon">📄</span>
-                                        <span class="node-label">分项：地基处理</span>
-                                        <input type="checkbox" onclick="event.stopPropagation(); toggleLeafCheck(this)" data-id="fx-1-1-2" data-label="地基处理">
-                                    </div>
-                                    <div class="doc-tree-node">
-                                        <span class="expand-icon" style="visibility:hidden;">▶</span>
-                                        <span class="node-icon">📄</span>
-                                        <span class="node-label">分项：桩基工程</span>
-                                        <input type="checkbox" onclick="event.stopPropagation(); toggleLeafCheck(this)" data-id="fx-1-1-3" data-label="桩基工程">
-                                    </div>
-                                </div>
-                                <div class="doc-tree-node" onclick="toggleDocTreeNode(this)">
-                                    <span class="expand-icon">▶</span>
-                                    <span class="node-icon">📂</span>
-                                    <span class="node-label">分部工程：主体结构</span>
-                                    <input type="checkbox" onclick="event.stopPropagation(); toggleParentCheck(this)" data-id="fb-1-2">
-                                </div>
-                                <div class="doc-tree-children collapsed">
-                                    <div class="doc-tree-node">
-                                        <span class="expand-icon" style="visibility:hidden;">▶</span>
-                                        <span class="node-icon">📄</span>
-                                        <span class="node-label">分项：钢筋工程</span>
-                                        <input type="checkbox" onclick="event.stopPropagation(); toggleLeafCheck(this)" data-id="fx-1-2-1" data-label="钢筋工程">
-                                    </div>
-                                    <div class="doc-tree-node">
-                                        <span class="expand-icon" style="visibility:hidden;">▶</span>
-                                        <span class="node-icon">📄</span>
-                                        <span class="node-label">分项：混凝土工程</span>
-                                        <input type="checkbox" onclick="event.stopPropagation(); toggleLeafCheck(this)" data-id="fx-1-2-2" data-label="混凝土工程">
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="doc-tree-node" onclick="toggleDocTreeNode(this)">
-                                <span class="expand-icon">▶</span>
-                                <span class="node-icon">📁</span>
-                                <span class="node-label">单位工程：裙楼</span>
-                                <input type="checkbox" onclick="event.stopPropagation(); toggleParentCheck(this)" data-id="unit-2">
-                            </div>
-                            <div class="doc-tree-children collapsed">
-                                <div class="doc-tree-node">
-                                    <span class="expand-icon" style="visibility:hidden;">▶</span>
-                                    <span class="node-icon">📄</span>
-                                    <span class="node-label">分项：基础工程</span>
-                                    <input type="checkbox" onclick="event.stopPropagation(); toggleLeafCheck(this)" data-id="fx-2-1-1" data-label="裙楼-基础工程">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="doc-tree-node" onclick="toggleDocTreeNode(this)">
-                            <span class="expand-icon">▶</span>
-                            <span class="node-icon">🏗️</span>
-                            <span class="node-label" style="font-weight:500;">滨河路改造工程</span>
-                            <input type="checkbox" onclick="event.stopPropagation(); toggleParentCheck(this)" data-id="proj-2">
-                        </div>
-                        <div class="doc-tree-children collapsed">
-                            <div class="doc-tree-node">
-                                <span class="expand-icon" style="visibility:hidden;">▶</span>
-                                <span class="node-icon">📄</span>
-                                <span class="node-label">分项：路基工程</span>
-                                <input type="checkbox" onclick="event.stopPropagation(); toggleLeafCheck(this)" data-id="fx-bh-1" data-label="路基工程">
-                            </div>
-                            <div class="doc-tree-node">
-                                <span class="expand-icon" style="visibility:hidden;">▶</span>
-                                <span class="node-icon">📄</span>
-                                <span class="node-label">分项：桥梁工程</span>
-                                <input type="checkbox" onclick="event.stopPropagation(); toggleLeafCheck(this)" data-id="fx-bh-2" data-label="桥梁工程">
-                            </div>
-                        </div>
+                        <div class="demo-placeholder" style="padding:20px;text-align:center;color:#9CA3AF;font-size:13px;">暂无工程资料目录，请先在项目台账维护项目与分部分项</div>
                     </div>
                     <div class="selected-docs" id="selectedDocs">
                         <span class="selected-doc-empty">未选择工程资料目录</span>
@@ -442,8 +316,8 @@
             <div class="modal-body">
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
                     <div><span style="font-size:12px;color:#9CA3AF;">联系单编号</span><div style="font-size:14px;margin-top:4px;color:#2563EB;font-weight:500;">LX-2026-008</div></div>
-                    <div><span style="font-size:12px;color:#9CA3AF;">所属项目</span><div style="font-size:14px;margin-top:4px;">城东综合体项目</div></div>
-                    <div><span style="font-size:12px;color:#9CA3AF;">发送方</span><div style="font-size:14px;margin-top:4px;">张监理</div></div>
+                    <div><span style="font-size:12px;color:#9CA3AF;">所属项目</span><div style="font-size:14px;margin-top:4px;">—</div></div>
+                    <div><span style="font-size:12px;color:#9CA3AF;">发送方</span><div style="font-size:14px;margin-top:4px;">—</div></div>
                     <div><span style="font-size:12px;color:#9CA3AF;">接收单位</span><div style="font-size:14px;margin-top:4px;">施工单位</div></div>
                     <div><span style="font-size:12px;color:#9CA3AF;">发送日期</span><div style="font-size:14px;margin-top:4px;">2026-04-27</div></div>
                     <div><span style="font-size:12px;color:#9CA3AF;">回复截止日期</span><div style="font-size:14px;margin-top:4px;color:#D97706;">2026-04-30</div></div>
@@ -506,25 +380,29 @@
             setTimeout(function(){ el.classList.remove('show'); setTimeout(function(){ el.remove(); }, 300); }, 2500);
         }
 
-        var currentUser = '张监理';
+        var currentUser = (window.App && App.getUser) ? (App.getUser().userName || '') : '';
         var allData = [];
         var filteredData = [];
         var currentPage = 1, pageSize = 10, totalRecords = 0;
+        var loadSeq = 0;
 
         // ========== 加载列表 ==========
         function loadData(page) {
             if (!page) page = currentPage;
             var search = (document.getElementById('searchInput').value||'').trim();
             var status = document.getElementById('statusFilter').value||'';
+            var seq = ++loadSeq;
+            App.tableLoading(document.querySelector('.table-container tbody'), 7);
             App.apiGetPage(API_BASE, { pageNum: page, pageSize: pageSize, code: search || undefined, status: status || undefined })
                 .then(function(pageData){
+                    if (seq !== loadSeq) return;
                     allData = pageData.list || [];
                     filteredData = allData.slice();
                     totalRecords = pageData.total || 0;
                     currentPage = pageData.pageNum || page;
                     renderTable();
                 })
-                .catch(function(){ allData = []; filteredData = []; renderTable(); });
+                .catch(function(){ if (seq !== loadSeq) return; allData = []; filteredData = []; renderTable(); });
         }
 
         function esc(s){ return (window.App && App.escape) ? App.escape(s) : String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
@@ -566,7 +444,7 @@
                         '<td><div class="actions">' + actionsHtml + '</div></td>' +
                         '</tr>';
                 }
-                tbody.innerHTML = html;
+                tbody.innerHTML = html || '<tr data-app-placeholder="1"><td colspan="7" style="text-align:center;color:#9CA3AF;padding:40px;">暂无数据</td></tr>';
                 var totalPages = Math.ceil(totalRecords / pageSize) || 1;
                 var paginationInfo = document.querySelector('.pagination-info');
                 if (paginationInfo) {

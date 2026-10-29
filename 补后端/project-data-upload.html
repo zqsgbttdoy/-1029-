@@ -158,7 +158,7 @@
     <div class="main">
         <div class="header">
             <div class="header-left"><h3>工程资料上传</h3><span class="breadcrumb"><a href="index.html">首页</a> / 项目资料 / 工程资料上传</span></div>
-            <div class="header-right"><div class="notification">🔔<span class="badge" id="notifBadge" style="display:none;">0</span></div><div class="user-info"><div class="user-avatar">张</div><span class="user-name">张监理</span></div></div>
+            <div class="header-right"><div class="notification">🔔<span class="badge" id="notifBadge" style="display:none;">0</span></div><div class="user-info"><div class="user-avatar"></div><span class="user-name"></span></div></div>
         </div>
 
         <div class="content">
@@ -282,87 +282,32 @@
         }
 
         var folderFiles = {
-            '单位工程': [
-                { id: 1, name: '单位工程质量验收记录.pdf', ext: 'pdf', size: '2.1 MB', uploader: '张监理', date: '2026-04-28' },
-                { id: 2, name: '单位工程开工报告.docx', ext: 'doc', size: '1.5 MB', uploader: '李监理', date: '2026-04-15' }
-            ],
-            '分部工程': [
-                { id: 3, name: '分部工程质量验收汇总表.pdf', ext: 'pdf', size: '3.2 MB', uploader: '张监理', date: '2026-04-26' }
-            ],
-            '地基基础': [
-                { id: 4, name: '地基基础分部工程质量验收记录.pdf', ext: 'pdf', size: '1.8 MB', uploader: '张监理', date: '2026-04-25' },
-                { id: 5, name: '地基承载力检测报告.pdf', ext: 'pdf', size: '5.6 MB', uploader: '王监理', date: '2026-04-20' }
-            ],
-            '土方工程': [
-                { id: 6, name: '土方开挖检验批质量验收记录.pdf', ext: 'pdf', size: '2.3 MB', uploader: '张监理', date: '2026-04-25' },
-                { id: 7, name: '土方回填施工方案.docx', ext: 'doc', size: '1.8 MB', uploader: '李监理', date: '2026-04-22' },
-                { id: 8, name: '现场土方施工照片_20260420.jpg', ext: 'img', size: '4.5 MB', uploader: '张监理', date: '2026-04-20' }
-            ],
-            '地基处理': [
-                { id: 9, name: '地基处理施工记录.pdf', ext: 'pdf', size: '1.2 MB', uploader: '张监理', date: '2026-04-18' },
-                { id: 10, name: '地基处理检测报告.pdf', ext: 'pdf', size: '3.8 MB', uploader: '王监理', date: '2026-04-16' }
-            ],
+            '单位工程': [],
+            '分部工程': [],
+            '地基基础': [],
+            '土方工程': [],
+            '地基处理': [],
             '桩基工程': [],
-            '主体结构': [
-                { id: 11, name: '主体结构分部工程质量验收记录.pdf', ext: 'pdf', size: '2.5 MB', uploader: '张监理', date: '2026-04-10' }
-            ],
-            '钢筋工程': [
-                { id: 12, name: '钢筋连接检验批质量验收记录.pdf', ext: 'pdf', size: '1.1 MB', uploader: '李监理', date: '2026-04-08' }
-            ],
-            '混凝土工程': [
-                { id: 13, name: '混凝土施工检验批质量验收记录.pdf', ext: 'pdf', size: '0.9 MB', uploader: '张监理', date: '2026-04-06' },
-                { id: 14, name: '混凝土抗压强度试验报告.pdf', ext: 'pdf', size: '2.0 MB', uploader: '王监理', date: '2026-04-05' }
-            ],
+            '主体结构': [],
+            '钢筋工程': [],
+            '混凝土工程': [],
             '装饰装修': [],
             '屋面工程': [],
             '给排水及采暖': [],
             '电气工程': [],
             '子分部工程': [],
             '分项工程': [],
-            '监理资料': [
-                { id: 15, name: '监理规划.pdf', ext: 'pdf', size: '4.2 MB', uploader: '张监理', date: '2026-03-01' },
-                { id: 16, name: '监理实施细则_地基基础.pdf', ext: 'pdf', size: '3.5 MB', uploader: '张监理', date: '2026-03-05' },
-                { id: 17, name: '监理实施细则_主体结构.pdf', ext: 'pdf', size: '3.8 MB', uploader: '张监理', date: '2026-03-05' },
-                { id: 33, name: '安全生产专题会议纪要_HY-2026-001.pdf', ext: 'pdf', size: '1.2 MB', uploader: '张监理', date: '2026-04-28', boundDiary: 'RJ-2026-015' },
-                { id: 34, name: '施工进度协调会议纪要_HY-2026-002.pdf', ext: 'pdf', size: '0.9 MB', uploader: '李监理', date: '2026-04-25', boundDiary: 'RJ-2026-014' },
-                { id: 35, name: '质量整改专题会议纪要_HY-2026-003.pdf', ext: 'pdf', size: '1.1 MB', uploader: '张监理', date: '2026-04-20' }
-            ],
-            '监理规划': [
-                { id: 18, name: '城东综合体项目监理规划.pdf', ext: 'pdf', size: '4.2 MB', uploader: '张监理', date: '2026-03-01' }
-            ],
-            '监理实施细则': [
-                { id: 19, name: '地基基础监理实施细则.pdf', ext: 'pdf', size: '3.5 MB', uploader: '张监理', date: '2026-03-05' },
-                { id: 20, name: '主体结构监理实施细则.pdf', ext: 'pdf', size: '3.8 MB', uploader: '张监理', date: '2026-03-05' }
-            ],
-            '监理通知单': [
-                { id: 21, name: '监理通知单_2026-001.pdf', ext: 'pdf', size: '0.8 MB', uploader: '张监理', date: '2026-04-10', boundDiary: 'RJ-2026-015' },
-                { id: 22, name: '监理通知单_2026-002.pdf', ext: 'pdf', size: '0.6 MB', uploader: '李监理', date: '2026-04-15' },
-                { id: 23, name: '监理通知单_2026-003.pdf', ext: 'pdf', size: '0.7 MB', uploader: '张监理', date: '2026-04-20', boundDiary: 'RJ-2026-014' }
-            ],
-            '会议纪要': [
-                { id: 33, name: '安全生产专题会议纪要_HY-2026-001.pdf', ext: 'pdf', size: '1.2 MB', uploader: '张监理', date: '2026-04-28', boundDiary: 'RJ-2026-015' },
-                { id: 34, name: '施工进度协调会议纪要_HY-2026-002.pdf', ext: 'pdf', size: '0.9 MB', uploader: '李监理', date: '2026-04-25', boundDiary: 'RJ-2026-014' },
-                { id: 35, name: '质量整改专题会议纪要_HY-2026-003.pdf', ext: 'pdf', size: '1.1 MB', uploader: '张监理', date: '2026-04-20' }
-            ],
-            '施工资料': [
-                { id: 24, name: '施工组织设计审批表.pdf', ext: 'pdf', size: '1.5 MB', uploader: '张监理', date: '2026-03-10' },
-                { id: 25, name: '施工方案报审表.pdf', ext: 'pdf', size: '0.9 MB', uploader: '李监理', date: '2026-03-12' }
-            ],
-            '施工组织设计': [
-                { id: 26, name: '施工组织设计_城东综合体.pdf', ext: 'pdf', size: '8.5 MB', uploader: '张监理', date: '2026-03-10' },
-                { id: 27, name: '施工组织设计审批记录.pdf', ext: 'pdf', size: '1.2 MB', uploader: '张监理', date: '2026-03-11' }
-            ],
-            '施工方案': [
-                { id: 28, name: '深基坑施工方案.pdf', ext: 'pdf', size: '5.3 MB', uploader: '李监理', date: '2026-03-15' },
-                { id: 29, name: '高大模板施工方案.pdf', ext: 'pdf', size: '4.8 MB', uploader: '李监理', date: '2026-03-18' }
-            ],
-            '竣工图': [
-                { id: 30, name: '建筑竣工图_A区.pdf', ext: 'pdf', size: '12.5 MB', uploader: '张监理', date: '2026-04-28' },
-                { id: 31, name: '结构竣工图_A区.pdf', ext: 'pdf', size: '15.2 MB', uploader: '张监理', date: '2026-04-28' }
-            ],
-            '竣工验收资料': [
-                { id: 32, name: '竣工验收报告.pdf', ext: 'pdf', size: '2.8 MB', uploader: '张监理', date: '2026-04-30' }
-            ]
+            '监理资料': [],
+            '监理规划': [],
+            '监理实施细则': [],
+            '监理通知单': [],
+            '会议纪要': [],
+            '施工资料': [],
+            '施工组织设计': [],
+            '施工方案': [],
+            '竣工图': [],
+            '竣工验收资料': []
+        
         };
 
         function onProjectChange() {

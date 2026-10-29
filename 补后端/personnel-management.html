@@ -17,7 +17,7 @@
         .menu-item:hover { background: rgba(255,255,255,0.08); color: #fff; }
         .menu-item.active { background: rgba(37,99,235,0.3); color: #fff; border-right: 3px solid #2563EB; }
         .menu-item .icon { width: 20px; margin-right: 10px; text-align: center; font-size: 14px; }
-        .main { margin-left: 240px; flex: 1; }
+        .main { margin-left: 240px; flex: 1; min-width: 0; }
         .header { background: #fff; padding: 0 24px; height: 56px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.06); position: sticky; top: 0; z-index: 50; }
         .header-left { display: flex; align-items: center; gap: 16px; }
         .header-left h3 { font-size: 15px; font-weight: 600; color: #1E3A5F; }
@@ -44,7 +44,7 @@
         .btn-sm { padding: 4px 10px; font-size: 12px; }
         .btn-warning { background: #F59E0B; color: #fff; }
         .table-container { background: #fff; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); overflow-x: auto; overflow-y: hidden; }
-        .table-container table { min-width: 900px; }
+        .table-container table { min-width: 1180px; }
         table { width: 100%; border-collapse: collapse; }
         thead { background: #F8FAFC; }
         th { padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 600; color: #6B7280; border-bottom: 1px solid #E5E7EB; white-space: nowrap; }
@@ -54,7 +54,8 @@
         .status-active { background: #D1FAE5; color: #059669; }
         .status-inactive { background: #F3F4F6; color: #6B7280; }
         .status-leave { background: #FEF3C7; color: #D97706; }
-        .actions { display: flex; gap: 8px; }
+        .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        .actions .btn { white-space: nowrap; }
         .pagination { display: flex; align-items: center; justify-content: space-between; padding: 16px; }
         .pagination-info { font-size: 12px; color: #6B7280; }
         .pagination-btns { display: flex; gap: 4px; }
@@ -79,6 +80,25 @@
         .confirm-icon { text-align: center; font-size: 48px; margin-bottom: 16px; }
         .confirm-text { text-align: center; font-size: 14px; color: #374151; margin-bottom: 8px; }
         .confirm-sub { text-align: center; font-size: 12px; color: #9CA3AF; }
+        .role-tag { display: inline-block; padding: 2px 8px; border-radius: 10px; background: #EFF6FF; color: #1D4ED8; font-size: 11px; margin: 0 4px 3px 0; white-space: nowrap; }
+        .role-none { color: #9CA3AF; font-size: 12px; }
+        .role-cell { min-width: 120px; max-width: 220px; }
+        .role-tip { font-size: 12px; color: #6B7280; margin-bottom: 10px; line-height: 1.6; }
+        .role-list { border: 1px solid #E5E7EB; border-radius: 8px; max-height: 280px; overflow-y: auto; }
+        .role-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid #F3F4F6; font-size: 13px; color: #374151; cursor: pointer; }
+        .role-item:last-child { border-bottom: none; }
+        .role-item:hover { background: #F0F5FF; }
+        .role-item input { accent-color: #2563EB; flex: none; }
+        .role-item .role-count { font-size: 11px; color: #6B7280; background: #F3F4F6; border-radius: 10px; padding: 2px 8px; margin-left: auto; white-space: nowrap; }
+        .role-item .role-code { font-size: 12px; color: #9CA3AF; white-space: nowrap; }
+        .role-empty { text-align: center; color: #9CA3AF; padding: 24px; font-size: 13px; }
+        .role-selected-info { margin-right: auto; font-size: 12px; color: #6B7280; }
+        .role-picker { display: flex; flex-wrap: wrap; gap: 8px; border: 1px solid #E5E7EB; border-radius: 8px; padding: 10px 12px; min-height: 36px; }
+        .role-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #374151; background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 16px; padding: 5px 12px; cursor: pointer; }
+        .role-chip.checked { background: #DBEAFE; border-color: #93C5FD; color: #1D4ED8; font-weight: 500; }
+        .role-chip input { accent-color: #2563EB; }
+        .role-hint { font-size: 12px; color: #9CA3AF; margin-top: 6px; }
+        .btn[disabled] { opacity: .55; cursor: not-allowed; }
     </style>
     <script src="assets/app.js"></script>
     <link rel="stylesheet" href="assets/style.css">
@@ -99,14 +119,16 @@
     <div class="main">
         <div class="header">
             <div class="header-left"><h3>人员管理</h3><span class="breadcrumb"><a href="index.html">首页</a> / 团队管理 / 人员管理</span></div>
-            <div class="header-right"><div class="notification">🔔<span class="badge" id="notifBadge" style="display:none;">0</span></div><div class="user-info"><div class="user-avatar">张</div><span class="user-name">张监理</span></div></div>
+            <div class="header-right"><div class="notification">🔔<span class="badge" id="notifBadge" style="display:none;">0</span></div><div class="user-info"><div class="user-avatar"></div><span class="user-name"></span></div></div>
         </div>
 
         <div class="content">
             <div class="toolbar">
                 <div class="toolbar-left">
                     <div class="search-box"><span style="color:#9CA3AF;margin-right:8px;">🔍</span><input type="text" placeholder="搜索姓名/手机号..." id="searchInput"></div>
-                    <select class="filter-select" id="deptFilter"><option value="">全部部门</option><option>监理一部</option><option>监理二部</option><option>综合管理部</option></select>
+                    <select class="filter-select" id="deptFilter">
+                            <option value="">全部部门</option>
+                        </select>
                     <select class="filter-select" id="statusFilter"><option value="">全部状态</option><option value="active">在职</option><option value="inactive">离职</option><option value="leave">休假</option></select>
                     <button class="btn btn-primary btn-sm" onclick="filterData()" style="height:36px;">确认</button><button class="btn btn-outline btn-sm" onclick="resetFilters()" style="height:36px;">重置</button>
                 </div>
@@ -126,12 +148,13 @@
                             <th>资格证号</th>
                             <th>联系电话</th>
                             <th>分配项目</th>
+                            <th>角色</th>
                             <th>状态</th>
                             <th>操作</th>
                         </tr>
                     </thead>
                     <tbody id="tableBody">
-                        <tr><td colspan="8" style="text-align:center;color:#9CA3AF;padding:40px;">加载中...</td></tr>
+                        <tr><td colspan="9" style="text-align:center;color:#9CA3AF;padding:40px;">加载中...</td></tr>
                     </tbody>
                 </table>
                 <div class="pagination">
@@ -160,11 +183,19 @@
                 </div>
                 <div class="form-row">
                     <div class="form-group"><label>资格证号</label><input type="text" class="form-control" id="personCertNo" placeholder="请输入资格证号"></div>
-                    <div class="form-group"><label>分配项目</label><select class="form-control" id="personProject"><option value="">未分配</option></select></div>
+                    <div class="form-group"><label>分配项目 <span style="font-size:11px;color:#9CA3AF;font-weight:400;">（可多选）</span></label>
+                        <div class="role-picker" id="personProjectPicker"><span class="role-none">项目加载中...</span></div>
+                        <div class="role-hint">一人可同时参与多个项目；勾选即绑定，取消勾选并保存即从该项目移出</div>
+                    </div>
                 </div>
                 <div class="form-row">
                     <div class="form-group"><label>入职日期</label><input type="date" class="form-control" id="personHireDate"></div>
                     <div class="form-group"><label>状态</label><select class="form-control" id="personStatus"><option value="active">在职</option><option value="leave">休假</option><option value="inactive">离职</option></select></div>
+                </div>
+                <div class="form-group" id="personRoleGroup" style="display:none;">
+                    <label>所属角色</label>
+                    <div class="role-picker" id="personRolePicker"><span class="role-none">角色加载中...</span></div>
+                    <div class="role-hint">可多选，保存后立即生效；也可保存后用列表行的“分配角色”随时调整</div>
                 </div>
             </div>
             <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('createModal')">取消</button><button class="btn btn-primary" onclick="savePerson()">保存</button></div>
@@ -208,17 +239,83 @@
         </div>
     </div>
 
+    <div class="modal-overlay" id="roleModal">
+        <div class="modal" style="width:480px;">
+            <div class="modal-header"><h3 id="roleModalTitle">分配角色</h3><button class="modal-close" onclick="closeRoleModal()">✕</button></div>
+            <div class="modal-body">
+                <div class="role-tip" id="roleTip">勾选该人员所属的角色，保存后立即生效（可多选）。角色权限范围在“权限设置”页维护；为人员勾选“系统管理员”将获得全部管理权限，请谨慎操作。</div>
+                <div class="role-list" id="roleList"><div class="role-empty">角色加载中...</div></div>
+            </div>
+            <div class="modal-footer">
+                <span class="role-selected-info" id="roleSelectedInfo">已选 0 个角色</span>
+                <button class="btn btn-outline" onclick="closeRoleModal()">取消</button>
+                <button class="btn btn-primary" id="roleSaveBtn" onclick="saveRoles()">保存</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         var allData = [];
         var filteredData = [];
         var deptsMap = {};
         var projectsMap = {};
+        var projectDict = [];
+        var memberProjectsMap = {};
+        var projectMapSeq = 0;
+        var rolesMap = {};
+        var roleNames = {};
+        var roleDict = [];
+        var roleSeq = 0;
+        var pendingRoleUserId = null;
+        var editingRoleSnapshot = [];
+        var isAdminUser = false;
         var editingId = null;
         var pendingDeleteId = null;
         var STATUS_MAP = { active: ['status-active', '在职'], inactive: ['status-inactive', '离职'], leave: ['status-leave', '休假'] };
 
         function recById(id) { for (var i = 0; i < allData.length; i++) { if (allData[i].id === id) return allData[i]; } return null; }
         function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+        /** 角色字典与“用户→已绑角色”映射一次取齐，避免逐行请求；非 admin 不拉取（后端整类接口仅 admin 可读） */
+        function loadRoleDict() {
+            if (!isAdminUser) return Promise.resolve();
+            var seq = ++roleSeq;
+            return Promise.all([
+                apiGetPage('/roles', { pageNum: 1, pageSize: 200 }),
+                apiFetch('/roles/user-map')
+            ]).then(function(res) {
+                if (seq !== roleSeq) return;
+                roleDict = (res[0].list || []).filter(function(r) { return r.status !== 'inactive'; });
+                roleNames = {};
+                for (var i = 0; i < roleDict.length; i++) roleNames[roleDict[i].id] = roleDict[i].name;
+                rolesMap = {};
+                var map = res[1] || {};
+                Object.keys(map).forEach(function(uid) {
+                    var ids = (map[uid] || []).map(Number).filter(function(rid) { return !!roleNames[rid]; });
+                    if (ids.length) rolesMap[Number(uid)] = ids;
+                });
+            }).catch(function() {
+                if (seq !== roleSeq) return;
+                roleDict = []; roleNames = {}; rolesMap = {};
+            });
+        }
+
+        function roleNamesOf(userId) {
+            var ids = rolesMap[userId] || [];
+            var names = [];
+            for (var i = 0; i < ids.length; i++) { if (roleNames[ids[i]]) names.push(roleNames[ids[i]]); }
+            return names;
+        }
+
+        /** 角色列：无绑定给“未分配”空态，非 admin 只展示占位符 */
+        function roleCellHtml(d) {
+            if (!isAdminUser) return '<span class="role-none">—</span>';
+            var names = roleNamesOf(d.id);
+            if (!names.length) return '<span class="role-none">未分配</span>';
+            var html = '';
+            for (var i = 0; i < names.length; i++) html += '<span class="role-tag">' + esc(names[i]) + '</span>';
+            return html;
+        }
 
         function loadDepartments() {
             return apiGetPage('/departments', { pageNum: 1, pageSize: 500 }).then(function(page) {
@@ -240,16 +337,42 @@
             return apiGetPage('/projects', { pageNum: 1, pageSize: 500 }).then(function(page) {
                 var list = page.list || [];
                 projectsMap = {};
-                var opts = '<option value="">未分配</option>';
+                projectDict = [];
                 for (var i = 0; i < list.length; i++) {
                     projectsMap[list[i].id] = list[i].name;
-                    opts += '<option value="' + list[i].id + '">' + esc(list[i].name) + '</option>';
+                    projectDict.push({ id: list[i].id, name: list[i].name });
                 }
-                document.getElementById('personProject').innerHTML = opts;
             }).catch(function() {});
         }
 
+        /** 项目绑定映射仅 admin 可读（后端接口 admin 门禁）；非 admin 项目列退回旧单字段展示 */
+        function loadProjectMap() {
+            if (!isAdminUser) return Promise.resolve();
+            var seq = ++projectMapSeq;
+            return apiFetch('/users/project-map').then(function(map) {
+                if (seq !== projectMapSeq) return;
+                memberProjectsMap = {};
+                Object.keys(map || {}).forEach(function(uid) {
+                    memberProjectsMap[Number(uid)] = (map[uid] || []).map(Number);
+                });
+            }).catch(function() { if (seq === projectMapSeq) memberProjectsMap = {}; });
+        }
+
+        /** 单人关联项目 ID：admin 以绑定映射为准（含旧字段回退），非 admin 只能用列表里的单字段 */
+        function projectIdsOf(d) {
+            if (isAdminUser) return memberProjectsMap[d.id] || [];
+            return d.projectId ? [Number(d.projectId)] : [];
+        }
+
+        function projectNamesOf(ids) {
+            var names = [];
+            for (var i = 0; i < ids.length; i++) { if (projectsMap[ids[i]]) names.push(projectsMap[ids[i]]); }
+            return names;
+        }
+
+        var loadSeq = 0;
         function loadData() {
+            var seq = ++loadSeq;
             var params = { pageNum: 1, pageSize: 500 };
             var keyword = document.getElementById('searchInput').value.trim();
             var deptId = document.getElementById('deptFilter').value;
@@ -258,8 +381,9 @@
             if (deptId) params.deptId = deptId;
             if (status) params.status = status;
             return apiGetPage('/users', params).then(function(page) {
+                if (seq !== loadSeq) return; // 丢弃过期响应，避免旧数据覆盖新结果
                 allData = (page.list || []).map(function(u) {
-                    return {
+                    var d = {
                         id: u.id,
                         name: u.name || '',
                         initial: (u.name || '?').charAt(0),
@@ -271,29 +395,33 @@
                         phone: u.phone || '—',
                         idCard: u.idCard || '',
                         projectId: u.projectId || '',
-                        project: projectsMap[u.projectId] || '—',
                         hireDate: u.hireDate || '',
                         status: u.status || 'active'
                     };
+                    var pids = projectIdsOf(d);
+                    d.projectIds = pids;
+                    d.project = projectNamesOf(pids).join('、') || '—';
+                    return d;
                 });
                 filteredData = allData.slice();
                 renderTable();
-            }).catch(function(e) { console.error('加载人员失败：', e); });
+            }).catch(function(e) { if (seq !== loadSeq) return; console.error('加载人员失败：', e); });
         }
 
         function renderTable() {
             try {
                 var tbody = document.getElementById('tableBody');
                 if (!filteredData.length) {
-                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#9CA3AF;padding:40px;">暂无匹配数据</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#9CA3AF;padding:40px;">暂无匹配数据</td></tr>';
                 } else {
                     var html = '';
                     for (var i = 0; i < filteredData.length; i++) {
                         var d = filteredData[i];
                         var s = STATUS_MAP[d.status] || ['status-active', '在职'];
                         var avatarBg = d.status === 'inactive' ? 'background:#9CA3AF;' : '';
-                        var actions = '<button class="btn btn-outline btn-sm" onclick="viewDetail(' + d.id + ')">查看</button><button class="btn btn-outline btn-sm" onclick="openEditModal(' + d.id + ')">编辑</button><button class="btn btn-outline btn-sm" onclick="askResetPwd(' + d.id + ')">重置密码</button><button class="btn btn-outline btn-sm" onclick="askDelete(' + d.id + ')">删除</button>';
-                        html += '<tr><td style="display:flex;align-items:center;gap:8px;"><div class="user-avatar" style="width:28px;height:28px;font-size:11px;' + avatarBg + '">' + esc(d.initial) + '</div>' + esc(d.name) + '</td><td>' + esc(d.dept) + '</td><td>' + esc(d.position) + '</td><td>' + esc(d.certNo) + '</td><td>' + esc(d.phone) + '</td><td>' + esc(d.project) + '</td><td><span class="status-tag ' + s[0] + '">' + s[1] + '</span></td><td><div class="actions">' + actions + '</div></td></tr>';
+                        var roleBtn = isAdminUser ? '<button class="btn btn-outline btn-sm" onclick="openRoleModal(' + d.id + ')">分配角色</button>' : '';
+                        var actions = '<button class="btn btn-outline btn-sm" onclick="viewDetail(' + d.id + ')">查看</button><button class="btn btn-outline btn-sm" onclick="openEditModal(' + d.id + ')">编辑</button>' + roleBtn + '<button class="btn btn-outline btn-sm" onclick="askResetPwd(' + d.id + ')">重置密码</button><button class="btn btn-outline btn-sm" onclick="askDelete(' + d.id + ')">删除</button>';
+                        html += '<tr><td style="display:flex;align-items:center;gap:8px;"><div class="user-avatar" style="width:28px;height:28px;font-size:11px;' + avatarBg + '">' + esc(d.initial) + '</div>' + esc(d.name) + '</td><td>' + esc(d.dept) + '</td><td>' + esc(d.position) + '</td><td>' + esc(d.certNo) + '</td><td>' + esc(d.phone) + '</td><td>' + esc(d.project) + '</td><td class="role-cell">' + roleCellHtml(d) + '</td><td><span class="status-tag ' + s[0] + '">' + s[1] + '</span></td><td><div class="actions">' + actions + '</div></td></tr>';
                     }
                     tbody.innerHTML = html;
                 }
@@ -310,22 +438,103 @@
             document.getElementById('personPhone').value = '';
             document.getElementById('personIdCard').value = '';
             document.getElementById('personCertNo').value = '';
-            document.getElementById('personProject').value = '';
+            renderProjectPicker([]);
             document.getElementById('personHireDate').value = '';
             document.getElementById('personStatus').value = 'active';
         }
 
+        /** 项目多选 chip：与角色 chip 同一交互模式，勾选即选中 */
+        function renderProjectPicker(selectedIds) {
+            var box = document.getElementById('personProjectPicker');
+            if (!projectDict.length) {
+                box.innerHTML = '<span class="role-none">暂无可选项目，可先到“项目台账”页新建项目</span>';
+                return;
+            }
+            var set = {};
+            (selectedIds || []).forEach(function(id) { set[Number(id)] = true; });
+            var html = '';
+            for (var i = 0; i < projectDict.length; i++) {
+                var p = projectDict[i];
+                html += '<label class="role-chip' + (set[p.id] ? ' checked' : '') + '">'
+                    + '<input type="checkbox" data-pjid="' + p.id + '"' + (set[p.id] ? ' checked' : '') + ' onchange="syncRoleChipState(this)">'
+                    + esc(p.name) + '</label>';
+            }
+            box.innerHTML = html;
+        }
+
+        function selectedProjectIds() {
+            var ids = [];
+            var checked = document.querySelectorAll('#personProjectPicker input[type="checkbox"]:checked');
+            for (var i = 0; i < checked.length; i++) {
+                var pid = checked[i].getAttribute('data-pjid');
+                if (pid) ids.push(Number(pid));
+            }
+            return ids;
+        }
+
         function openCreateModal() {
             editingId = null;
+            editingRoleSnapshot = [];
             document.getElementById('modalTitle').textContent = '新建人员';
             clearForm();
+            showRoleGroup([]);
             document.getElementById('createModal').classList.add('show');
+        }
+
+        /** 人员弹窗内的角色多选块：仅 admin 可见（新建/改人都要求 admin，非 admin 本来也进不来） */
+        function showRoleGroup(selectedIds) {
+            var group = document.getElementById('personRoleGroup');
+            if (!isAdminUser) { group.style.display = 'none'; return; }
+            group.style.display = '';
+            renderPersonRolePicker(selectedIds || []);
+        }
+
+        function renderPersonRolePicker(selectedIds) {
+            var box = document.getElementById('personRolePicker');
+            if (!roleDict.length) {
+                box.innerHTML = '<span class="role-none">暂无可选角色，可先到“权限设置”页新建角色</span>';
+                return;
+            }
+            var set = {};
+            (selectedIds || []).forEach(function(id) { set[Number(id)] = true; });
+            var html = '';
+            for (var i = 0; i < roleDict.length; i++) {
+                var r = roleDict[i];
+                html += '<label class="role-chip' + (set[r.id] ? ' checked' : '') + '">'
+                    + '<input type="checkbox" data-prid="' + r.id + '"' + (set[r.id] ? ' checked' : '') + ' onchange="syncRoleChipState(this)">'
+                    + esc(r.name) + '</label>';
+            }
+            box.innerHTML = html;
+        }
+
+        function syncRoleChipState(input) {
+            input.closest('.role-chip').classList.toggle('checked', input.checked);
+        }
+
+        function selectedPersonRoleIds() {
+            var ids = [];
+            var checked = document.querySelectorAll('#personRolePicker input[type="checkbox"]:checked');
+            for (var i = 0; i < checked.length; i++) {
+                var rid = checked[i].getAttribute('data-prid');
+                if (rid) ids.push(Number(rid));
+            }
+            return ids;
+        }
+
+        function sameIdSet(a, b) {
+            if (a.length !== b.length) return false;
+            var sa = a.map(Number).sort(function(x, y) { return x - y; });
+            var sb = b.map(Number).sort(function(x, y) { return x - y; });
+            for (var i = 0; i < sa.length; i++) { if (sa[i] !== sb[i]) return false; }
+            return true;
         }
 
         function openEditModal(id) {
             var d = recById(id);
             if (!d) return;
             editingId = id;
+            var cached = (rolesMap[id] || []).slice();
+            editingRoleSnapshot = cached;
             document.getElementById('modalTitle').textContent = '编辑人员';
             document.getElementById('personName').value = d.name;
             document.getElementById('personGender').value = d.gender || '男';
@@ -334,10 +543,27 @@
             document.getElementById('personPhone').value = d.phone === '—' ? '' : d.phone;
             document.getElementById('personIdCard').value = d.idCard || '';
             document.getElementById('personCertNo').value = d.certNo === '—' ? '' : d.certNo;
-            document.getElementById('personProject').value = d.projectId || '';
+            renderProjectPicker(d.projectIds || []);
             document.getElementById('personHireDate').value = d.hireDate || '';
             document.getElementById('personStatus').value = d.status || 'active';
+            showRoleGroup(cached);
             document.getElementById('createModal').classList.add('show');
+            // 先用本地缓存回显，再以数据库为准刷新，避免列表缓存过期导致误判“未改动”
+            apiFetch('/users/' + id + '/roles').then(function(ids) {
+                if (editingId !== id) return;
+                var owned = (ids || []).map(Number);
+                rolesMap[id] = owned;
+                editingRoleSnapshot = owned;
+                renderPersonRolePicker(owned);
+            }).catch(function() { /* 回显失败不阻断基本资料编辑 */ });
+            if (isAdminUser) {
+                apiFetch('/users/' + id + '/projects').then(function(ids) {
+                    if (editingId !== id) return;
+                    var owned = (ids || []).map(Number);
+                    memberProjectsMap[id] = owned;
+                    renderProjectPicker(owned);
+                }).catch(function() { /* 回显失败不阻断基本资料编辑，保留缓存勾选 */ });
+            }
         }
 
         function collectDTO() {
@@ -352,9 +578,11 @@
                 status: document.getElementById('personStatus').value
             };
             var deptId = document.getElementById('personDept').value;
-            var projectId = document.getElementById('personProject').value;
             dto.deptId = deptId ? Number(deptId) : null;
-            dto.projectId = projectId ? Number(projectId) : null;
+            // 多项目整体替换：后端同事务同步 biz_project_member 并取首个回写“主归属”旧字段
+            var projectIds = selectedProjectIds();
+            dto.projectIds = projectIds;
+            dto.projectId = projectIds.length ? projectIds[0] : null;
             return dto;
         }
 
@@ -362,13 +590,29 @@
             var dto = collectDTO();
             if (!dto.name) { App.toast('请输入姓名'); return; }
             if (!/^1[3-9]\d{9}$/.test(dto.phone)) { App.toast('请输入正确的手机号'); return; }
-            var req = editingId
+            var isEdit = !!editingId;
+            var userId = isEdit ? editingId : null;
+            var snapshot = editingRoleSnapshot.slice();
+            var roleIds = isAdminUser ? selectedPersonRoleIds() : [];
+            var req = isEdit
                 ? apiFetch('/users/' + editingId, { method: 'PUT', body: dto })
                 : apiFetch('/users', { method: 'POST', body: dto });
-            req.then(function() {
-                App.toast(editingId ? '修改成功' : '创建成功');
+            req.then(function(saved) {
+                App.toast(isEdit ? '修改成功' : '创建成功');
                 closeModal('createModal');
-                loadData();
+                var targetId = isEdit ? userId : (saved && saved.id);
+                if (!isAdminUser || !targetId) return loadProjectMap().then(loadData);
+                // 未动角色就不发多余请求：新建时“0 个角色”为合法状态，编辑时集合未变则跳过
+                if (isEdit ? sameIdSet(snapshot, roleIds) : !roleIds.length) return loadRoleDict().then(loadProjectMap).then(loadData);
+                return apiFetch('/users/' + targetId + '/roles', { method: 'PUT', body: roleIds }).then(function(effective) {
+                    rolesMap[targetId] = (effective || []).map(Number);
+                    App.toast(roleIds.length ? '已绑定 ' + rolesMap[targetId].length + ' 个角色' : '已清空该人员的角色');
+                    return loadRoleDict().then(loadProjectMap).then(loadData);
+                }).catch(function(e) {
+                    // 人员已落库，不能谎报保存失败；给出可补救路径
+                    App.toast('人员信息已保存，但角色绑定失败：' + (e && e.message ? e.message : '请用列表行“分配角色”重试'), 'error');
+                    return loadProjectMap().then(loadData);
+                });
             }).catch(function(e) { App.toast(e && e.message ? e.message : '保存失败'); });
         }
 
@@ -428,6 +672,92 @@
 
         function closeModal(id) { document.getElementById(id).classList.remove('show'); }
 
+        /** 分配角色弹窗：先展示加载态，勾选状态一律以 GET /users/{id}/roles 返回为准 */
+        function openRoleModal(id) {
+            if (!isAdminUser) { App.toast('仅系统管理员可分配角色', 'error'); return; }
+            var d = recById(id);
+            if (!d) return;
+            pendingRoleUserId = id;
+            document.getElementById('roleModalTitle').textContent = '分配角色 - ' + d.name;
+            document.getElementById('roleList').innerHTML = '<div class="role-empty">角色加载中...</div>';
+            document.getElementById('roleSelectedInfo').textContent = '已选 0 个角色';
+            document.getElementById('roleSaveBtn').disabled = false;
+            document.getElementById('roleSaveBtn').textContent = '保存';
+            document.getElementById('roleModal').classList.add('show');
+            apiFetch('/users/' + id + '/roles').then(function(ids) {
+                if (pendingRoleUserId !== id) return;
+                var owned = (ids || []).map(Number);
+                rolesMap[id] = owned;
+                renderRoleList(owned);
+            }).catch(function(e) {
+                if (pendingRoleUserId !== id) return;
+                document.getElementById('roleList').innerHTML = '<div class="role-empty">' + esc(e && e.message ? e.message : '角色读取失败，请关闭后重试') + '</div>';
+            });
+        }
+
+        function renderRoleList(owned) {
+            var box = document.getElementById('roleList');
+            if (!roleDict.length) {
+                box.innerHTML = '<div class="role-empty">暂无可分配的角色，请先到“权限设置”页新建角色</div>';
+                document.getElementById('roleSelectedInfo').textContent = '已选 0 个角色';
+                return;
+            }
+            var set = {};
+            for (var i = 0; i < owned.length; i++) set[Number(owned[i])] = true;
+            var html = '';
+            for (var j = 0; j < roleDict.length; j++) {
+                var r = roleDict[j];
+                html += '<label class="role-item">'
+                    + '<input type="checkbox" data-rid="' + r.id + '"' + (set[r.id] ? ' checked' : '') + ' onchange="updateRoleSelectInfo()">'
+                    + '<span>🔑 ' + esc(r.name) + '</span>'
+                    + '<span class="role-count">' + (typeof r.userCount === 'number' ? r.userCount : 0) + '人</span>'
+                    + '<span class="role-code">' + esc(r.code || '') + '</span>'
+                    + '</label>';
+            }
+            box.innerHTML = html;
+            updateRoleSelectInfo();
+        }
+
+        function selectedRoleIds() {
+            var ids = [];
+            var checked = document.querySelectorAll('#roleList input[type="checkbox"]:checked');
+            for (var i = 0; i < checked.length; i++) {
+                var rid = checked[i].getAttribute('data-rid');
+                if (rid) ids.push(Number(rid));
+            }
+            return ids;
+        }
+
+        function updateRoleSelectInfo() {
+            document.getElementById('roleSelectedInfo').textContent = '已选 ' + selectedRoleIds().length + ' 个角色';
+        }
+
+        function closeRoleModal() {
+            pendingRoleUserId = null;
+            document.getElementById('roleModal').classList.remove('show');
+        }
+
+        /** 整体替换保存：用后端返回的“实际生效角色”局部刷新，不重载页面 */
+        function saveRoles() {
+            if (!pendingRoleUserId) { closeRoleModal(); return; }
+            var userId = pendingRoleUserId;
+            var ids = selectedRoleIds();
+            var btn = document.getElementById('roleSaveBtn');
+            btn.disabled = true;
+            btn.textContent = '保存中...';
+            apiFetch('/users/' + userId + '/roles', { method: 'PUT', body: ids }).then(function(effective) {
+                rolesMap[userId] = (effective || []).map(Number);
+                App.toast('角色分配已保存');
+                closeRoleModal();
+                renderTable();
+                loadRoleDict().then(renderTable); // 同步各角色人数与最新绑定
+            }).catch(function(e) {
+                btn.disabled = false;
+                btn.textContent = '保存';
+                App.toast(e && e.message ? e.message : '保存失败');
+            });
+        }
+
         function filterData() { loadData(); }
 
         function resetFilters() {
@@ -439,12 +769,12 @@
 
         function exportData() {
             try {
-                var headers = ['姓名', '部门', '职位', '资格证号', '联系电话', '分配项目', '状态'];
+                var headers = ['姓名', '部门', '职位', '资格证号', '联系电话', '分配项目', '角色', '状态'];
                 var statusMap = { active: '在职', inactive: '离职', leave: '休假' };
                 var csvContent = '\uFEFF' + headers.join(',') + '\n';
                 for (var i = 0; i < filteredData.length; i++) {
                     var d = filteredData[i];
-                    csvContent += [d.name, d.dept, d.position, d.certNo, d.phone, d.project, statusMap[d.status] || ''].join(',') + '\n';
+                    csvContent += [d.name, d.dept, d.position, d.certNo, d.phone, d.project, roleNamesOf(d.id).join('、'), statusMap[d.status] || ''].join(',') + '\n';
                 }
                 var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
                 var link = document.createElement('a');
@@ -458,7 +788,9 @@
         if (window.App) {
             App.requireAuth();
             App.initTopbar();
-            Promise.all([loadDepartments(), loadProjects()]).then(loadData);
+            isAdminUser = (App.getUser().roles || []).indexOf('admin') >= 0;
+            // 角色/项目字典先于人员列表就绪，首屏就能带出角色列与多项目列，无需二次刷新
+            Promise.all([loadDepartments(), loadProjects(), loadRoleDict(), loadProjectMap()]).then(loadData);
         }
     </script>
 </body>
