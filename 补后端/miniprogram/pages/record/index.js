@@ -1,7 +1,7 @@
 const api = require('../../utils/api');
 const drafts = require('../../utils/drafts');
 const voice = require('../../utils/voice');
-const { schemas, statuses, unpack } = require('../../utils/schema');
+const { schemas, statuses, unpack, diaryPeople, logPrefillPatch } = require('../../utils/schema');
 const modal = options => new Promise(resolve => wx.showModal(Object.assign({}, options, { success: resolve, fail: () => resolve({ confirm: false }) })));
 function array(value) { try { return JSON.parse(value || '[]'); } catch (e) { return []; } }
 function bodyOf(kind, record) {
@@ -10,7 +10,7 @@ function bodyOf(kind, record) {
   const body = {}; keys.forEach(k => { if (record[k] != null) body[k] = record[k]; }); return body;
 }
 Page({
-  data: { body: {}, fields: [], media: [], photos: [], attachments: [], error: '', state: '', busy: false, editable: false, history: [], sources: [] },
+  data: { body: {}, fields: [], media: [], photos: [], attachments: [], error: '', state: '', prefillState: '', busy: false, editable: false, history: [], sources: [] },
   async onLoad(options) {
     this.uid = api.userId();
     if (!this.uid) { wx.reLaunch({ url: '/pages/login/index' }); return; }
@@ -30,18 +30,28 @@ Page({
           this.localId = draft.localId; this.showDraft(draft);
         } else this.showRecord(record);
       }
-      this.setData({ kind: this.kind, title: schemas[this.kind].title });
+      this.setData({ kind: this.kind, title: schemas[this.kind].title, guide: schemas[this.kind].guide || '', hints: schemas[this.kind].hints || {}, attachmentHint: schemas[this.kind].attachmentHint || '', prefillHint: schemas[this.kind].prefillHint || '' });
       wx.setNavigationBarTitle({ title: schemas[this.kind].title });
       this.loadContext();
+      void this.prefillLog(true);
     } catch (e) { this.fail(e); }
   },
   onShow() { this.visible = true; },
-  onHide() { this.visible = false; voice.stop(true); },
-  onUnload() { this.visible = false; this.unloaded = true; voice.stop(true); },
+  onHide() { this.visible = false; this.cancelPrefill(); voice.stop(true); },
+  onUnload() { this.visible = false; this.unloaded = true; this.cancelPrefill(); voice.stop(true); },
   fail(e) { this.setData({ error: e.message || '操作失败，请重试' }); },
-  fields(body) { const values = unpack(this.kind, body); return schemas[this.kind].fields.map(f => ({ key: f[0], label: f[1], value: values[f[0]] == null ? '' : values[f[0]] })); },
+  fields(body) {
+    const values = unpack(this.kind, body), schema = schemas[this.kind];
+    return schema.fields.map(f => ({ key: f[0], label: f[1], value: values[f[0]] == null ? '' : values[f[0]],
+      short: ['supervision-diaries', 'supervision-logs'].includes(this.kind) && ['weather', 'wind', 'temperature'].includes(f[0]),
+      hint: (schema.hints || {})[f[0]] || '',
+      placeholder: (this.kind === 'supervision-logs' ? (schema.hints || {})[f[0]] : (schema.placeholders || {})[f[0]]) || '点击填写，文字自动暂存本机' }));
+  },
   showDraft(draft) {
-    this.setData({ body: draft.body, fields: this.fields(draft.body), media: draft.media, state: draft.state, error: draft.error || '',
+    this.cancelPrefill(); this.fieldEdits = {};
+    const meta = Object.assign({}, draft.recordMeta, { id: draft.serverId, status: draft.serverStatus });
+    if (draft.serverId && !meta.authorId) meta.authorId = draft.ownerId;
+    this.setData({ people: diaryPeople(meta, api.session()), body: draft.body, fields: this.fields(draft.body), media: draft.media, state: draft.state, error: draft.error || '',
       projectName: draft.projectName || '项目 ' + draft.body.projectId, dateField: schemas[this.kind].date,
       editable: ['draft', 'rejected'].includes(draft.serverStatus), serverId: draft.serverId, status: draft.serverStatus,
       conflict: draft.state === '内容冲突', rejectReason: draft.rejectReason || '', canClear: !draft.dirty && !draft.pending,
@@ -51,9 +61,10 @@ Page({
     this.loadFiles(Object.assign({}, draft.body, { photos: JSON.stringify(array(draft.body.photos).filter(p => !localUrls.has(typeof p === 'string' ? p : p.url))) }));
   },
   showRecord(record) {
+    this.cancelPrefill(); this.fieldEdits = {};
     this.server = record;
     const local = this.localId && drafts.get(this.localId);
-    this.setData({ body: bodyOf(this.kind, record), fields: this.fields(record), state: statuses[record.status] || record.status,
+    this.setData({ people: diaryPeople(record, api.session()), body: bodyOf(this.kind, record), fields: this.fields(record), state: statuses[record.status] || record.status,
       status: record.status, serverId: record.id, dateField: schemas[this.kind].date, editable: false,
       conflict: false, error: '', canClear: !!local && !local.dirty && !local.pending,
       rejectReason: record.rejectReason || '', projectName: '项目 ' + record.projectId,
@@ -84,6 +95,8 @@ Page({
   input(e) {
     if (!this.data.editable || this.data.busy) return;
     const field = e.currentTarget.dataset.field;
+    if (['supervision-diaries', 'supervision-logs'].includes(this.kind) && (field === this.data.dateField || field === 'projectId')) return;
+    this.markFieldEdit(field);
     const body = Object.assign({}, this.data.body, { [field]: e.detail.value });
     if (field === this.data.dateField) { body.diarySources = '[]'; this.setData({ sources: [] }); }
     this.setData({ body }); this.persist();
@@ -152,11 +165,13 @@ Page({
   recordVoice(e) {
     if (!this.data.editable || this.data.busy) return;
     if (this.data.recording) { voice.stop(); return; }
+    this.cancelPrefill();
     const field = e.currentTarget.dataset.field; this.setData({ recording: true });
     voice.start(async text => {
       if (!this.visible || api.userId() !== this.uid) return;
       const result = await modal({ title: '核对识别文字（尤其轴线、尺寸及数字）', content: text, editable: true, confirmText: '追加文字' });
       if (result.confirm && this.visible && this.data.editable && !this.data.busy && api.userId() === this.uid) {
+        this.markFieldEdit(field);
         const body = Object.assign({}, this.data.body, { [field]: (this.data.body[field] || '') + (result.content == null ? text : result.content) });
         this.setData({ body, fields: this.fields(body) }); this.persist();
       }
@@ -168,6 +183,7 @@ Page({
     const submit = e.currentTarget.dataset.action === 'submit';
     if (submit && !(await modal({ title: '确认提交审核', content: '请核对项目、日期、正文及全部照片。提交后正文锁定。' })).confirm) return;
     if (!this.persist()) return;
+    this.cancelPrefill();
     this.setData({ busy: true });
     try {
       const draft = await (submit ? drafts.submit(this.localId) : drafts.sync(this.localId));
@@ -228,8 +244,56 @@ Page({
     if (!(await modal({ title: '清除已同步本机副本？', content: '服务器记录不会删除；未同步草稿不可清除。' })).confirm) return;
     try { drafts.forget(this.localId); wx.navigateBack(); } catch (e) { this.fail(e); }
   },
+  markFieldEdit(field) {
+    this.fieldEdits = this.fieldEdits || {};
+    this.fieldEdits[field] = (this.fieldEdits[field] || 0) + 1;
+  },
+  cancelPrefill() {
+    this.prefillSequence = (this.prefillSequence || 0) + 1;
+    if (!this.unloaded) this.setData({ prefillState: '' });
+  },
+  async prefillLog(automatic = false) {
+    automatic = automatic === true;
+    if (this.kind !== 'supervision-logs' || !this.localId || !this.data.editable || this.data.busy || this.data.recording
+        || this.data.storageFailed || this.data.conflict || this.unloaded || this.visible === false) return;
+    const original = drafts.get(this.localId);
+    if (!original || original.pending || original.state === '待同步') return;
+    const localId = this.localId, projectId = this.data.body.projectId, date = this.data.body.logDate;
+    const sequence = this.prefillSequence = (this.prefillSequence || 0) + 1;
+    const edits = Object.assign({}, this.fieldEdits);
+    const valid = () => api.userId() === this.uid && sequence === this.prefillSequence && localId === this.localId
+      && !this.unloaded && this.visible !== false && this.data.editable && !this.data.busy && !this.data.recording
+      && !this.data.storageFailed && !this.data.conflict && this.data.body.projectId === projectId && this.data.body.logDate === date;
+    this.setData({ prefillState: '正在读取同项目、日志当日的已审核日记，可继续填写…' });
+    try {
+      const source = await api.request('/field/diary-prefill', 'GET', { projectId, date });
+      if (!valid()) return;
+      const latest = drafts.get(localId);
+      if (!latest || latest.pending || latest.state === '待同步' || !['draft', 'rejected'].includes(latest.serverStatus)
+          || latest.serverId !== original.serverId || latest.version !== original.version) {
+        this.setData({ prefillState: '草稿同步状态已变化，请按需重新预填共享字段。' }); return;
+      }
+      const excluded = schemas[this.kind].prefillFields.filter(field => ((this.fieldEdits || {})[field] || 0) !== (edits[field] || 0)
+        || automatic && (this.fieldEdits || {})[field]);
+      const patch = logPrefillPatch(this.data.body, source, excluded), count = Object.keys(patch).length;
+      if (count) {
+        const body = Object.assign({}, this.data.body, patch);
+        this.setData({ body, fields: this.fields(body) });
+        if (!this.persist()) { this.setData({ prefillState: '预填内容尚未保存到本机，请保留页面并重试保存。' }); return; }
+      }
+      this.setData({ prefillState: count ? '已预填 ' + count + ' 个共享字段，仅供参考；可修改后保存，已有内容未覆盖。'
+        : '暂无可预填的空白字段或当日已审核日记，已有内容保持不变。' });
+    } catch (e) {
+      if (valid()) this.setData({ prefillState: '日记预填未完成：' + e.message + '。可继续手动填写，或重新预填共享字段。' });
+    } finally {
+      if (sequence === this.prefillSequence && !valid() && !this.unloaded && this.visible !== false && api.userId() === this.uid
+          && this.data.prefillState.startsWith('正在读取'))
+        this.setData({ prefillState: '页面状态已变化，本次预填已取消；可按需重新预填共享字段。' });
+    }
+  },
   async diarySource() {
     if (!this.data.editable || this.data.busy || this.data.recording) return;
+    this.cancelPrefill();
     this.setData({ busy: true });
     try {
       const source = await api.request('/field/diary-source', 'GET', { projectId: this.data.body.projectId, date: this.data.body.logDate });

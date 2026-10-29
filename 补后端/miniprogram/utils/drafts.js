@@ -24,6 +24,14 @@ function save(draft, uid = api.userId()) {
   try { wx.setStorageSync(key(uid), all); } catch (e) { throw new Error('本机存储不足，未能保存；请勿退出当前页面'); }
   return draft;
 }
+// 人员及审核信息只作为服务端展示元数据缓存，不进入可写正文或重试请求。
+function recordMeta(server) {
+  const meta = {};
+  ['authorId', 'authorName', 'reviewerId', 'reviewerName', 'reviewedAt'].forEach(key => {
+    if (server && server[key] != null) meta[key] = server[key];
+  });
+  return meta;
+}
 function create(kind, body, server) {
   const uid = api.userId();
   if (server) {
@@ -37,13 +45,13 @@ function create(kind, body, server) {
         return Object.assign({}, m, photo, { id: m.id, path: m.path, description: photo.description || '' });
       });
       return save(Object.assign(previous, { body, media, version: server.lockVersion, serverStatus: server.status, rejectReason: server.rejectReason || '',
-        state: syncedState(server.status), updatedAt: Date.now() }));
+        recordMeta: recordMeta(server), state: syncedState(server.status), updatedAt: Date.now() }));
     }
   }
   return save({ localId: id(), ownerId: uid, kind, body, media: [], localRevision: 1,
     serverId: server && server.id || null, version: server && server.lockVersion,
     serverStatus: server && server.status || 'draft', rejectReason: server && server.rejectReason || '', requestId: id(), dirty: !server,
-    state: server ? syncedState(server.status) : '仅本机保存', updatedAt: Date.now() });
+    recordMeta: recordMeta(server), state: server ? syncedState(server.status) : '仅本机保存', updatedAt: Date.now() });
 }
 function edit(localId, patch) {
   const draft = get(localId);
@@ -135,6 +143,7 @@ async function synchronize(localId, uid) {
     }
     api.assertUser(uid); draft = get(localId, uid);
     draft.serverId = record.id; draft.version = record.lockVersion; draft.serverStatus = record.status;
+    draft.recordMeta = recordMeta(record);
     draft.dirty = draft.localRevision !== pending.revision || unsaved.has(taskKey(localId, uid));
     if (!draft.body.code || draft.body.code === pending.body.code) draft.body.code = record.code;
     draft.rejectReason = record.rejectReason || '';
@@ -176,6 +185,7 @@ async function submit(localId) {
   }
   api.assertUser(uid); draft = get(localId, uid);
   draft.serverStatus = record.status; draft.version = record.lockVersion;
+  draft.recordMeta = recordMeta(record);
   draft.dirty = draft.localRevision !== revision || unsaved.has(taskKey(localId, uid));
   draft.rejectReason = record.rejectReason || '';
   draft.state = draft.dirty ? '内容冲突' : syncedState(record.status);

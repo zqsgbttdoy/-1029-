@@ -1,21 +1,37 @@
-<view class="container">
+<view class="container {{kind === 'supervision-diaries' || kind === 'supervision-logs' ? 'diary-record' : ''}} {{kind === 'supervision-logs' ? 'log-record' : ''}}">
   <view class="hero"><view class="title">{{title}}</view><view>{{projectName}}</view><view>{{state}}</view></view>
   <view class="warning" wx:if="{{conflict}}">服务器内容已变化，本机稿已保留，不会自动覆盖。请先核对再决定是否另建副本。</view>
   <view class="error">{{error}}</view><view class="warning" wx:if="{{rejectReason}}">退回原因：{{rejectReason}}</view>
   <view class="card">
     <view class="label">基本信息</view><view class="muted">项目不可在编辑时更换；如项目错误，请返回新建。</view>
     <view>{{body.code || '编号由服务器生成'}}</view>
-    <picker mode="date" value="{{body[dateField]}}" disabled="{{!editable || busy}}" data-field="{{dateField}}" bindchange="input"><view class="picker">记录日期：{{body[dateField]}}</view></picker>
-    <button wx:if="{{kind === 'supervision-logs' && editable}}" disabled="{{busy}}" bindtap="diarySource">从当日已审核日记填入空白栏目</button>
+    <block wx:if="{{kind === 'supervision-diaries' || kind === 'supervision-logs'}}">
+      <view class="diary-meta"><view class="label">工程名称</view><view>{{projectName}}</view><view class="muted">{{hints.projectId}}</view></view>
+      <view class="diary-meta"><view class="label">日期</view><view>{{body[dateField]}}</view><view class="muted">{{hints[dateField]}}</view></view>
+      <view class="diary-meta"><view class="label">{{kind === 'supervision-logs' ? '填写人' : '记录人'}}</view><view>{{people.author}}</view><view class="muted">{{hints.author}}</view></view>
+      <view class="diary-meta"><view class="label">审核人</view><view>{{people.reviewer}}</view><view class="muted">{{hints.reviewer}}</view></view>
+    </block>
+    <picker wx:else mode="date" value="{{body[dateField]}}" disabled="{{!editable || busy}}" data-field="{{dateField}}" bindchange="input"><view class="picker">记录日期：{{body[dateField]}}</view></picker>
+    <block wx:if="{{kind === 'supervision-logs'}}">
+      <view class="muted">{{prefillHint}}</view><view class="muted" wx:if="{{prefillState}}">{{prefillState}}</view>
+      <button wx:if="{{editable}}" disabled="{{busy || recording}}" bindtap="prefillLog">重新预填共享字段</button>
+      <button wx:if="{{editable}}" disabled="{{busy || recording}}" bindtap="diarySource">整编日记原文（含来源）</button>
+    </block>
     <view wx:for="{{sources}}" wx:key="id" class="muted">来源日记：{{item.code}} · {{item.date}} · 版本 {{item.lockVersion}}</view>
   </view>
+  <view class="card diary-guide" wx:if="{{guide}}"><view class="label">{{kind === 'supervision-logs' ? '监理日志填写指引 · 9 项规范' : '监理日记填写指引 · 14 项规范'}}</view><view>{{guide}}</view></view>
   <view class="card" wx:for="{{fields}}" wx:key="key">
-    <view class="row"><view class="label">{{item.label}}</view><button wx:if="{{editable}}" class="small" disabled="{{busy}}" data-field="{{item.key}}" bindtap="recordVoice">{{recording ? '结束录音' : '语音'}}</button></view>
-    <textarea wx:if="{{editable}}" value="{{body[item.key]}}" maxlength="60000" auto-height disabled="{{busy}}" data-field="{{item.key}}" bindinput="input" placeholder="点击填写，文字自动暂存本机" />
+    <view class="row"><view class="label">{{item.label}}</view><button wx:if="{{editable && !item.short}}" class="small" disabled="{{busy}}" data-field="{{item.key}}" bindtap="recordVoice">{{recording ? '结束录音' : '语音'}}</button></view>
+    <block wx:if="{{editable}}">
+      <input wx:if="{{item.short}}" value="{{body[item.key]}}" maxlength="30" disabled="{{busy}}" data-field="{{item.key}}" bindinput="input" placeholder="{{item.placeholder}}" />
+      <textarea wx:else class="{{kind === 'supervision-logs' && item.key === 'inspection' ? 'log-inspection' : ''}}" value="{{body[item.key]}}" maxlength="60000" auto-height disabled="{{busy}}" data-field="{{item.key}}" bindinput="input" placeholder="{{item.placeholder}}" />
+    </block>
     <view wx:else class="pre">{{body[item.key] || '未填写'}}</view>
+    <view wx:if="{{item.hint && kind !== 'supervision-logs'}}" class="muted diary-hint">{{item.hint}}</view>
   </view>
   <view class="card">
     <view class="label">照片附件</view>
+    <view wx:if="{{attachmentHint}}" class="muted">{{attachmentHint}} 非图片文件请在电脑端上传；此处可查看已同步附件。</view>
     <view class="muted">照片上传成功不等于表单已保存；请查看最上方同步状态。</view>
     <block wx:for="{{photos}}" wx:key="url">
       <image class="photo" mode="aspectFit" src="{{item.preview}}" data-url="{{item.url}}" bindtap="preview" />

@@ -18,3 +18,11 @@ button.small { font-size:24rpx; padding:0 20rpx; display:inline-block; margin-ri
 .badge { color:#2563EB; font-size:24rpx; background:#EFF6FF; padding:8rpx 12rpx; border-radius:8rpx; }
 .photo { width:100%; height:330rpx; background:#F3F4F6; margin:10rpx 0; border-radius:12rpx; }
 .pre { white-space:pre-wrap; line-height:1.8; word-break:break-all; }
+.diary-record .diary-meta { margin-top:28rpx; line-height:1.7; word-break:break-all; }
+.diary-record .diary-hint { margin-top:16rpx; }
+.diary-record .diary-guide { background:#EFF6FF; border:1rpx solid #DBEAFE; line-height:1.8; }
+.diary-record .diary-guide .label { color:#1D4ED8; }
+.diary-record textarea { min-height:220rpx; line-height:1.7; }
+.diary-record .row .label { flex:1; min-width:0; }
+.diary-record .row button { flex-shrink:0; }
+.log-record .log-inspection { min-height:620rpx; }
