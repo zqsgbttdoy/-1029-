@@ -6,7 +6,7 @@ $fail = 0
 function Mark($ok, $msg) { if ($ok) { Write-Host "[OK]   $msg" -ForegroundColor Green } else { Write-Host "[FAIL] $msg" -ForegroundColor Red; $script:fail++ } }
 
 $login = Invoke-RestMethod -Method Post -Uri "$Base/api/auth/login" -ContentType 'application/json' -Body (@{ username = $User; password = $Pwd } | ConvertTo-Json)
-Mark ($login.code -eq 200 -and $login.data.token) "登录 $User / $Pwd"
+Mark ($login.code -eq 200 -and $login.data.token) "登录 $User（不记录密码）"
 $h = @{ Authorization = "Bearer $($login.data.token)" }
 
 $info = (Invoke-RestMethod -Uri "$Base/api/auth/info" -Headers $h).data
