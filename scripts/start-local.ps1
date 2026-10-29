@@ -1,5 +1,5 @@
 ﻿# ============================================================================
-#  监理现场管理系统 · 一键启动（本地演示模式，H2 内存数据库，无需 MySQL）
+#  监理现场管理系统 · 一键启动（本地留存模式，H2 文件数据库，无需 MySQL）
 #    后端 Spring Boot ：http://127.0.0.1:8080/api
 #    页面 + API 代理  ：http://localhost:8081/login.html（/api 转发到 8080）
 #  由根目录"一键启动.bat"调用：bat 只含 ASCII 字符并执行 chcp 65001，
@@ -22,8 +22,10 @@ $StaticPort  = 8081
 $LoginUrl    = "http://localhost:$StaticPort/login.html"
 $MaxWait     = 120
 $LogDir      = Join-Path $Root 'logs'
-$BackendLog  = Join-Path $LogDir 'e2e-backend.log'
+$BackendLog  = Join-Path $LogDir 'local-backend.log'
 $StaticLog   = Join-Path $LogDir 'e2e-static.log'
+$DataDir     = Join-Path $Root 'local-data'
+$Database    = Join-Path $DataDir 'db\supervision.mv.db'
 $CmdExe      = Join-Path $env:SystemRoot 'System32\cmd.exe'
 
 function Fail([string[]]$Lines) {
@@ -79,7 +81,7 @@ function Get-PortState([int]$Port, [string]$Sig) {
     if ($procId -eq 0) { return @{ State = 'free'; Pid = 0 } }
     $cmdLine = ''
     try { $cmdLine = (Get-CimInstance Win32_Process -Filter "ProcessId=$procId").CommandLine } catch {}
-    if ($cmdLine -and $cmdLine.Contains($Sig)) { return @{ State = 'ours'; Pid = $procId } }
+    if ($cmdLine -and $cmdLine.Contains($Sig)) { return @{ State = 'ours'; Pid = $procId; CommandLine = $cmdLine } }
     return @{ State = 'other'; Pid = $procId }
 }
 
@@ -112,8 +114,48 @@ function Invoke-Local([string]$Url, [string]$Method = 'GET', [string]$Body = '',
     return @{ Code = $code; Body = $text }
 }
 
+function Backup-LocalData {
+    if (-not (Test-Path -LiteralPath $Database)) {
+        if ((Test-Path -LiteralPath (Join-Path $DataDir 'initialized.marker')) -or (Test-Path -LiteralPath (Join-Path $DataDir 'migration.properties'))) {
+            Fail @('[错误] 已有留存标记，但数据库文件缺失。请恢复备份，禁止重新创建空库。')
+        }
+        return
+    }
+    $hold = $null
+    try {
+        # 只允许其他读取者，正在运行的 H2 持有写句柄时这里必须失败。
+        $hold = [IO.File]::Open($Database, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+        $backup = Join-Path $DataDir ('backups\startup-' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff') + '-' + [guid]::NewGuid().ToString('N').Substring(0,8))
+        [void][IO.Directory]::CreateDirectory((Join-Path $backup 'db'))
+        Copy-Item -LiteralPath $Database -Destination (Join-Path $backup 'db\supervision.mv.db') -ErrorAction Stop
+        $items = @(@{ Source = $Database; Target = (Join-Path $backup 'db\supervision.mv.db') })
+        $uploads = Join-Path $DataDir 'uploads'
+        if (Test-Path -LiteralPath $uploads) {
+            foreach ($item in @(Get-ChildItem -LiteralPath $uploads -Recurse -Force)) {
+                if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw '附件目录中存在链接，备份已中止' }
+                $relative = $item.FullName.Substring($uploads.Length).TrimStart('\')
+                $dest = Join-Path (Join-Path $backup 'uploads') $relative
+                if ($item.PSIsContainer) { [void][IO.Directory]::CreateDirectory($dest) }
+                else {
+                    [void][IO.Directory]::CreateDirectory((Split-Path -Parent $dest))
+                    Copy-Item -LiteralPath $item.FullName -Destination $dest -ErrorAction Stop
+                    $items += @{ Source = $item.FullName; Target = $dest }
+                }
+            }
+        }
+        $manifest = foreach ($pair in $items) {
+            $hash = (Get-FileHash -LiteralPath $pair.Source -Algorithm SHA256).Hash
+            if ($hash -ne (Get-FileHash -LiteralPath $pair.Target -Algorithm SHA256).Hash) { throw '备份文件校验不一致' }
+            @{ File = $pair.Target.Substring($backup.Length + 1); SHA256 = $hash }
+        }
+        [IO.File]::WriteAllText((Join-Path $backup 'manifest.json'), (ConvertTo-Json -InputObject @($manifest)), [Text.Encoding]::UTF8)
+        Write-Host "      启动前备份已验证：$backup"
+    } catch { Fail @("[错误] 数据备份失败或数据库正被占用：$($_.Exception.Message)", '       原始数据未清理；本次不启动，请先核对其他后端实例。') }
+    finally { if ($hold) { $hold.Dispose() } }
+}
+
 Write-Host '=============================================='
-Write-Host '   监理现场管理系统 - 一键启动（本地演示）'
+Write-Host '   监理现场管理系统 - 一键启动（本地数据留存）'
 Write-Host '=============================================='
 Write-Host ''
 
@@ -201,6 +243,17 @@ if (-not $NodeExe) { Fail @('[错误] 未找到 Node.js。解决：到 https://n
 Write-Host "      已找到 Node.js：$NodeExe"
 
 # ---------- 3. 检查后端程序包，缺失时自动构建 ----------
+$running = Get-PortState $BackendPort $BackendSig
+if ($running.State -eq 'ours') {
+    if ($running.CommandLine -notmatch '--spring.profiles.active=local(?:\s|$)') {
+        Fail @('[保护] 当前后端不是 local 数据留存模式，不能直接复用或停止。', '       旧内存库重启会丢失数据，请先完成导出、附件备份与迁移验证。')
+    }
+    $pathMatch = [regex]::Match($running.CommandLine, '"--app.local.data-dir=([^"]+)"|--app.local.data-dir=(\S+)')
+    $runningData = if ($pathMatch.Groups[1].Success) { $pathMatch.Groups[1].Value } else { $pathMatch.Groups[2].Value }
+    if (-not $runningData -or $runningData.Replace('\', '/').TrimEnd('/') -ine $DataDir.Replace('\', '/').TrimEnd('/')) {
+        Fail @('[保护] 当前后端使用其他数据目录，拒绝混用。请核对启动位置。')
+    }
+}
 Write-Host '[3/6] 正在检查后端程序包...'
 $needsBuild = -not (Test-Path -LiteralPath $Jar)
 if (-not $needsBuild) {
@@ -211,9 +264,10 @@ if (-not $needsBuild) {
 if ($needsBuild) {
     $running = Get-PortState $BackendPort $BackendSig
     if ($running.State -eq 'ours') {
-        Fail @('[提示] 后端代码已更新，当前仍运行旧版本。', '       请先双击“停止服务.bat”，再双击“一键启动.bat”；演示数据会重置。')
+        Fail @('[提示] 后端代码已更新，当前仍运行旧版本。', '       请先双击“停止服务.bat”，再双击“一键启动.bat”；本地测试数据和附件会保留。')
     }
     Write-Host '      程序包缺失或代码已更新，开始自动构建（首次约 3-5 分钟，请耐心等待）...'
+    $env:JAVA_TOOL_OPTIONS = '-Dfile.encoding=UTF-8'
     $mvnArgs = @('clean', 'package', '-DskipTests')
     $m2 = Join-Path $Root '.m2-cache'
     if (Test-Path -LiteralPath $m2) { $mvnArgs += "-Dmaven.repo.local=$m2" }
@@ -238,9 +292,11 @@ if ($ps.State -eq 'other') {
 if ($ps.State -eq 'ours') {
     Write-Host "      后端已在运行（PID=$($ps.Pid)），直接复用"
 } else {
-    Write-Host "      启动后端服务：端口 $BackendPort，H2 内存数据库"
-    Remove-Item -LiteralPath $BackendLog -Force -ErrorAction SilentlyContinue
-    $a = '/c title 监理后端-{0}（关闭此窗口即停止后端） & "{1}" -Dfile.encoding=UTF-8 -jar "{2}" --spring.profiles.active=e2e --server.port={0} > "{3}" 2>&1' -f $BackendPort, $JavaExe, $Jar, $BackendLog
+    Backup-LocalData
+    Write-Host "      启动后端服务：端口 $BackendPort，数据跨重启保留"
+    $env:JAVA_TOOL_OPTIONS = '-Dfile.encoding=UTF-8'
+    $dataPath = $DataDir.Replace('\', '/')
+    $a = '/c title 监理后端-{0}（关闭此窗口即停止后端） & "{1}" -jar "{2}" --spring.profiles.active=local "--app.local.data-dir={4}" --server.port={0} > "{3}" 2>&1' -f $BackendPort, $JavaExe, $Jar, $BackendLog, $dataPath
     $backendProc = Start-Process -FilePath $CmdExe -ArgumentList $a -WorkingDirectory $BackendDir -WindowStyle Minimized -PassThru
 }
 $ps = Get-PortState $StaticPort $StaticSig
@@ -252,6 +308,9 @@ if ($ps.State -eq 'ours') {
     Write-Host "      页面服务已在运行（PID=$($ps.Pid)），直接复用"
 } else {
     Write-Host "      启动页面服务：端口 $StaticPort"
+    $env:E2E_STATIC_PORT = "$StaticPort"
+    $env:E2E_BACKEND_PORT = "$BackendPort"
+    $env:E2E_STATIC_HOST = '127.0.0.1'
     $a = '/c title 监理页面-{0}（关闭此窗口即停止页面服务） & "{1}" "{2}" > "{3}" 2>&1' -f $StaticPort, $NodeExe, $StaticJs, $StaticLog
     [void](Start-Process -FilePath $CmdExe -ArgumentList $a -WorkingDirectory $Root -WindowStyle Minimized -PassThru)
 }
@@ -260,8 +319,14 @@ if ($ps.State -eq 'ours') {
 Write-Host "[5/6] 正在等待服务就绪（最长 $MaxWait 秒，首次启动约 20-40 秒）" -NoNewline
 $sw = [Diagnostics.Stopwatch]::StartNew()
 while ($true) {
-    # /api/auth/info 未登录返回 401，有任何 HTTP 响应即说明后端已就绪
-    if (Invoke-Local "http://127.0.0.1:$BackendPort/api/auth/info" -TimeoutMs 2000) { break }
+    # 只有全部初始化器（包括 admin 权限自检）成功后才报告 ready。
+    $ready = Invoke-Local "http://127.0.0.1:$BackendPort/api/local/status" -TimeoutMs 2000
+    if ($ready -and $ready.Code -eq 200) {
+        try {
+            $state = $ready.Body | ConvertFrom-Json
+            if ($state.ready -eq $true -and $state.persistent -eq $true -and $state.profile -eq 'local') { break }
+        } catch {}
+    }
     if ($backendProc) {
         $failed = $false
         try { $failed = Select-String -LiteralPath $BackendLog -SimpleMatch 'APPLICATION FAILED TO START' -Quiet -ErrorAction Stop } catch {}
@@ -295,30 +360,15 @@ if (-not $staticOk) {
     Show-LogTail $StaticLog
     Fail @('[错误] 页面服务启动失败。')
 }
+$proxyReady = Invoke-Local "http://127.0.0.1:$StaticPort/api/local/status" -TimeoutMs 3000
+try {
+    $proxyState = $proxyReady.Body | ConvertFrom-Json
+    if ($proxyReady.Code -ne 200 -or $proxyState.pid -ne $state.pid -or -not $proxyState.ready) { throw '页面代理未连接当前留存后端' }
+} catch { Fail @('[保护] 页面服务连接了其他或不可用的后端，未报告启动成功。请停止页面服务后重试。') }
 Write-Host "      [OK] 页面服务已就绪：$LoginUrl" -ForegroundColor Green
 
-$r = Invoke-Local "http://127.0.0.1:$StaticPort/api/auth/login" -Method 'POST' -Body '{"username":"admin","password":"123456"}' -TimeoutMs 10000
-try {
-    $login = $r.Body | ConvertFrom-Json
-    if ($login.code -ne 200 -or -not $login.data.token -or $login.data.roles -notcontains 'admin') { throw 'admin 登录或角色异常' }
-    $token = $login.data.token
-    $roleResult = Invoke-Local "http://127.0.0.1:$StaticPort/api/roles?pageSize=200" -Token $token
-    $rolePage = $roleResult.Body | ConvertFrom-Json
-    $admins = @($rolePage.data.list | Where-Object { $_.code -eq 'admin' })
-    $permResult = Invoke-Local "http://127.0.0.1:$StaticPort/api/permissions?pageSize=1" -Token $token
-    $perms = $permResult.Body | ConvertFrom-Json
-    if ($admins.Count -eq 0 -or $perms.code -ne 200 -or $perms.data.total -lt 31) { throw '管理员或权限目录缺失' }
-    foreach ($admin in $admins) {
-        $boundResult = Invoke-Local "http://127.0.0.1:$StaticPort/api/roles/$($admin.id)/permissions" -Token $token
-        $bound = $boundResult.Body | ConvertFrom-Json
-        if ($bound.code -ne 200 -or @($bound.data | Sort-Object -Unique).Count -ne $perms.data.total) { throw 'admin 权限绑定不完整' }
-    }
-    Write-Host "      [OK] admin 登录与全权限自检通过：$($perms.data.total)/$($perms.data.total)" -ForegroundColor Green
-} catch {
-    Fail @("[错误] admin 登录/全权限自检失败：$($_.Exception.Message)", "       请先停止服务再启动，并查看日志：$BackendLog")
-} finally {
-    if ($token) { Invoke-Local "http://127.0.0.1:$StaticPort/api/auth/logout" -Method 'POST' -Token $token | Out-Null }
-}
+Write-Host '      [OK] 本地数据留存与 admin 权限启动自检通过' -ForegroundColor Green
+Write-Host '      使用你当前设置的密码登录；启动器不会尝试旧密码或重置密码。'
 
 # ---------- 6. 自动打开浏览器 ----------
 if ($env:SUP_NO_BROWSER -eq '1') {
@@ -332,10 +382,11 @@ Write-Host ''
 Write-Host '=============================================='
 Write-Host ' 启动完成！如浏览器未自动打开，请手动访问：'
 Write-Host "   $LoginUrl"
-Write-Host ' 登录账号：admin    密码：123456'
+Write-Host ' 登录账号：admin；全新空库初始密码为 123456，改密后请使用新密码。'
 Write-Host ''
-Write-Host ' 说明：本地演示模式使用 H2 内存数据库，'
-Write-Host '       停止服务或重启后数据会重置为初始演示数据。'
+Write-Host ' 说明：本地文件数据库，停止服务和重启后测试数据、附件均保留。'
+Write-Host " 数据目录：$DataDir"
+Write-Host ' 启动前自动备份到 local-data\backups，不自动清理历史备份。'
 Write-Host ' 用完后双击"停止服务.bat"关闭全部服务。'
 Write-Host " 日志目录：$LogDir"
 Write-Host '=============================================='

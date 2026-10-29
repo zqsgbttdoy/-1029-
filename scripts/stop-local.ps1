@@ -28,12 +28,26 @@ Write-Host '   监理现场管理系统 - 停止本地服务'
 Write-Host '=============================================='
 Write-Host ''
 
-$all = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue)
+$all = @(Get-CimInstance Win32_Process -ErrorAction Stop)
+$backendPid = Get-PortPid 8080
+$protected = @($all | Where-Object {
+    $_.CommandLine -and $_.CommandLine.Contains('supervision-site-management') -and
+    ($_.ProcessId -eq $backendPid -or $_.CommandLine -match '--server.port=8080(?:\s|$)') -and
+    $_.CommandLine -notmatch '--spring.profiles.active=local(?:\s|$)'
+})
+if ($protected.Count -gt 0) {
+    Write-Host '[数据保护] 检测到非 local 后端，可能仍使用内存数据库。本次没有停止任何服务。' -ForegroundColor Yellow
+    Write-Host '请先完成现有数据导出、附件备份与还原验证，不能直接停止旧内存库。'
+    exit 1
+}
 foreach ($t in $Targets) {
     # 按进程命令行特征查找（包括尚未开始监听端口、仍在启动中的进程）
-    $procs = @($all | Where-Object { $_.CommandLine -and ($t.Exe -contains $_.Name.ToLowerInvariant()) -and $_.CommandLine.Contains($t.Sig) })
-    $ownIds = @($procs | ForEach-Object { [int]$_.ProcessId })
     $portPid = Get-PortPid $t.Port
+    $procs = @($all | Where-Object {
+        $_.CommandLine -and ($t.Exe -contains $_.Name.ToLowerInvariant()) -and $_.CommandLine.Contains($t.Sig) -and
+        ($_.ProcessId -eq $portPid -or ($t.Port -eq 8080 -and $_.CommandLine -match '--server.port=8080(?:\s|$)' -and $_.CommandLine -match '--spring.profiles.active=local(?:\s|$)'))
+    })
+    $ownIds = @($procs | ForEach-Object { [int]$_.ProcessId })
 
     if ($procs.Count -eq 0) {
         Write-Host "[提示] $($t.Name)未在运行。"
@@ -66,5 +80,5 @@ foreach ($t in $Targets) {
     else { Write-Host "      端口 $($t.Port)：仍被 PID=$left 占用" -ForegroundColor Yellow }
 }
 Write-Host ''
-Write-Host '处理完成。再次使用时双击"一键启动.bat"即可。'
+Write-Host '处理完成。数据库和附件均保留，未清理任何测试数据。再次使用时双击"一键启动.bat"即可。'
 exit 0

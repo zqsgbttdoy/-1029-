@@ -8,6 +8,8 @@ const path = require('path');
 const STATIC_ROOT = path.join(__dirname, '补后端');
 const BACKEND = { host: '127.0.0.1', port: Number(process.env.E2E_BACKEND_PORT || 8080) };
 const PORT = Number(process.env.E2E_STATIC_PORT || 8081);
+// 默认仅监听本机（演示模式安全）；内网正式部署时由启动脚本设 E2E_STATIC_HOST=0.0.0.0 开放给局域网同事访问
+const HOST = process.env.E2E_STATIC_HOST || '127.0.0.1';
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -57,6 +59,6 @@ http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': MIME[path.extname(filePath).toLowerCase()] || 'application/octet-stream' });
     fs.createReadStream(filePath).pipe(res);
   });
-}).listen(PORT, '127.0.0.1', () => {
-  console.log(`E2E static server: http://localhost:${PORT}/login.html (root=${STATIC_ROOT}, /api -> :${BACKEND.port})`);
+}).listen(PORT, HOST, () => {
+  console.log(`E2E static server: http://localhost:${PORT}/login.html (root=${STATIC_ROOT}, /api -> :${BACKEND.port}, bind=${HOST})`);
 });
