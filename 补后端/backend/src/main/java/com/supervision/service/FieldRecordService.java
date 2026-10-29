@@ -47,8 +47,9 @@ public class FieldRecordService {
         CriteriaQuery<Long> count = cb.createQuery(Long.class);
         Root<?> countRoot = count.from(kind.getEntityClass());
         count.select(cb.count(countRoot)).where(filters(kind, countRoot, cb, projectId, code, status, from, to, authorId));
-        return new PageResult<>(em.createQuery(query).setFirstResult((pageNum - 1) * pageSize).setMaxResults(pageSize).getResultList(),
-                em.createQuery(count).getSingleResult(), pageNum, pageSize);
+        var records = em.createQuery(query).setFirstResult((pageNum - 1) * pageSize).setMaxResults(pageSize).getResultList();
+        fillDiaryNames(records);
+        return new PageResult<>(records, em.createQuery(count).getSingleResult(), pageNum, pageSize);
     }
 
     private Predicate[] filters(FieldRecordKind kind, Root<?> root, CriteriaBuilder cb, Long pid, String code,
@@ -75,7 +76,28 @@ public class FieldRecordService {
         FieldRecord record = em.find(kind.getEntityClass(), id);
         if (record == null || "inactive".equals(record.getStatus())) throw new BusinessException(404, "记录不存在");
         checkVisible(kind, record);
+        fillDiaryNames(List.of(record));
         return record;
+    }
+
+    // 仅为已获准访问的记录补充姓名；不返回人员实体，也不接受客户端写入展示姓名。
+    private void fillDiaryNames(Collection<? extends FieldRecord> records) {
+        var namedRecords = records.stream().filter(r -> r instanceof SupervisionDiary || r instanceof SupervisionLog).toList();
+        Set<Long> ids = new HashSet<>();
+        for (FieldRecord record : namedRecords) {
+            for (String field : List.of("authorId", "reviewerId")) {
+                Long id = (Long) bean(record).getPropertyValue(field);
+                if (id != null) ids.add(id);
+            }
+        }
+        if (ids.isEmpty()) return;
+        Map<Long, String> names = new HashMap<>();
+        em.createQuery("select u from User u where u.id in :ids", User.class).setParameter("ids", ids)
+                .getResultList().forEach(user -> names.put(user.getId(), user.getName()));
+        for (FieldRecord record : namedRecords) {
+            bean(record).setPropertyValue("authorName", names.get(bean(record).getPropertyValue("authorId")));
+            bean(record).setPropertyValue("reviewerName", names.get(bean(record).getPropertyValue("reviewerId")));
+        }
     }
 
     private void checkVisible(FieldRecordKind kind, FieldRecord record) {
@@ -142,6 +164,7 @@ public class FieldRecordService {
     private FieldRecord replay(FieldRecordKind kind, FieldRecord record, String fingerprint) {
         checkVisible(kind, record);
         if (!fingerprint.equals(record.getRequestHash())) throw new BusinessException(409, "同一请求标识不能提交不同内容");
+        fillDiaryNames(List.of(record));
         return record;
     }
 
@@ -258,7 +281,10 @@ public class FieldRecordService {
             throw new BusinessException(400, "请通过提交或审核操作改变状态");
         if (!"draft".equals(status)) {
             String primary = kind == FieldRecordKind.DIARY ? "construction" : "content";
-            boolean hasText = Arrays.stream(kind.getFields()).filter(f -> Set.of(primary, "management", "inspection").contains(f))
+            Set<String> workFields = kind == FieldRecordKind.LOG
+                    ? Set.of("construction", "inspection", "safetyIssues", "otherMatters", "content", "management")
+                    : Set.of(primary, "management", "inspection");
+            boolean hasText = Arrays.stream(kind.getFields()).filter(workFields::contains)
                     .map(f -> bean(record).getPropertyValue(f)).anyMatch(v -> v != null && !v.toString().isBlank());
             if (!hasText) throw new BusinessException(400, "请填写实际工作内容后提交");
             if (kind == FieldRecordKind.DIARY) {
@@ -288,6 +314,7 @@ public class FieldRecordService {
     }
 
     private void event(FieldRecordKind kind, FieldRecord record, String action, String reason) {
+        fillDiaryNames(List.of(record));
         FieldRecordEvent event = new FieldRecordEvent();
         event.setRecordType(kind.getPath());
         event.setRecordId(record.getId());
@@ -319,23 +346,67 @@ public class FieldRecordService {
         return result;
     }
 
-    @Transactional(readOnly = true)
-    public Map<String, Object> diarySource(Long projectId, LocalDate date) {
+    private List<SupervisionDiary> approvedDiaries(Long projectId, LocalDate date) {
         access.requireRead(projectId);
         List<SupervisionDiary> sources = em.createQuery("select d from SupervisionDiary d where d.projectId=:pid and d.diaryDate=:date and d.status='approved' and not exists (select revision.id from SupervisionDiary revision where revision.sourceRecordId=d.id and revision.status='approved') order by d.authorId,d.id", SupervisionDiary.class)
                 .setParameter("pid", projectId).setParameter("date", date).setMaxResults(501).getResultList();
         if (sources.size() > 500) throw new BusinessException(400, "当日日记超过 500 份，请分工核对后人工整编，不进行截断取数");
+        return sources;
+    }
+
+    /** 自动预填仅返回对应字段原值；不添加作者、编号、附件或来源标记。 */
+    @Transactional(readOnly = true)
+    public Map<String, String> diaryPrefill(Long projectId, LocalDate date) {
+        List<SupervisionDiary> sources = approvedDiaries(projectId, date);
+        Map<String, String> fields = new LinkedHashMap<>();
+        for (String target : List.of("weather", "wind", "temperature", "construction", "inspection", "safetyIssues",
+                "otherMatters", "management", "morningMeeting", "drawingReview")) {
+            String origin = "safetyIssues".equals(target) ? "newIssues" : target;
+            List<String> values = sources.stream().map(d -> (String) bean(d).getPropertyValue(origin))
+                    .filter(v -> v != null && !v.isBlank()).distinct().toList();
+            // 气象短字段存在分歧时留给填写人核对，不能拼接后截断或任选一人结论。
+            boolean weatherField = Set.of("weather", "wind", "temperature").contains(target);
+            String value = weatherField ? (values.size() == 1 ? values.get(0) : "") : String.join("\n\n", values);
+            if (value.length() > (weatherField ? 30 : 60000))
+                throw new BusinessException(400, "日记汇总字段内容过长，请人工核对，不自动截断原文");
+            fields.put(target, value);
+        }
+        return fields;
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> diarySource(Long projectId, LocalDate date) {
+        List<SupervisionDiary> sources = approvedDiaries(projectId, date);
         Map<String, Object> fields = new LinkedHashMap<>();
         for (String field : List.of("construction", "management", "inspection", "otherMatters", "morningMeeting", "drawingReview")) {
             List<String> texts = new ArrayList<>();
             for (SupervisionDiary diary : sources) {
                 Object text = bean(diary).getPropertyValue(field);
+                if ("construction".equals(field)) {
+                    List<String> content = new ArrayList<>();
+                    if (text != null && !text.toString().isBlank()) content.add(text.toString());
+                    // 日志不新增属性；新增日记栏目以明确标题整编到工作内容，保留来源。
+                    String[][] extraFields = {{"otherWork", "其他工作"}, {"newIssues", "工作中的新问题"}, {"materialInspection", "材料进场检查"}};
+                    for (String[] extra : extraFields) {
+                        Object value = bean(diary).getPropertyValue(extra[0]);
+                        if (value != null && !value.toString().isBlank()) content.add("【" + extra[1] + "】\n" + value);
+                    }
+                    text = String.join("\n\n", content);
+                }
                 if (text == null || text.toString().isBlank()) continue;
                 User author = diary.getAuthorId() == null ? null : em.find(User.class, diary.getAuthorId());
                 texts.add("【" + (author == null ? "原记录作者" : author.getName()) + "｜日记 " + diary.getCode() + "】\n" + text);
             }
             fields.put("construction".equals(field) ? "content" : field, String.join("\n\n", texts));
         }
+        // 新日志的施工进度只取同名日记栏目；不从综合工作内容推断安全问题或处理结论。
+        List<String> construction = new ArrayList<>();
+        for (SupervisionDiary diary : sources) {
+            if (diary.getConstruction() == null || diary.getConstruction().isBlank()) continue;
+            User author = diary.getAuthorId() == null ? null : em.find(User.class, diary.getAuthorId());
+            construction.add("【" + (author == null ? "原记录作者" : author.getName()) + "｜日记 " + diary.getCode() + "】\n" + diary.getConstruction());
+        }
+        fields.put("construction", String.join("\n\n", construction));
         fields.put("sources", sources.stream().map(d -> Map.of("id", d.getId(), "code", d.getCode(), "date", d.getDiaryDate(), "lockVersion", d.getLockVersion())).toList());
         return fields;
     }

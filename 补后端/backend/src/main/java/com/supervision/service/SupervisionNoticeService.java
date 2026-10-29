@@ -25,6 +25,9 @@ import java.util.List;
 @AllArgsConstructor
 public class SupervisionNoticeService {
 
+    private static final java.util.Set<String> CONTENT_LOCKED_STATUSES =
+            java.util.Set.of("issued", "sent", "overdue", "responded", "replied", "verified");
+
     private final SupervisionNoticeRepository supervisionNoticeRepository;
     private final ProjectAccessService access;
     private final AttachmentAccessService attachmentAccess;
@@ -91,6 +94,11 @@ public class SupervisionNoticeService {
         access.requireEdit(existing.getProjectId(), existing.getAuthorId());
         if (!java.util.Objects.equals(dto.getProjectId(), existing.getProjectId())) throw new BusinessException(400, "不可更换记录所属项目");
         attachmentAccess.bind(existing.getProjectId(), dto.getPhotos(), dto.getAttachments());
+        // 正文锁定：已下发、已回复或已验证的单据正文不得覆盖，避免绕过审批流篡改既成事实。
+        if (CONTENT_LOCKED_STATUSES.contains(existing.getStatus())
+                && !java.util.Objects.equals(dto.getContent(), existing.getContent())) {
+            throw new BusinessException(409, "已下发或已回复的通知单正文不可覆盖，如需修正请新建修订版本");
+        }
         if (dto.getCode() != null && !dto.getCode().equals(existing.getCode())) {
             supervisionNoticeRepository.findByCode(dto.getCode())
                     .filter(e -> !"inactive".equals(e.getStatus()))
@@ -105,6 +113,16 @@ public class SupervisionNoticeService {
         existing.setPriority(dto.getPriority());
         existing.setPhotos(dto.getPhotos());
         existing.setAttachments(dto.getAttachments());
+        // 状态流转白名单：只允许草稿→已下发、已下发→已逾期、已回复→已验证，其余跳转一律拒绝。
+        if (dto.getStatus() != null && !dto.getStatus().equals(existing.getStatus())) {
+            boolean allowed = ("draft".equals(existing.getStatus()) && "issued".equals(dto.getStatus()))
+                    || ("issued".equals(existing.getStatus()) && "overdue".equals(dto.getStatus()))
+                    || ("responded".equals(existing.getStatus()) && "verified".equals(dto.getStatus()));
+            if (!allowed) {
+                throw new BusinessException(409, "不允许的状态流转：" + existing.getStatus() + " → " + dto.getStatus());
+            }
+            existing.setStatus(dto.getStatus());
+        }
         return supervisionNoticeRepository.save(existing);
     }
 
@@ -124,6 +142,10 @@ public class SupervisionNoticeService {
         existing.setReplyContent(dto.getReplyContent());
         existing.setReplyDate(LocalDate.now());
         existing.setStatus("responded");
+        // 回复附件合并进 attachments（标记 source=reply），保证详情页可回显且下载走同一授权链。
+        existing.setAttachments(attachmentAccess.bindReply(existing.getProjectId(), existing.getAttachments(), dto.getAttachments()));
+        // 整改照片同样合并进 photos，避免前端已上传的照片提交后被丢弃。
+        existing.setPhotos(attachmentAccess.mergeAttachments(existing.getProjectId(), existing.getPhotos(), dto.getPhotos(), "reply"));
         return supervisionNoticeRepository.save(existing);
     }
 

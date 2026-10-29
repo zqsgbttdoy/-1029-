@@ -33,6 +33,20 @@ public class SupervisionLog extends FieldRecord {
     @Column(name = "author_id")
     private Long authorId;
 
+    @Transient
+    @com.fasterxml.jackson.annotation.JsonProperty(access = com.fasterxml.jackson.annotation.JsonProperty.Access.READ_ONLY)
+    private String authorName;
+
+    @Transient
+    @com.fasterxml.jackson.annotation.JsonProperty(access = com.fasterxml.jackson.annotation.JsonProperty.Access.READ_ONLY)
+    private String reviewerName;
+
+    @Column(name = "construction", columnDefinition = "TEXT")
+    private String construction;
+
+    @Column(name = "safety_issues", columnDefinition = "TEXT")
+    private String safetyIssues;
+
     @Column(name = "diary_sources", columnDefinition = "LONGTEXT")
     private String diarySources;
 

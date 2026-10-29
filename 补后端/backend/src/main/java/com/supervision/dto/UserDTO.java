@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @Data
 public class UserDTO {
@@ -30,7 +31,11 @@ public class UserDTO {
 
     private String idCard;
 
+    /** 单项目时代的历史字段，保留为“主归属”兼容口径；多选场景下由后端取 projectIds 首个回写 */
     private Long projectId;
+
+    /** 一人多项目：非 null 时按“整体替换”同步 biz_project_member 关系表；null 表示不动显式绑定（兼容旧客户端） */
+    private List<Long> projectIds;
 
     private LocalDate hireDate;
 

@@ -23,4 +23,8 @@ public class Role extends BaseEntity {
 
     @Column(length = 20)
     private String status;
+
+    /** 该角色当前绑定的成员数量，查询时按 sys_user_role 实时统计填充，不落库 */
+    @Transient
+    private Integer userCount;
 }

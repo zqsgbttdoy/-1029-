@@ -48,6 +48,23 @@ public class SupervisionDiary extends FieldRecord {
     @Column(name = "other_matters", columnDefinition = "TEXT")
     private String otherMatters;
 
+    @Column(name = "other_work", columnDefinition = "TEXT")
+    private String otherWork;
+
+    @Column(name = "new_issues", columnDefinition = "TEXT")
+    private String newIssues;
+
+    @Column(name = "material_inspection", columnDefinition = "TEXT")
+    private String materialInspection;
+
+    @Transient
+    @com.fasterxml.jackson.annotation.JsonProperty(access = com.fasterxml.jackson.annotation.JsonProperty.Access.READ_ONLY)
+    private String authorName;
+
+    @Transient
+    @com.fasterxml.jackson.annotation.JsonProperty(access = com.fasterxml.jackson.annotation.JsonProperty.Access.READ_ONLY)
+    private String reviewerName;
+
     @Column(length = 20)
     private String status;
 

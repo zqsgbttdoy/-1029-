@@ -109,7 +109,7 @@ class UserServiceTest {
     }
 
     @Test
-    @DisplayName("删除用户 - 应设置status为inactive")
+    @DisplayName("删除用户 - 应设置status为inactive并清理角色绑定")
     void testDeleteUser() {
         User user = new User();
         user.setId(1L);
@@ -120,6 +120,8 @@ class UserServiceTest {
         userService.delete(1L);
 
         verify(userRepository).save(argThat(u -> "inactive".equals(u.getStatus())));
+        // 删除后不得在角色成员名单里留下“幽灵成员”
+        verify(userRoleRepository).deleteByUserId(1L);
     }
 
     @Test
@@ -140,6 +142,7 @@ class UserServiceTest {
         disable.setStatus("inactive");
         assertThrows(BusinessException.class, () -> userService.update(1L, disable));
         verify(userRepository, never()).save(any());
+        verify(userRoleRepository, never()).deleteByUserId(any());
         assertEquals("active", admin.getStatus());
     }
 

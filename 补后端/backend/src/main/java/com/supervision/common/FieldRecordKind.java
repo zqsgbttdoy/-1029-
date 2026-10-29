@@ -9,9 +9,9 @@ import lombok.Getter;
 @Getter
 public enum FieldRecordKind {
     DIARY("supervision-diaries", SupervisionDiary.class, SupervisionDiaryDTO.class, "authorId", "diaryDate",
-            "code,projectId,diaryDate,weather,wind,temperature,construction,management,inspection,otherMatters,morningMeeting,drawingReview,photos,attachments"),
+            "code,projectId,diaryDate,weather,wind,temperature,construction,management,inspection,otherMatters,morningMeeting,drawingReview,otherWork,newIssues,materialInspection,photos,attachments"),
     LOG("supervision-logs", SupervisionLog.class, SupervisionLogDTO.class, "authorId", "logDate",
-            "code,projectId,logDate,weekStart,weekEnd,weather,wind,temperature,content,management,inspection,otherMatters,morningMeeting,drawingReview,photos,attachments"),
+            "code,projectId,logDate,weekStart,weekEnd,weather,wind,temperature,content,construction,safetyIssues,management,inspection,otherMatters,morningMeeting,drawingReview,photos,attachments"),
     DAILY("daily-inspections", DailyInspection.class, DailyInspectionDTO.class, "inspectorId", "inspectionDate",
             "code,projectId,inspectionDate,location,content,issues,photos,attachments"),
     SIDELINE("sideline-inspections", SidelineInspection.class, SidelineInspectionDTO.class, "inspectorId", "inspectionDate",

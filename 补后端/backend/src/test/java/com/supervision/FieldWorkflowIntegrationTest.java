@@ -84,6 +84,139 @@ class FieldWorkflowIntegrationTest {
                 .header("X-Record-Version", record.path("lockVersion").asLong()), Map.of("status", status, "rejectReason", "请补充部位")), 200);
     }
 
+    @Test void diarySpecificationFieldsRoundTripAndLegacyPartialUpdate() throws Exception {
+        var input = diary();
+        Map<String, String> additions = Map.of("otherWork", "参加质量专题会议", "newIssues", "二层进度滞后，待协调", "materialInspection", "砂浆试块送检，结果待出");
+        input.putAll(additions);
+        input.put("authorName", "伪造记录人"); input.put("reviewerName", "伪造审核人");
+        input.put("reviewerId", outsider); input.put("reviewedAt", "2026-09-23T12:00:00");
+        String key = UUID.randomUUID().toString();
+        JsonNode record = create(author, "supervision-diaries", input, key);
+        String path = "/supervision-diaries/" + record.path("id").asLong();
+        assertEquals("测试人员" + author, record.path("authorName").asText());
+        assertFalse(record.hasNonNull("reviewerId")); assertFalse(record.hasNonNull("reviewerName"));
+        assertEquals(record.path("id"), create(author, "supervision-diaries", input, key).path("id"));
+        additions.forEach((field, value) -> assertEquals(value, record.path(field).asText()));
+        JsonNode updated = call(author, body(put(path).header("X-Record-Version", record.path("lockVersion").asLong()), Map.of("construction", "旧客户端只修改施工情况")), 200);
+        JsonNode loaded = call(author, get(path), 200);
+        additions.forEach((field, value) -> assertEquals(value, loaded.path(field).asText()));
+        assertEquals("旧客户端只修改施工情况", loaded.path("construction").asText());
+        assertEquals("砂浆试块送检，结果待出", db.queryForObject("select material_inspection from biz_supervision_diary where id=?", String.class, record.path("id").asLong()));
+        call(author, body(put(path).header("X-Record-Version", record.path("lockVersion").asLong()), Map.of("newIssues", "过期版本")), 409);
+        call(author, body(put(path).header("X-Record-Version", updated.path("lockVersion").asLong()), Map.of("newIssues", "长".repeat(60001))), 400);
+        // 显式发送 null，避免全局 non_null 序列化把清空请求变成省略字段。
+        JsonNode cleared = call(author, put(path).header("X-Record-Version", updated.path("lockVersion").asLong())
+                .contentType("application/json").content("{\"newIssues\":null}"), 200);
+        assertFalse(cleared.hasNonNull("newIssues"));
+        assertNull(db.queryForObject("select new_issues from biz_supervision_diary where id=?", String.class, record.path("id").asLong()));
+        assertEquals(additions.get("otherWork"), cleared.path("otherWork").asText());
+        JsonNode legacy = create(author, "supervision-diaries", diary(), UUID.randomUUID().toString());
+        assertFalse(legacy.hasNonNull("materialInspection"));
+        assertEquals("检查钢筋绑扎", legacy.path("construction").asText());
+    }
+
+    @Test void diarySpecificationApprovalSnapshotNamesAndLogSource() throws Exception {
+        var input = diary();
+        input.put("otherWork", "配合设计单位现场核查"); input.put("newIssues", "发现质量新问题"); input.put("materialInspection", "钢筋焊接接头见证送检");
+        JsonNode record = create(author, "supervision-diaries", input, UUID.randomUUID().toString());
+        record = approve(submit(record, "supervision-diaries"), "supervision-diaries", "approved");
+        String path = "/supervision-diaries/" + record.path("id").asLong();
+        JsonNode viewed = call(reviewer, get(path), 200);
+        assertEquals("测试人员" + author, viewed.path("authorName").asText());
+        assertEquals("测试人员" + reviewer, viewed.path("reviewerName").asText());
+        assertEquals(reviewer, viewed.path("reviewerId").asLong());
+        assertTrue(viewed.hasNonNull("reviewedAt"));
+        JsonNode listed = call(reviewer, get("/supervision-diaries").param("projectId", "" + project), 200).path("list").get(0);
+        assertEquals(viewed.path("authorName"), listed.path("authorName"));
+        JsonNode snapshot = json.readTree(call(reviewer, get(path + "/history"), 200).get(0).path("snapshot").asText());
+        assertEquals(viewed.path("reviewerName"), snapshot.path("reviewerName"));
+        for (String field : List.of("otherWork", "newIssues", "materialInspection")) assertEquals(input.get(field), snapshot.path(field).asText());
+        call(author, body(put(path).header("X-Record-Version", record.path("lockVersion").asLong()), Map.of("otherWork", "不可改写已审核正文")), 409);
+        call(outsider, get(path), 403);
+        JsonNode source = call(author, get("/field/diary-source").param("projectId", "" + project).param("date", "2026-09-23"), 200);
+        assertTrue(source.path("content").asText().contains("【其他工作】\n配合设计单位现场核查"));
+        assertTrue(source.path("content").asText().contains("【工作中的新问题】\n发现质量新问题"));
+        assertTrue(source.path("content").asText().contains("【材料进场检查】\n钢筋焊接接头见证送检"));
+        assertTrue(source.path("construction").asText().contains("检查钢筋绑扎"));
+        assertFalse(source.path("construction").asText().contains("配合设计单位"));
+        assertFalse(source.hasNonNull("safetyIssues"));
+        assertEquals(record.path("id"), source.path("sources").get(0).path("id"));
+    }
+
+    @Test void logSpecificationRoundTripLegacyUpdateAndNullClear() throws Exception {
+        var input = new LinkedHashMap<String, Object>(Map.of("projectId", project, "logDate", "2026-09-23",
+                "construction", "A区二层脚手架搭设至顶板", "safetyIssues", "临边防护缺失，已通知并复查完成",
+                "inspection", "安全员在岗，证件有效，用电及设备验收资料核查完成", "otherMatters", "主管部门检查",
+                "content", "原工作内容保持", "management", "原管理情况", "weather", "晴"));
+        input.put("authorId", outsider); input.put("authorName", "伪造姓名");
+        input.put("reviewerId", outsider); input.put("reviewerName", "伪造审核人");
+        String key = UUID.randomUUID().toString();
+        JsonNode record = create(author, "supervision-logs", input, key);
+        String path = "/supervision-logs/" + record.path("id").asLong();
+        assertEquals(author, record.path("authorId").asLong());
+        assertEquals("测试人员" + author, record.path("authorName").asText());
+        assertFalse(record.hasNonNull("reviewerId")); assertFalse(record.hasNonNull("reviewerName"));
+        assertEquals(record.path("id"), create(author, "supervision-logs", input, key).path("id"));
+        JsonNode saved = call(author, body(put(path).header("X-Record-Version", record.path("lockVersion").asLong()), Map.of("content", "旧客户端修改综合原文")), 200);
+        JsonNode loaded = call(author, get(path), 200);
+        for (String field : List.of("construction", "safetyIssues", "inspection", "otherMatters")) assertEquals(input.get(field), loaded.path(field).asText());
+        assertEquals("原管理情况", loaded.path("management").asText());
+        assertEquals(input.get("safetyIssues"), db.queryForObject("select safety_issues from biz_supervision_log where id=?", String.class, record.path("id").asLong()));
+        assertEquals(input.get("construction"), db.queryForObject("select construction from biz_supervision_log where id=?", String.class, record.path("id").asLong()));
+        call(author, body(put(path).header("X-Record-Version", record.path("lockVersion").asLong()), Map.of("safetyIssues", "过期写入")), 409);
+        call(author, body(put(path).header("X-Record-Version", saved.path("lockVersion").asLong()), Map.of("construction", "长".repeat(60001))), 400);
+        JsonNode cleared = call(author, put(path).header("X-Record-Version", saved.path("lockVersion").asLong())
+                .contentType("application/json").content("{\"safetyIssues\":null}"), 200);
+        assertFalse(cleared.hasNonNull("safetyIssues"));
+        assertNull(db.queryForObject("select safety_issues from biz_supervision_log where id=?", String.class, record.path("id").asLong()));
+        assertEquals(input.get("construction"), cleared.path("construction").asText());
+        JsonNode legacy = create(author, "supervision-logs", Map.of("projectId", project, "logDate", "2020-01-01", "content", "历史混合正文"), UUID.randomUUID().toString());
+        assertFalse(legacy.hasNonNull("construction")); assertFalse(legacy.hasNonNull("safetyIssues"));
+        assertEquals("历史混合正文", legacy.path("content").asText());
+        assertEquals("submitted", submit(legacy, "supervision-logs").path("status").asText());
+    }
+
+    @Test void logSpecificationSubmitApprovalSnapshotsAndAttachments() throws Exception {
+        var file = new MockMultipartFile("file", "第三方验收单.pdf", "application/pdf", "%PDF-1.4 test".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        String attachment = json.readTree(mvc.perform(multipart("/files/upload").file(file).header("Authorization", token(author)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray()).path("data").path("url").asText();
+        var input = Map.<String, Object>of("projectId", project, "logDate", "2026-09-23", "construction", "脚手架验收",
+                "safetyIssues", "防护缺失已整改", "attachments", json.writeValueAsString(List.of(Map.of("url", attachment, "name", "第三方验收单.pdf"))));
+        JsonNode record = create(author, "supervision-logs", input, UUID.randomUUID().toString());
+        String path = "/supervision-logs/" + record.path("id").asLong();
+        call(reviewer, get(path), 403); call(outsider, get(path), 403);
+        call(reviewer, get("/files/access").param("url", attachment), 403);
+        record = submit(record, "supervision-logs");
+        assertTrue(call(reviewer, get("/files/access").param("url", attachment), 200).hasNonNull("url"));
+        record = approve(record, "supervision-logs", "rejected");
+        record = call(author, body(put(path).header("X-Record-Version", record.path("lockVersion").asLong()), Map.of("safetyIssues", "复查合格，已闭环")), 200);
+        record = approve(submit(record, "supervision-logs"), "supervision-logs", "approved");
+        JsonNode viewed = call(reviewer, get(path), 200);
+        assertEquals("测试人员" + author, viewed.path("authorName").asText());
+        assertEquals("测试人员" + reviewer, viewed.path("reviewerName").asText());
+        assertTrue(viewed.hasNonNull("reviewedAt"));
+        assertEquals("复查合格，已闭环", viewed.path("safetyIssues").asText());
+        JsonNode listed = call(reviewer, get("/supervision-logs").param("projectId", "" + project), 200).path("list").get(0);
+        assertEquals(viewed.path("authorName"), listed.path("authorName"));
+        JsonNode snapshot = json.readTree(call(reviewer, get(path + "/history"), 200).get(0).path("snapshot").asText());
+        for (String field : List.of("construction", "safetyIssues", "attachments", "authorName", "reviewerName")) assertEquals(viewed.path(field), snapshot.path(field));
+        call(author, body(put(path).header("X-Record-Version", record.path("lockVersion").asLong()), Map.of("safetyIssues", "不得覆盖")), 409);
+        call(outsider, get("/files/access").param("url", attachment), 403);
+        var revision = new LinkedHashMap<>(input); revision.put("sourceRecordId", record.path("id").asLong());
+        JsonNode revised = create(author, "supervision-logs", revision, UUID.randomUUID().toString());
+        assertEquals(2, revised.path("version").asInt());
+        assertEquals("脚手架验收", revised.path("construction").asText());
+    }
+
+    @Test void logSpecificationAcceptsMainWorkAndRejectsEmptySubmission() throws Exception {
+        JsonNode empty = create(author, "supervision-logs", Map.of("projectId", project, "logDate", "2026-09-23", "weather", "晴"), UUID.randomUUID().toString());
+        call(author, post("/supervision-logs/" + empty.path("id").asLong() + "/submit").header("X-Record-Version", empty.path("lockVersion").asLong()), 400);
+        for (String field : List.of("construction", "inspection", "safetyIssues", "otherMatters")) {
+            JsonNode record = create(author, "supervision-logs", Map.of("projectId", project, "logDate", "2026-09-23", field, "当日实际工作记录"), UUID.randomUUID().toString());
+            assertEquals("submitted", submit(record, "supervision-logs").path("status").asText());
+        }
+    }
+
     @Test void identityProjectScopeAndIdempotentReplay() throws Exception {
         var input = diary(); input.put("authorId", outsider);
         String key = UUID.randomUUID().toString();
@@ -139,6 +272,103 @@ class FieldWorkflowIntegrationTest {
         JsonNode summary = call(author, get("/field/summary").param("projectId", "" + project).param("date", "2026-09-23"), 200);
         assertEquals(1, summary.path("supervision-logs").path("draft").asInt());
         assertEquals(0, summary.path("supervision-logs").path("submitted").asInt());
+    }
+
+    @Test void diaryPrefillReturnsOnlySharedOriginalValuesWithoutWrites() throws Exception {
+        var input = diary();
+        Map<String, String> expected = Map.of("weather", "晴", "wind", "东北风3级", "temperature", "18℃～25℃",
+                "construction", "A区二层施工\n完成60%", "inspection", "巡视临边防护，核查验收资料",
+                "safetyIssues", "质量偏差及临边缺口，处理结果待核实", "otherMatters", "主管部门检查",
+                "management", "管理人员在岗", "morningMeeting", "晨会安排巡视", "drawingReview", "核对变更图纸");
+        expected.forEach((field, value) -> input.put(field.equals("safetyIssues") ? "newIssues" : field, value));
+        input.put("otherWork", "不属于共享字段的其他工作"); input.put("materialInspection", "材料进场原文");
+        JsonNode diaryRecord = approve(submit(create(author, "supervision-diaries", input, UUID.randomUUID().toString()), "supervision-diaries"), "supervision-diaries", "approved");
+        JsonNode log = create(reviewer, "supervision-logs", Map.of("projectId", project, "logDate", "2026-09-23", "construction", "领导手写内容"), UUID.randomUUID().toString());
+        // 数据库存储时间精度与创建响应可能不同，使用落库后的读取结果作只读基线。
+        diaryRecord = call(author, get("/supervision-diaries/" + diaryRecord.path("id").asLong()), 200);
+        int events = db.queryForObject("select count(*) from biz_field_record_event", Integer.class);
+        JsonNode prefill = call(reviewer, get("/field/diary-prefill").param("projectId", "" + project).param("date", "2026-09-23"), 200);
+        Set<String> keys = new HashSet<>(); prefill.fieldNames().forEachRemaining(keys::add);
+        assertEquals(expected.keySet(), keys);
+        expected.forEach((field, value) -> assertEquals(value, prefill.path(field).asText(), field));
+        assertEquals(prefill, call(author, get("/field/diary-prefill").param("projectId", "" + project).param("date", "2026-09-23"), 200));
+        JsonNode unchanged = call(reviewer, get("/supervision-logs/" + log.path("id").asLong()), 200);
+        assertEquals("领导手写内容", unchanged.path("construction").asText());
+        assertFalse(unchanged.hasNonNull("safetyIssues")); assertFalse(unchanged.hasNonNull("diarySources"));
+        assertEquals(log.path("lockVersion"), unchanged.path("lockVersion"));
+        assertEquals(diaryRecord, call(author, get("/supervision-diaries/" + diaryRecord.path("id").asLong()), 200));
+        assertEquals(events, db.queryForObject("select count(*) from biz_field_record_event", Integer.class));
+    }
+
+    // 直接准备不同项目、日期和状态的历史记录，查询仍经过真实 MVC、权限及 JPA。
+    void seedPrefillDiary(long pid, long uid, String date, String status, String text) {
+        db.update("insert into biz_supervision_diary(code,project_id,author_id,diary_date,status,construction,weather) values (?,?,?,?,?,?,?)",
+                "PREFILL-" + sequence.incrementAndGet(), pid, uid, date, status, text, "晴");
+    }
+
+    @Test void diaryPrefillFiltersDateProjectAndApprovalStatus() throws Exception {
+        for (String status : List.of("draft", "submitted", "pending", "rejected", "inactive", "recorded"))
+            seedPrefillDiary(project, author, "2026-09-23", status, "排除" + status);
+        seedPrefillDiary(otherProject, outsider, "2026-09-23", "approved", "排除其他项目");
+        seedPrefillDiary(project, author, "2026-09-24", "approved", "排除其他日期");
+        seedPrefillDiary(project, author, "2026-09-23", "approved", "只取本项目本日已审核");
+        JsonNode prefill = call(reviewer, get("/field/diary-prefill").param("projectId", "" + project).param("date", "2026-09-23"), 200);
+        assertEquals("只取本项目本日已审核", prefill.path("construction").asText());
+        JsonNode empty = call(reviewer, get("/field/diary-prefill").param("projectId", "" + project).param("date", "2026-09-25"), 200);
+        assertEquals(10, empty.size()); empty.forEach(value -> assertEquals("", value.asText()));
+    }
+
+    @Test void diaryPrefillMergesMultipleAuthorsDeduplicatesAndLeavesWeatherConflictsBlank() throws Exception {
+        long colleague = sequence.incrementAndGet();
+        db.update("insert into sys_user(id,name,status,project_id) values (?,?,'active',?)", colleague, "另一普通员工", project);
+        // 故意先插入较大作者 ID，验证合并顺序由作者及记录 ID 决定。
+        seedPrefillDiary(project, colleague, "2026-09-23", "approved", "B区已完成");
+        seedPrefillDiary(project, author, "2026-09-23", "approved", "A区施工\n原始换行");
+        seedPrefillDiary(project, colleague, "2026-09-23", "approved", "A区施工\n原始换行");
+        db.update("update biz_supervision_diary set inspection='共同检查',wind='3级',temperature='20℃' where project_id=?", project);
+        db.update("update biz_supervision_diary set weather='阴',temperature='22℃',new_issues='临边防护待补齐' where project_id=? and author_id=?", project, colleague);
+        JsonNode prefill = call(reviewer, get("/field/diary-prefill").param("projectId", "" + project).param("date", "2026-09-23"), 200);
+        assertEquals("A区施工\n原始换行\n\nB区已完成", prefill.path("construction").asText());
+        assertEquals("共同检查", prefill.path("inspection").asText());
+        assertEquals("临边防护待补齐", prefill.path("safetyIssues").asText());
+        assertEquals("", prefill.path("weather").asText()); assertEquals("", prefill.path("temperature").asText());
+        assertEquals("3级", prefill.path("wind").asText());
+    }
+
+    @Test void diaryPrefillUsesApprovedRevisionOnlyAfterApproval() throws Exception {
+        JsonNode original = approve(submit(create(author, "supervision-diaries", diary(), UUID.randomUUID().toString()), "supervision-diaries"), "supervision-diaries", "approved");
+        var input = diary(); input.put("sourceRecordId", original.path("id").asLong()); input.put("construction", "修订后的施工进度");
+        JsonNode revision = create(author, "supervision-diaries", input, UUID.randomUUID().toString());
+        assertEquals("检查钢筋绑扎", call(reviewer, get("/field/diary-prefill").param("projectId", "" + project).param("date", "2026-09-23"), 200).path("construction").asText());
+        approve(submit(revision, "supervision-diaries"), "supervision-diaries", "approved");
+        assertEquals("修订后的施工进度", call(reviewer, get("/field/diary-prefill").param("projectId", "" + project).param("date", "2026-09-23"), 200).path("construction").asText());
+    }
+
+    @Test void diaryPrefillRequiresAuthenticationProjectAccessAndValidDate() throws Exception {
+        seedPrefillDiary(project, author, "2026-09-23", "approved", "受保护正文");
+        mvc.perform(get("/field/diary-prefill").param("projectId", "" + project).param("date", "2026-09-23")).andExpect(status().isUnauthorized());
+        call(outsider, get("/field/diary-prefill").param("projectId", "" + project).param("date", "2026-09-23"), 403);
+        call(reviewer, get("/field/diary-prefill").param("projectId", "" + project), 400);
+        call(reviewer, get("/field/diary-prefill").param("projectId", "" + project).param("date", "非日期"), 400);
+        db.update("insert into biz_project_member(project_id,user_id,enabled,can_review) values (?,?,false,false)", project, reviewer);
+        call(reviewer, get("/field/diary-prefill").param("projectId", "" + project).param("date", "2026-09-23"), 403);
+    }
+
+    @Test void diaryPrefillRejectsOversizedMergedFieldWithoutTruncation() throws Exception {
+        seedPrefillDiary(project, author, "2026-09-23", "approved", "甲".repeat(30000));
+        seedPrefillDiary(project, author, "2026-09-23", "approved", "乙".repeat(30000));
+        MvcResult result = mvc.perform(get("/field/diary-prefill").param("projectId", "" + project).param("date", "2026-09-23").header("Authorization", token(reviewer)))
+                .andExpect(status().isBadRequest()).andReturn();
+        assertTrue(json.readTree(result.getResponse().getContentAsByteArray()).path("message").asText().contains("不自动截断"));
+    }
+
+    @Test void diaryPrefillRejectsMoreThanFiveHundredSources() throws Exception {
+        List<Object[]> rows = new ArrayList<>();
+        for (int i = 0; i < 500; i++) rows.add(new Object[]{"LIMIT-" + sequence.incrementAndGet(), project, author});
+        db.batchUpdate("insert into biz_supervision_diary(code,project_id,author_id,diary_date,status,construction) values (?,?,?,'2026-09-23','approved','相同原文')", rows);
+        assertEquals("相同原文", call(reviewer, get("/field/diary-prefill").param("projectId", "" + project).param("date", "2026-09-23"), 200).path("construction").asText());
+        seedPrefillDiary(project, author, "2026-09-23", "approved", "第501份");
+        call(reviewer, get("/field/diary-prefill").param("projectId", "" + project).param("date", "2026-09-23"), 400);
     }
 
     @Test void protectedAttachmentsAndRevokedMembership() throws Exception {
@@ -540,6 +770,53 @@ class FieldWorkflowIntegrationTest {
         assertEquals(total + 1, db.queryForObject("select count(distinct permission_id) from sys_role_permission where role_id=?", Long.class, roleId));
         mvc.perform(delete("/roles/" + roleId).header("Authorization", admin)).andExpect(status().isBadRequest());
         assertEquals("active", db.queryForObject("select status from sys_role where id=?", String.class, roleId));
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"supervision-diaries", "supervision-logs", "daily-inspections", "sideline-inspections"})
+    void builtInAdminCanConfirmOwnSubmittedRecordWithoutSkippingWorkflow(String kind) throws Exception {
+        photo = upload(1);
+        Map<String, Object> input = new LinkedHashMap<>();
+        input.put("projectId", project);
+        input.put("photos", "[\"" + photo + "\"]");
+        if (kind.equals("supervision-diaries")) input.putAll(diary());
+        else {
+            input.put(kind.equals("supervision-logs") ? "logDate" : "inspectionDate", "2026-10-22");
+            input.put("location", "一层现场");
+            input.put("content", "管理员实际检查内容");
+        }
+        if (kind.equals("sideline-inspections")) {
+            input.put("startTime", "2026-10-22T08:00:00");
+            input.put("endTime", "2026-10-22T09:00:00");
+            input.put("content", json.writeValueAsString(Map.of("process", "浇筑", "result", "合格", "manageCount", 1, "workerCount", 2, "docs", List.of("图纸A"))));
+        }
+        JsonNode record = create(1, kind, input, UUID.randomUUID().toString());
+        String path = "/" + kind + "/" + record.path("id").asLong();
+        assertEquals("draft", record.path("status").asText());
+        call(1, body(post(path + "/approve").header("X-Record-Version", record.path("lockVersion").asLong()), Map.of("status", "approved")), 409);
+        record = call(1, post(path + "/submit").header("X-Record-Version", record.path("lockVersion").asLong()), 200);
+        assertEquals("submitted", record.path("status").asText());
+        assertEquals("submitted", call(1, get(path), 200).path("status").asText());
+        call(author, body(post(path + "/approve").header("X-Record-Version", record.path("lockVersion").asLong()), Map.of("status", "approved")), 403);
+        record = call(1, body(post(path + "/approve").header("X-Record-Version", record.path("lockVersion").asLong()), Map.of("status", "approved")), 200);
+        assertEquals("approved", record.path("status").asText());
+        call(1, body(put(path).header("X-Record-Version", record.path("lockVersion").asLong()), input), 409);
+        JsonNode history = call(1, get(path + "/history"), 200);
+        assertTrue(java.util.stream.StreamSupport.stream(history.spliterator(), false)
+                .anyMatch(event -> event.path("actorId").asLong() == 1 && event.path("action").asText().equals("approved")));
+    }
+
+    @Test void builtInAdminSafetyApprovalStillRequiresExplicitConfirmation() throws Exception {
+        var input = acceptanceLegacyBody("logDate");
+        JsonNode record = call(1, body(post("/safety-logs"), input), 200);
+        String path = "/safety-logs/" + record.path("id").asLong();
+        assertEquals("draft", record.path("status").asText());
+        call(1, body(post(path + "/approve"), Map.of("status", "approved")), 409);
+        input.put("status", "submitted");
+        assertEquals("submitted", call(1, body(put(path), input), 200).path("status").asText());
+        call(author, body(post(path + "/approve"), Map.of("status", "approved")), 403);
+        assertEquals("approved", call(1, body(post(path + "/approve"), Map.of("status", "approved")), 200).path("status").asText());
+        call(1, body(put(path), input), 409);
     }
 
     @Test void concurrentCreateUsesDatabaseUniqueKey() throws Exception {

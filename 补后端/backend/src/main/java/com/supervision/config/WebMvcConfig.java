@@ -28,6 +28,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 .addPathPatterns("/**")
                 .excludePathPatterns(
                         "/auth/login",
+                        "/local/status",
                         "/files/content",
                         "/error"
                 );
@@ -36,6 +37,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 .addPathPatterns("/**")
                 .excludePathPatterns(
                         "/auth/login",
+                        "/local/status",
                         "/files/content",
                         "/error"
                 );

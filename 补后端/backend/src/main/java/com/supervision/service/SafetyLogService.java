@@ -5,6 +5,7 @@ import com.supervision.common.PageUtils;
 import com.supervision.dto.ApproveDTO;
 import com.supervision.dto.SafetyLogDTO;
 import com.supervision.entity.SafetyLog;
+import com.supervision.entity.User;
 import com.supervision.exception.BusinessException;
 import com.supervision.repository.SafetyLogRepository;
 import jakarta.persistence.criteria.Predicate;
@@ -16,6 +17,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -51,6 +54,39 @@ public class SafetyLogService {
         Page<SafetyLog> page = safetyLogRepository.findAll(spec,
                 PageRequest.of(pageNum - 1, pageSize, Sort.by(Sort.Direction.DESC, "createTime")));
         return new PageResult<>(page.getContent(), page.getTotalElements(), pageNum, pageSize);
+    }
+
+    /**
+     * Word 导出专用查询：与列表同等的项目数据权限与筛选条件，但不分页，
+     * 由调用方一次性取齐（limit 用于限制单次导出体量，避免超大文档拖垮服务）。
+     */
+    public List<SafetyLog> listForExport(Long projectId, String code, String status,
+                                         LocalDate dateFrom, LocalDate dateTo, int limit) {
+        int max = Math.max(1, limit);
+        Specification<SafetyLog> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(access.scope(root, cb));
+            if (projectId != null) {
+                predicates.add(cb.equal(root.get("projectId"), projectId));
+            }
+            if (code != null && !code.isEmpty()) {
+                predicates.add(cb.like(root.get("code"), "%" + code + "%"));
+            }
+            if (status != null && !status.isEmpty()) {
+                predicates.add(cb.equal(root.get("status"), status));
+            } else {
+                predicates.add(cb.notEqual(root.get("status"), "inactive"));
+            }
+            if (dateFrom != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("logDate"), dateFrom));
+            }
+            if (dateTo != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("logDate"), dateTo));
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+        Sort sort = Sort.by(Sort.Direction.DESC, "logDate").and(Sort.by(Sort.Direction.DESC, "createTime"));
+        return safetyLogRepository.findAll(spec, PageRequest.of(0, max, sort)).getContent();
     }
 
     public SafetyLog getById(Long id) {
@@ -110,7 +146,14 @@ public class SafetyLogService {
         existing.setMajorIssue(dto.getMajorIssue());
         existing.setPhotos(dto.getPhotos());
         existing.setAttachments(dto.getAttachments());
+        boolean submitting = "submitted".equals(dto.getStatus()) && !"submitted".equals(existing.getStatus());
         applyStatusTransition(existing, dto.getStatus());
+        if (submitting) {
+            // 提交即留痕：导出件的“整改闭环”板块依据提交/审核时间与审核人还原流转链路。
+            existing.setSubmittedAt(LocalDateTime.now());
+            User submitter = access.currentUser();
+            if (submitter != null) existing.setSubmittedBy(submitter.getName());
+        }
         return safetyLogRepository.save(existing);
     }
 
@@ -156,9 +199,19 @@ public class SafetyLogService {
         if ("approved".equals(dto.getStatus())) {
             existing.setStatus("approved");
             existing.setRejectReason(null);
+            existing.setRejectedAt(null);
+            existing.setRejectedBy(null);
         } else if ("rejected".equals(dto.getStatus())) {
             existing.setStatus("rejected");
             existing.setRejectReason(dto.getRejectReason());
+            existing.setRejectedAt(LocalDateTime.now());
+        }
+        // 审核留痕：审核人与审核时间写入记录，供台账与 Word 导出还原闭环链路。
+        existing.setReviewedAt(LocalDateTime.now());
+        User reviewer = access.currentUser();
+        if (reviewer != null) {
+            existing.setReviewerId(reviewer.getId());
+            if ("rejected".equals(dto.getStatus())) existing.setRejectedBy(reviewer.getName());
         }
         return safetyLogRepository.save(existing);
     }

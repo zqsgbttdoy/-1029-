@@ -88,6 +88,23 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='biz_supervision_log' AND column_name='diary_sources') THEN
         ALTER TABLE biz_supervision_log ADD COLUMN diary_sources LONGTEXT NULL;
     END IF;
+    -- 日志填写规范新增独立栏目，不从旧工作内容推断或拆分正文。
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='biz_supervision_log' AND column_name='construction') THEN
+        ALTER TABLE biz_supervision_log ADD COLUMN construction TEXT NULL COMMENT '施工部位及形象进度';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='biz_supervision_log' AND column_name='safety_issues') THEN
+        ALTER TABLE biz_supervision_log ADD COLUMN safety_issues TEXT NULL COMMENT '存在的安全问题及处理结果';
+    END IF;
+    -- 日记填写规范新增栏目只补空列，不拆分或覆盖历史正文。
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='biz_supervision_diary' AND column_name='other_work') THEN
+        ALTER TABLE biz_supervision_diary ADD COLUMN other_work TEXT NULL COMMENT '其他工作';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='biz_supervision_diary' AND column_name='new_issues') THEN
+        ALTER TABLE biz_supervision_diary ADD COLUMN new_issues TEXT NULL COMMENT '工作中的新问题';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='biz_supervision_diary' AND column_name='material_inspection') THEN
+        ALTER TABLE biz_supervision_diary ADD COLUMN material_inspection TEXT NULL COMMENT '材料进场检查';
+    END IF;
 END$$
 CALL migrate_field_workflow()$$
 DROP PROCEDURE migrate_field_workflow$$

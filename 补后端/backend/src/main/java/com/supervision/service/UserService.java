@@ -152,6 +152,10 @@ public class UserService {
         }
         existing.setStatus("inactive");
         userRepository.save(existing);
+        // 删除即视同彻底移出：同步清理角色绑定，避免角色成员数与名单残留已删除人员。
+        // 仅把状态改为“离职”不走此分支（PUT /users/{id}/status），其角色绑定与成员名单中的“离职”标签均按原样保留。
+        userRoleRepository.deleteByUserId(id);
+        log.info("删除用户同步清理角色绑定：操作者userId={}, 目标userId={}", AuthContext.getUserId(), id);
     }
 
     public User findByPhone(String phone) {

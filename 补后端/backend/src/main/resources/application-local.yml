@@ -1,0 +1,35 @@
+# 本地手工验收：文件数据库跨重启保存，绝不与自动化 e2e 内存库混用。
+server:
+  address: 127.0.0.1
+spring:
+  autoconfigure:
+    exclude: com.alibaba.druid.spring.boot3.autoconfigure.DruidDataSourceAutoConfigure
+  datasource:
+    type: com.zaxxer.hikari.HikariDataSource
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:file:${app.local.data-dir}/db/supervision;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;WRITE_DELAY=0
+    username: sa
+    password: ''
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+  sql:
+    init:
+      mode: never
+app:
+  local:
+    # 启动器必须传入绝对路径；没有默认值，避免误建到其他工作目录。
+    data-dir: ${APP_LOCAL_DATA_DIR}
+  upload:
+    dir: ${app.local.data-dir}/uploads
+  jwt:
+    invalidate-on-restart: true
+logging:
+  level:
+    com.supervision: info
+    org.hibernate.SQL: warn

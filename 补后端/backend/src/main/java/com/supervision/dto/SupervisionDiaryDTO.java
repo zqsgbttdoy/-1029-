@@ -27,6 +27,9 @@ public class SupervisionDiaryDTO {
     private String management;
     private String inspection;
     private String otherMatters;
+    private String otherWork;
+    private String newIssues;
+    private String materialInspection;
     private String status;
     private String photos;
     private String attachments;

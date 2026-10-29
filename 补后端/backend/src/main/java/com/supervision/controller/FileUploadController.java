@@ -115,10 +115,15 @@ public class FileUploadController {
             @RequestParam String ticket, @RequestParam String signature) throws java.io.IOException {
         java.nio.file.Path path = attachmentAccess.content(ticket, signature);
         String type = java.nio.file.Files.probeContentType(path);
+        // 图片/PDF/纯文本允许浏览器内联预览，其余类型强制下载；文件名来自 UUID 白名单扩展名，无注入风险。
+        boolean previewable = type != null
+                && (type.startsWith("image/") || type.startsWith("text/") || "application/pdf".equals(type));
+        String disposition = previewable ? "inline" : "attachment";
         return org.springframework.http.ResponseEntity.ok()
                 .header("Cache-Control", "private, no-store")
                 .header("X-Content-Type-Options", "nosniff")
                 .header("Content-Security-Policy", "sandbox")
+                .header("Content-Disposition", disposition + "; filename=\"" + path.getFileName() + "\"")
                 .contentType(org.springframework.http.MediaType.parseMediaType(type == null ? "application/octet-stream" : type))
                 .body(new org.springframework.core.io.FileSystemResource(path));
     }

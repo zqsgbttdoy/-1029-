@@ -38,7 +38,7 @@ public class ProjectAccessService {
 
     public List<Long> projectIds(boolean reviewOnly) {
         User user = currentUser();
-        List<Project> projects = em.createQuery("select p from Project p where p.status <> 'inactive'", Project.class).getResultList();
+        List<Project> projects = activeProjects();
         if (isAdmin()) return projects.stream().map(Project::getId).toList();
         Map<Long, ProjectMember> memberships = new HashMap<>();
         em.createQuery("select m from ProjectMember m where m.userId=:uid", ProjectMember.class)
@@ -49,6 +49,93 @@ public class ProjectAccessService {
             if (Objects.equals(p.getManagerId(), user.getId())) return true;
             return !reviewOnly && Objects.equals(user.getProjectId(), p.getId());
         }).map(Project::getId).toList();
+    }
+
+    private List<Project> activeProjects() {
+        return em.createQuery("select p from Project p where p.status <> 'inactive'", Project.class).getResultList();
+    }
+
+    /** 可见绑定口径（与 projectIds 一致、不含管理员/负责人推导）：启用的显式成员行优先，无成员行时回退旧所属项目字段 */
+    private List<Long> boundProjectIds(User user, Map<Long, ProjectMember> memberships, List<Project> projects) {
+        List<Long> ids = new ArrayList<>();
+        for (Project p : projects) {
+            ProjectMember member = memberships.get(p.getId());
+            if (member != null) { if (member.isEnabled()) ids.add(p.getId()); }
+            else if (Objects.equals(user.getProjectId(), p.getId())) ids.add(p.getId());
+        }
+        return ids;
+    }
+
+    /** 人员管理页编辑回显：单人当前生效的项目 ID 列表（以数据库为准） */
+    public List<Long> userProjectIds(Long userId) {
+        requireAdmin();
+        User user = em.find(User.class, userId);
+        if (user == null) throw new BusinessException(404, "人员不存在");
+        Map<Long, ProjectMember> memberships = new HashMap<>();
+        em.createQuery("select m from ProjectMember m where m.userId=:uid", ProjectMember.class)
+                .setParameter("uid", userId).getResultList().forEach(m -> memberships.put(m.getProjectId(), m));
+        return boundProjectIds(user, memberships, activeProjects());
+    }
+
+    /** 人员管理页列表“分配项目”列：一次取齐 userId→项目 ID 映射，避免逐行请求 */
+    public Map<Long, List<Long>> userProjectMap() {
+        requireAdmin();
+        List<Project> projects = activeProjects();
+        Map<Long, List<ProjectMember>> grouped = new HashMap<>();
+        em.createQuery("select m from ProjectMember m", ProjectMember.class).getResultList()
+                .forEach(m -> grouped.computeIfAbsent(m.getUserId(), k -> new ArrayList<>()).add(m));
+        Map<Long, List<Long>> result = new LinkedHashMap<>();
+        for (User user : em.createQuery("select u from User u where u.status <> 'inactive'", User.class).getResultList()) {
+            Map<Long, ProjectMember> memberships = new HashMap<>();
+            grouped.getOrDefault(user.getId(), List.of()).forEach(m -> memberships.put(m.getProjectId(), m));
+            List<Long> ids = boundProjectIds(user, memberships, projects);
+            if (!ids.isEmpty()) result.put(user.getId(), ids);
+        }
+        return result;
+    }
+
+    /**
+     * 人员编辑“分配项目”整体替换：已勾选的保留成员行及其审核授权不动，
+     * 取消勾选的删除成员行，新增勾选的按“成员、无审核权”补建（审核权仍由项目成员面板显式授予）。
+     * projectIds 为 null 表示旧客户端未传列表，不触碰显式绑定。
+     */
+    @Transactional
+    public void syncUserProjects(Long userId, List<Long> projectIds) {
+        if (projectIds == null) return;
+        requireAdmin();
+        User user = em.find(User.class, userId);
+        if (user == null) throw new BusinessException(404, "人员不存在");
+        Map<Long, Project> projects = new HashMap<>();
+        activeProjects().forEach(p -> projects.put(p.getId(), p));
+        LinkedHashSet<Long> target = new LinkedHashSet<>();
+        for (Long pid : projectIds) {
+            if (pid == null) continue;
+            if (!projects.containsKey(pid)) throw new BusinessException(400, "项目不存在或已停用：id=" + pid);
+            target.add(pid);
+        }
+        List<ProjectMember> existing = em.createQuery("select m from ProjectMember m where m.userId=:uid", ProjectMember.class)
+                .setParameter("uid", userId).getResultList();
+        Set<Long> existingProjectIds = new HashSet<>();
+        for (ProjectMember m : existing) {
+            existingProjectIds.add(m.getProjectId());
+            if (target.contains(m.getProjectId())) m.setEnabled(true);
+            else em.remove(m);
+        }
+        for (Long pid : target) {
+            if (existingProjectIds.contains(pid)) continue;
+            ProjectMember member = new ProjectMember();
+            member.setProjectId(pid);
+            member.setUserId(userId);
+            member.setEnabled(true);
+            member.setCanReview(false);
+            em.persist(member);
+        }
+        OperationLog event = new OperationLog();
+        event.setModule("项目授权");
+        event.setAction("人员所属项目整体调整");
+        event.setUserId(currentUser().getId());
+        event.setDetail("userId=" + userId + ", projectIds=" + target);
+        em.persist(event);
     }
 
     public void requireRead(Long projectId) {

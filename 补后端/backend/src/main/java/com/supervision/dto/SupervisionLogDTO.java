@@ -23,6 +23,8 @@ public class SupervisionLogDTO {
     private LocalDate weekEnd;
     private Long authorId;
     private String content;
+    private String construction;
+    private String safetyIssues;
     private String management;
     private String inspection;
     private String morningMeeting;

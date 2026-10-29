@@ -25,6 +25,9 @@ import java.util.List;
 @AllArgsConstructor
 public class WorkContactService {
 
+    private static final java.util.Set<String> CONTENT_LOCKED_STATUSES =
+            java.util.Set.of("issued", "sent", "overdue", "responded", "replied", "verified");
+
     private final WorkContactRepository workContactRepository;
     private final ProjectAccessService access;
     private final AttachmentAccessService attachmentAccess;
@@ -90,6 +93,11 @@ public class WorkContactService {
         access.requireEdit(existing.getProjectId(), existing.getAuthorId());
         if (!java.util.Objects.equals(dto.getProjectId(), existing.getProjectId())) throw new BusinessException(400, "不可更换记录所属项目");
         attachmentAccess.bind(existing.getProjectId(), dto.getPhotos(), dto.getAttachments());
+        // 正文锁定：已发送、已回复或已验证的单据正文不得覆盖，避免绕过审批流篡改既成事实。
+        if (CONTENT_LOCKED_STATUSES.contains(existing.getStatus())
+                && !java.util.Objects.equals(dto.getContent(), existing.getContent())) {
+            throw new BusinessException(409, "已发送或已回复的联系单正文不可覆盖，如需修正请新建修订版本");
+        }
         if (dto.getCode() != null && !dto.getCode().equals(existing.getCode())) {
             workContactRepository.findByCode(dto.getCode())
                     .filter(e -> !"inactive".equals(e.getStatus()))
@@ -103,6 +111,16 @@ public class WorkContactService {
         existing.setPriority(dto.getPriority());
         existing.setPhotos(dto.getPhotos());
         existing.setAttachments(dto.getAttachments());
+        // 状态流转白名单：只允许草稿→已发送、已发送→已逾期、已回复→已验证，其余跳转一律拒绝。
+        if (dto.getStatus() != null && !dto.getStatus().equals(existing.getStatus())) {
+            boolean allowed = ("draft".equals(existing.getStatus()) && "sent".equals(dto.getStatus()))
+                    || ("sent".equals(existing.getStatus()) && "overdue".equals(dto.getStatus()))
+                    || ("replied".equals(existing.getStatus()) && "verified".equals(dto.getStatus()));
+            if (!allowed) {
+                throw new BusinessException(409, "不允许的状态流转：" + existing.getStatus() + " → " + dto.getStatus());
+            }
+            existing.setStatus(dto.getStatus());
+        }
         return workContactRepository.save(existing);
     }
 

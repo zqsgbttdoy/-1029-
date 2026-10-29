@@ -1,6 +1,8 @@
 package com.supervision.service;
 
 import com.fasterxml.jackson.databind.*;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.supervision.common.*;
 import com.supervision.entity.*;
 import com.supervision.exception.BusinessException;
@@ -101,6 +103,61 @@ public class AttachmentAccessService {
         url = normalize(url);
         bind(projectId, "[\"" + url + "\"]", null);
         return url;
+    }
+
+    /**
+     * 绑定回复附件并合并进原附件列表。
+     *
+     * <p>通知单/联系单的回复附件复用 attachments 字段保存（无需新增表字段），
+     * 以 source=reply 标记来源，保证授权校验与历史数据兼容。
+     *
+     * @param projectId    记录所属项目
+     * @param existingJson 原 attachments JSON（可为空）
+     * @param replyJson    本次回复附件 JSON（元素支持字符串或 { url, name, size }）
+     * @return 合并后的 attachments JSON；回复为空时原样返回
+     */
+    @Transactional
+    public String bindReply(Long projectId, String existingJson, String replyJson) {
+        return mergeAttachments(projectId, existingJson, replyJson, "reply");
+    }
+
+    /**
+     * 把后续阶段新增的附件合并进既有列表（附件与照片共用）。
+     *
+     * <p>先对新元素做上传归属绑定，再按 URL 去重追加，保证原有元素既不丢失也不重复。
+     *
+     * @param projectId    记录所属项目，用于校验文件归属
+     * @param existingJson 既有列表 JSON，可为空
+     * @param incomingJson 本次新增列表 JSON，为空时原样返回既有值
+     * @param source       来源标记（reply / verify），写入元素 source 字段
+     * @return 合并后的 JSON 数组字符串
+     */
+    @Transactional
+    public String mergeAttachments(Long projectId, String existingJson, String incomingJson, String source) {
+        if (incomingJson == null || incomingJson.isBlank()) return existingJson;
+        bind(projectId, null, incomingJson);
+        ArrayNode merged = mapper.createArrayNode();
+        Set<String> seen = new LinkedHashSet<>();
+        appendAttachments(merged, seen, existingJson, null);
+        appendAttachments(merged, seen, incomingJson, source);
+        return merged.toString();
+    }
+
+    private void appendAttachments(ArrayNode target, Set<String> seen, String json, String source) {
+        if (json == null || json.isBlank()) return;
+        JsonNode array;
+        try { array = mapper.readTree(json); }
+        catch (Exception e) { throw new BusinessException(400, "附件必须为有效的文件列表，最多 50 个"); }
+        if (!array.isArray() || array.size() > 50) throw new BusinessException(400, "附件必须为有效的文件列表，最多 50 个");
+        for (JsonNode item : array) {
+            String raw = item.isTextual() ? item.asText() : item.path("url").asText();
+            String url = normalize(raw);
+            if (!seen.add(url)) continue;
+            ObjectNode node = item.isObject() ? ((ObjectNode) item).deepCopy() : mapper.createObjectNode();
+            node.put("url", url);
+            if (source != null && !node.has("source")) node.put("source", source);
+            target.add(node);
+        }
     }
 
     private UploadedFile find(String url) {

@@ -30,6 +30,12 @@ public class FieldWorkspaceController {
         return ApiResponse.success(records.diarySource(projectId, date));
     }
 
+    @GetMapping("/field/diary-prefill")
+    public ApiResponse<Map<String, String>> diaryPrefill(@RequestParam Long projectId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return ApiResponse.success(records.diaryPrefill(projectId, date));
+    }
+
     @GetMapping("/projects/{projectId}/members")
     public ApiResponse<?> members(@PathVariable Long projectId) { return ApiResponse.success(access.members(projectId)); }
 
