@@ -1,0 +1,72 @@
+{
+  "passed": 5,
+  "failed": 0,
+  "results": [
+    {
+      "name": "日常巡检表头与行不含业务版本列",
+      "pass": true,
+      "detail": {
+        "ths": [
+          "编号",
+          "项目",
+          "日期",
+          "填写人 ID",
+          "状态",
+          "操作"
+        ],
+        "thCount": 6,
+        "versionCells": 0,
+        "rowGroups": 1,
+        "placeholderColspan": 6
+      }
+    },
+    {
+      "name": "旁站检查保留业务版本列且为 7 列",
+      "pass": true,
+      "detail": {
+        "ths": [
+          "编号",
+          "项目",
+          "日期",
+          "填写人 ID",
+          "状态",
+          "业务版本",
+          "操作"
+        ],
+        "thCount": 7,
+        "versionCells": 0,
+        "rowGroups": 1,
+        "placeholderColspan": 7
+      }
+    },
+    {
+      "name": "监理日记保留业务版本列且为 7 列",
+      "pass": true,
+      "detail": {
+        "ths": [
+          "编号",
+          "项目",
+          "日期",
+          "记录人",
+          "状态",
+          "业务版本",
+          "操作"
+        ]
+      }
+    },
+    {
+      "name": "375 日常巡检无横向溢出且列头保持 6 列",
+      "pass": true,
+      "detail": {
+        "sw": 360,
+        "vw": 375,
+        "th": 6
+      }
+    },
+    {
+      "name": "无浏览器运行异常",
+      "pass": true
+    }
+  ],
+  "errors": []
+}

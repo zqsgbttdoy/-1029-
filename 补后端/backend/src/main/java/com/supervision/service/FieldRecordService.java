@@ -233,8 +233,8 @@ public class FieldRecordService {
     public void delete(FieldRecordKind kind, Long id, Long version) {
         FieldRecord record = locked(kind, id, version);
         requireEditable(kind, record);
-        if (kind == FieldRecordKind.DAILY && !"draft".equals(record.getStatus()))
-            throw new BusinessException(409, "只能删除日常巡检草稿，已保存记录不可删除");
+        if (kind == FieldRecordKind.DAILY && !Set.of("draft", "recorded").contains(record.getStatus()))
+            throw new BusinessException(409, "只能删除本人草稿或已保存的日常巡检记录；已审核的历史记录不可删除");
         record.setStatus("inactive");
         em.flush();
         if (kind == FieldRecordKind.DIARY) diaryReferences.deleteDiary(id);

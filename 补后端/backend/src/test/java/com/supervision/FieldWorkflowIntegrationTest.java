@@ -260,10 +260,15 @@ class FieldWorkflowIntegrationTest {
         assertEquals("recorded", call(reviewer, get(path), 200).path("status").asText());
         call(reviewer, body(put(path).header("X-Record-Version", downgraded.path("lockVersion").asLong()), Map.of("content", "他人修改")), 403);
         call(outsider, get(path), 403);
-        // 已保存巡检不提供删除，避免放宽编辑顺带开放删除
-        call(author, delete(path).header("X-Record-Version", downgraded.path("lockVersion").asLong()), 409);
-        assertEquals(1, db.queryForObject("select count(*) from biz_daily_inspection where id=?", Integer.class, id).intValue());
+        // 已保存巡检留痕先于删除验证：删除后列表不再展示，但操作历史保留
         assertTrue(call(reviewer, get(path + "/history"), 200).size() >= 3);
+        // 过期版本删除被拒且记录保留；非本人无权删除；本人携当前版本可删除（软删除为 inactive）
+        call(author, delete(path).header("X-Record-Version", edited.path("lockVersion").asLong()), 409);
+        assertEquals("recorded", db.queryForObject("select status from biz_daily_inspection where id=?", String.class, id));
+        call(reviewer, delete(path).header("X-Record-Version", downgraded.path("lockVersion").asLong()), 403);
+        call(author, delete(path).header("X-Record-Version", downgraded.path("lockVersion").asLong()), 200);
+        assertEquals("inactive", db.queryForObject("select status from biz_daily_inspection where id=?", String.class, id));
+        call(author, get(path), 404);
     }
 
     @Test void dailyLegacyReviewerStatusesReadAsSavedWithoutRewrite() throws Exception {
@@ -284,6 +289,9 @@ class FieldWorkflowIntegrationTest {
         assertEquals("submitted", db.queryForObject("select status from biz_daily_inspection where id=?", String.class, submittedId));
         // 历史待审核记录也不再进入审核接口
         call(reviewer, body(post("/daily-inspections/" + submittedId + "/approve").header("X-Record-Version", legacy.path("lockVersion").asLong()), Map.of("status", "approved")), 400);
+        // 历史审核态巡检不可删除：仅本人草稿或 recorded 状态开放删除
+        JsonNode approvedLegacy = call(author, get("/daily-inspections/" + ids.get("approved")), 200);
+        call(author, delete("/daily-inspections/" + ids.get("approved")).header("X-Record-Version", approvedLegacy.path("lockVersion").asLong()), 409);
         // 本人实际更新后才写成 recorded，其他项目成员仍只读
         JsonNode rewritten = call(author, body(put("/daily-inspections/" + submittedId).header("X-Record-Version", legacy.path("lockVersion").asLong()), Map.of("content", "历史巡检补充")), 200);
         assertEquals("recorded", rewritten.path("status").asText());

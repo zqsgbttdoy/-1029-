@@ -665,6 +665,12 @@ test('四类记录删除恢复按钮，草稿筛选请求服务器并可从行�
     const query = s.queries.at(-1);
     assert.equal(query.path, '/records/' + kind); assert.equal(query.params.status, 'draft');
     assert.match(s.nodes.fwRows.innerHTML, /fw-chip draft/); assert.match(s.nodes.fwRows.innerHTML, /继续编辑/);
+    // 日常巡检无业务版本概念：表头与行均不出现版本列；日记/日志/旁站保留
+    if (kind === 'daily-inspections') {
+      assert.doesNotMatch(s.nodes.fieldWorkspace.innerHTML, /业务版本/); assert.doesNotMatch(s.nodes.fwRows.innerHTML, /data-label="业务版本"/);
+    } else {
+      assert.match(s.nodes.fieldWorkspace.innerHTML, /<th>业务版本<\/th>/); assert.match(s.nodes.fwRows.innerHTML, /data-label="业务版本"/);
+    }
     assert.doesNotMatch(s.nodes.fwRows.innerHTML, /data-id="10"/);
     await s.nodes.fwRows.onclick({ target: { closest: () => ({ dataset: { id: '9' } }) } });
     assert.match(s.nodes.fwForm.innerHTML, /服务器正文/); assert.equal(s.nodes.fwSave.hidden, false);
@@ -678,6 +684,94 @@ test('四类记录删除恢复按钮，草稿筛选请求服务器并可从行�
       assert.match(s.nodes.fwRows.innerHTML, /已提交（待审核）/); assert.doesNotMatch(s.nodes.fwRows.innerHTML, /继续编辑/);
     }
   }
+});
+test('日常巡检本机草稿行也不含业务版本列', async () => {
+  const s = await setupPc('daily-inspections');
+  const name = 'field-pc:https://test.invalid:1:daily-inspections';
+  s.values.set(name, JSON.stringify({ record: { status: 'draft' }, body: { projectId: 2, inspectionDate: '2020-01-01', content: '离线原文' }, requestId: 'old-request' }));
+  s.listError = '模拟断网'; s.nodes.fwStatus.value = 'draft'; await s.nodes.fwStatus.onchange();
+  assert.match(s.nodes.fwLocalRows.innerHTML, /继续编辑本机内容/);
+  assert.doesNotMatch(s.nodes.fwLocalRows.innerHTML, /业务版本/);
+});
+test('日常巡检仅本人已保存行提供删除按钮，草稿与他人记录不提供', async () => {
+  const s = await setupPc('daily-inspections');
+  const base = { projectId: 2, inspectionDate: '2026-10-29', inspectorId: 1, content: '巡检原文' };
+  s.records = [
+    { ...base, id: 11, status: 'recorded', lockVersion: 4 },
+    { ...base, id: 12, status: 'recorded', lockVersion: 2, inspectorId: 9 },
+    { ...base, id: 13, status: 'draft', lockVersion: 1 }
+  ];
+  await s.actions.load();
+  assert.match(s.nodes.fwRows.innerHTML, /data-del="11"/);
+  assert.doesNotMatch(s.nodes.fwRows.innerHTML, /data-del="12"/);
+  assert.doesNotMatch(s.nodes.fwRows.innerHTML, /data-del="13"/);
+  // 草稿行保留原有编辑入口；删除草稿仍走编辑器底部按钮
+  assert.match(s.nodes.fwRows.innerHTML, /data-id="13"[^>]*>继续编辑/);
+});
+test('日常巡检删除：取消确认不发请求，确认后携当前版本 DELETE 并刷新列表', async () => {
+  const s = await setupPc('daily-inspections');
+  const row = { id: 11, projectId: 2, inspectionDate: '2026-10-29', inspectorId: 1, status: 'recorded', lockVersion: 4, content: '本人已保存' };
+  s.record = row; s.records = [row];
+  s.nodes.fwStatus.value = 'recorded'; await s.nodes.fwStatus.onchange();
+  s.confirmResult = false;
+  await s.nodes.fwRows.onclick({ target: { closest: () => ({ dataset: { del: '11' } }) } });
+  assert.equal(s.calls.filter(c => c.opts && c.opts.method === 'DELETE').length, 0);
+  assert.match(String(s.confirms.at(-1)), /删除/, '删除前应弹出确认对话框');
+  s.confirmResult = true;
+  await s.nodes.fwRows.onclick({ target: { closest: () => ({ dataset: { del: '11' } }) } });
+  const del = s.calls.find(c => c.opts && c.opts.method === 'DELETE');
+  assert.ok(del, '确认后应发起删除请求');
+  assert.equal(del.path, '/daily-inspections/11');
+  assert.equal(del.opts.headers['X-Record-Version'], 4, '删除请求应携带当前乐观锁版本');
+  // 模拟服务器删除成功后刷新：行与按钮一并消失，其他类型不受影响
+  s.records = []; await s.actions.load();
+  assert.doesNotMatch(s.nodes.fwRows.innerHTML, /data-del=/);
+});
+test('日常巡检列表删除遇并发冲突展示服务器消息且保留行', async () => {
+  const s = await setupPc('daily-inspections');
+  const row = { id: 11, projectId: 2, inspectionDate: '2026-10-29', inspectorId: 1, status: 'recorded', lockVersion: 4, content: '本人已保存' };
+  s.record = row; s.records = [row];
+  await s.actions.load();
+  s.writeError = new Error('记录已被其他端修改；本次内容未覆盖，请重新查询后核对');
+  await s.nodes.fwRows.onclick({ target: { closest: () => ({ dataset: { del: '11' } }) } });
+  assert.match(s.nodes.fwError.textContent, /记录已被其他端修改/);
+  assert.equal(s.calls.filter(c => c.opts && c.opts.method === 'DELETE').length, 1);
+  // 删除失败后列表不被本地假删：重新查询仍能看到该行
+  s.writeError = null; await s.actions.load();
+  assert.match(s.nodes.fwRows.innerHTML, /data-del="11"/);
+});
+test('日常巡检已保存徽标底色归一到 recorded，历史审核类不再显蓝绿红；草稿仍为 draft', async () => {
+  const s = await setupPc('daily-inspections');
+  const base = { projectId: 2, inspectionDate: '2026-10-29', inspectorId: 1, content: '巡检原文' };
+  s.records = [
+    { ...base, id: 21, status: 'recorded', lockVersion: 1 },
+    { ...base, id: 22, status: 'submitted', lockVersion: 1 },
+    { ...base, id: 23, status: 'pending', lockVersion: 1 },
+    { ...base, id: 24, status: 'approved', lockVersion: 1 },
+    { ...base, id: 25, status: 'rejected', lockVersion: 1 },
+    { ...base, id: 26, status: 'draft', lockVersion: 1 }
+  ];
+  await s.actions.load();
+  const html = s.nodes.fwRows.innerHTML;
+  // 文案全部“已保存”，且服务器行的 data-status 保留原始状态供诊断
+  assert.match(html, /data-status="submitted"[\s\S]*已保存/);
+  assert.match(html, /data-status="approved"[\s\S]*已保存/);
+  // 所有已保存态的 chip 类归一为 recorded，不再出现旧审核态配色类
+  assert.match(html, /fw-chip recorded/);
+  for (const legacy of ['submitted', 'pending', 'approved', 'rejected', 'fixed'])
+    assert.doesNotMatch(html, new RegExp('fw-chip ' + legacy + '[">]'));
+  // 草稿行保持灰色 draft
+  assert.match(html, /fw-chip draft">草稿/);
+});
+test('旁站检查等待审核类型徽标仍按原始状态着色，不受巡检归一影响', async () => {
+  const s = await setupPc('sideline-inspections');
+  s.records = [
+    { projectId: 2, inspectionDate: '2026-10-29', inspectorId: 1, content: '旁站原文', id: 31, status: 'submitted', lockVersion: 1 },
+    { projectId: 2, inspectionDate: '2026-10-29', inspectorId: 1, content: '旁站原文', id: 32, status: 'approved', lockVersion: 1 }
+  ];
+  await s.actions.load();
+  assert.match(s.nodes.fwRows.innerHTML, /fw-chip submitted">已提交（待审核）/);
+  assert.match(s.nodes.fwRows.innerHTML, /fw-chip approved">审核通过/);
 });
 test('本机草稿按账号项目日期编号筛选，与服务器分页总数分开且不导出', async () => {
   const s = await setupPc('daily-inspections'); s.enableControls(); await s.actions.create();

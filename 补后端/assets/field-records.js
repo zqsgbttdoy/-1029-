@@ -5,6 +5,8 @@
   const root = document.getElementById('fieldWorkspace');
   const kind = root.dataset.kind, schema = schemas[kind], esc = App.escape;
   const isDaily = kind === 'daily-inspections', isSideline = kind === 'sideline-inspections', C = window.FieldSchema.inspectionChecklist;
+  // 巡检已免审核：历史审核态（submitted/pending/approved 等）文案统一为“已保存”，徽标底色也归一到 recorded，避免同文案异色
+  const chipClass = status => isDaily && isSavedMemo(kind, status || 'draft') ? 'recorded' : (status || 'draft');
   let checklistView = null, linkEditors = [], resourceView = null;
   const linkView = window.DiaryLinkView, links = window.DiaryLinks;
   const api = async (...args) => { const result = await App.apiFetch(...args); assertAccount(); return result; };
@@ -20,7 +22,7 @@
   const submitLabel = hasTemplate ? '提交' : '提交审核';
   // 记录类页面（日常巡检、旁站巡检、监理日记、监理日志）统一使用简洁的“导出”文案
   const exportLabel = '导出';
-  let projects = [], page = 1, total = 0, querySeq = 0, draft = null, busy = false, dirty = false, photos = [], attachments = [], reviewAllowed = false, summaryCache = null;
+  let projects = [], page = 1, total = 0, serverRows = [], querySeq = 0, draft = null, busy = false, dirty = false, photos = [], attachments = [], reviewAllowed = false, summaryCache = null;
   const $ = id => document.getElementById(id);
   const parse = value => { try { return JSON.parse(value || '[]'); } catch (e) { return []; } };
   // 服务端时间以 ISO 返回（含 T），界面与导出统一为标签声明的 YYYY-MM-DD HH:mm:ss
@@ -79,7 +81,7 @@
     + '<label>从 <input id="fwFrom" type="date"></label><label>至 <input id="fwTo" type="date"></label><label>编号 <input id="fwCode"></label>'
     + '<label><input id="fwMine" type="checkbox">仅本人</label><button type="button" id="fwSearch">查询</button><button type="button" id="fwNew">新建</button><button type="button" id="fwExport">' + exportLabel + '</button></div>'
     + '<p id="fwDraftHint" class="fw-list-hint">选择“草稿”可继续填写本人草稿。本机未同步内容仅在当前浏览器标签页保留，列于筛选结果首页，不计入服务器总数或 CSV；请保存草稿到服务器后再关闭标签页。</p>'
-    + '<p id="fieldError" role="alert" class="fw-error"></p><p id="fwSummary"></p><div class="fw-table"><table><thead><tr><th>编号</th><th>项目</th><th>日期</th><th>填写人 ID</th><th>状态</th><th>业务版本</th><th>操作</th></tr></thead><tbody id="fwLocalRows"></tbody><tbody id="fwRows"></tbody></table></div>'
+    + '<p id="fieldError" role="alert" class="fw-error"></p><p id="fwSummary"></p><div class="fw-table"><table><thead><tr><th>编号</th><th>项目</th><th>日期</th><th>填写人 ID</th><th>状态</th>' + (isDaily ? '' : '<th>业务版本</th>') + '<th>操作</th></tr></thead><tbody id="fwLocalRows"></tbody><tbody id="fwRows"></tbody></table></div>'
     + '<div class="fw-toolbar"><button type="button" id="fwPrev">上一页</button><span id="fwPage"></span><button type="button" id="fwNext">下一页</button></div>'
     + '<div id="fwEditor" class="fw-editor" hidden>'
       + '<div class="fd-modal" role="dialog" aria-modal="true" aria-labelledby="fwTitle">'
@@ -271,7 +273,7 @@
     $('fwLocalRows').innerHTML = saved.map(({ name, value }) => '<tr class="fw-local-row"><td data-label="编号">' + esc(value.body.code || '未编号') + (isDaily ? '<small class="ic-list-summary">' + esc(C.summary(value.body.checklist)) + '</small>' : '')
       + '</td><td data-label="项目">' + esc((projects.find(p => String(p.id) === String(value.body.projectId)) || {}).name || (value.body.projectId ? '项目#' + value.body.projectId : '未选择项目'))
       + '</td><td data-label="日期">' + esc(value.body[schema.date]) + '</td><td data-label="填写人">本人</td>'
-      + '<td data-label="状态"><span class="fw-chip draft">本机未同步</span><small>草稿副本 · 非服务器状态</small></td><td data-label="业务版本">—</td>'
+      + '<td data-label="状态"><span class="fw-chip draft">本机未同步</span><small>草稿副本 · 非服务器状态</small></td>' + (isDaily ? '' : '<td data-label="业务版本">—</td>')
       + '<td data-label="操作"><button type="button" data-local="' + esc(name) + '">继续编辑本机内容</button></td></tr>').join('');
   }
   async function resumeLocal(name) {
@@ -301,9 +303,9 @@
       throw error;
     }
     if (seq !== querySeq) return;
-    total = data.total;
+    total = data.total; serverRows = data.list;
     $('fwRows').innerHTML = data.list.map(r => '<tr data-status="' + esc(r.status) + '"><td data-label="编号">' + esc(r.code) + (isDaily ? '<small class="ic-list-summary">' + esc(C.summary(r.checklist)) + '</small>' : '') + '</td><td data-label="项目">' + esc((projects.find(p => String(p.id) === String(r.projectId)) || {}).name || r.projectId) + '</td><td data-label="日期">' + esc(r[schema.date])
-      + '</td><td data-label="填写人">' + esc(hasTemplate ? diaryPeople(r).author : r.authorName || r.authorId || r.inspectorId) + '</td><td data-label="状态"><span class="fw-chip ' + esc(r.status) + '">' + esc(statusText(kind, r.status)) + '</span></td><td data-label="业务版本">V' + esc(r.version || 1) + '</td><td data-label="操作"><button type="button" data-id="' + esc(r.id) + '">' + (own(r) && canEditStatus(kind, r.status) ? '继续编辑' : '查看 / 办理') + '</button></td></tr>').join('') || '<tr data-app-placeholder="1"><td colspan="7" style="text-align:center;color:#9CA3AF;padding:24px;">当前筛选下暂无服务器记录</td></tr>';
+      + '</td><td data-label="填写人">' + esc(hasTemplate ? diaryPeople(r).author : r.authorName || r.authorId || r.inspectorId) + '</td><td data-label="状态"><span class="fw-chip ' + esc(chipClass(r.status)) + '">' + esc(statusText(kind, r.status)) + '</span></td>' + (isDaily ? '' : '<td data-label="业务版本">V' + esc(r.version || 1) + '</td>') + '<td data-label="操作"><button type="button" data-id="' + esc(r.id) + '">' + (own(r) && canEditStatus(kind, r.status) ? '继续编辑' : '查看 / 办理') + '</button>' + (isDaily && own(r) && r.status === 'recorded' ? '<button type="button" data-del="' + esc(r.id) + '">删除</button>' : '') + '</td></tr>').join('') || '<tr data-app-placeholder="1"><td colspan="' + (isDaily ? 6 : 7) + '" style="text-align:center;color:#9CA3AF;padding:24px;">当前筛选下暂无服务器记录</td></tr>';
     $('fwPage').textContent = '服务器共 ' + total + ' 条，第 ' + page + ' / ' + Math.max(1, Math.ceil(total / 20)) + ' 页';
     $('fwPrev').disabled = page <= 1; $('fwNext').disabled = page * 20 >= total;
     if ($('fwProject').value) {
@@ -314,6 +316,18 @@
         ? '今日可见记录：草稿 ' + counts.draft + ' · 已保存 ' + counts.recorded + '（巡检作为现场备忘录，提交即保存，不计审核待办）'
         : '今日可见记录：草稿 ' + counts.draft + ' · 待审核 ' + counts.submitted + ' · 通过 ' + counts.approved + ' · 退回 ' + counts.rejected + '（不把草稿计为已提交）';
     } else $('fwSummary').textContent = '按服务器项目权限筛选；日期未选择时查询全部日期。';
+  }
+  // 日常巡检已保存记录本人可删除：软删除保留历史留痕，日记侧关联链接由服务端标记失效
+  async function deleteRow(id) {
+    const row = serverRows.find(r => String(r.id) === String(id));
+    if (!row || !isDaily || !own(row) || row.status !== 'recorded') return;
+    if (!await App.confirm('删除本人已保存的巡检记录？历史留痕保留，监理日记中的关联链接将标记为失效。')) return;
+    if (row.lockVersion == null) { notice('缺少记录版本，请重新查询后再删除'); return; }
+    await locked(async () => {
+      await api('/' + kind + '/' + id, { method: 'DELETE', headers: { 'X-Record-Version': row.lockVersion } });
+      if (draft && draft.record && String(draft.record.id) === String(id)) { dirty = false; removeDraft(); closeEditor(); }
+      await load();
+    });
   }
   function collect() {
     if (!draft) return;
@@ -334,7 +348,7 @@
     if (!record) { $('fwState').textContent = ''; return; }
     if (!record.id) { $('fwState').innerHTML = '<span class="fw-chip draft">本机草稿</span>尚未同步到服务器'; return; }
     const status = record.status || 'draft';
-    const chip = '<span class="fw-chip ' + esc(status) + '">' + esc(statusText(kind, status)) + '</span>';
+    const chip = '<span class="fw-chip ' + esc(chipClass(status)) + '">' + esc(statusText(kind, status)) + '</span>';
     const meta = (hasTemplate ? 'V' + (record.version || 1) + (record.sourceRecordId ? ' · 修订自记录 #' + record.sourceRecordId : '')
       + (record.status === 'draft' ? ' · 可编辑草稿' : ' · 原件已冻结，正文及附件不可覆盖') + ' · ' : '')
       + '并发版本 ' + (record.lockVersion == null ? '—' : record.lockVersion);
@@ -693,7 +707,7 @@
   $('fwStatus').onchange = run(async () => { page = 1; await load(); });
   $('fwLocalRows').onclick = run(async event => { const button = event.target.closest('[data-local]'); if (button) await resumeLocal(button.dataset.local); });
   $('fwPrev').onclick = run(async () => { page--; await load(); }); $('fwNext').onclick = run(async () => { page++; await load(); });
-  $('fwRows').onclick = run(async event => { const button = event.target.closest('[data-id]'); if (button) await open(button.dataset.id); });
+  $('fwRows').onclick = run(async event => { const del = event.target.closest('[data-del]'); if (del && del.dataset.del) { await deleteRow(del.dataset.del); return; } const button = event.target.closest('[data-id]'); if (button) await open(button.dataset.id); });
   $('fwNew').onclick = run(create); $('fwExport').onclick = run(exportRows);
   $('fwProject').onchange = () => {
     if (projects.some(p => String(p.id) === $('fwProject').value)) clearProjectNotice();
