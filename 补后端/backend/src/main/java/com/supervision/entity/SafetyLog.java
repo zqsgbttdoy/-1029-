@@ -45,6 +45,13 @@ public class SafetyLog extends BaseEntity {
     @Column
     private Integer version;
 
+    @Column(name = "source_record_id")
+    private Long sourceRecordId;
+
+    @Version
+    @Column(name = "lock_version", nullable = false, columnDefinition = "bigint default 0")
+    private Long lockVersion = 0L;
+
     @Column(name = "reject_reason", length = 500)
     private String rejectReason;
 

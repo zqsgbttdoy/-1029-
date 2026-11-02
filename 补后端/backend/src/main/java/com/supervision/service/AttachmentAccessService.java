@@ -25,15 +25,19 @@ public class AttachmentAccessService {
     private final EntityManager em;
     private final ProjectAccessService access;
     private final ObjectMapper mapper;
+    private final InspectionChecklist checklists;
+    private final DiaryResourceResolver diaryResources;
     private final Path root;
     private final byte[] signingKey = new byte[32];
 
-    public AttachmentAccessService(EntityManager em, ProjectAccessService access, ObjectMapper mapper,
+    public AttachmentAccessService(EntityManager em, ProjectAccessService access, ObjectMapper mapper, InspectionChecklist checklists, DiaryResourceResolver diaryResources,
                                    @Value("${app.upload.dir:uploads}") String uploadDir,
                                    @Value("${app.upload.signing-secret:}") String secret) {
         this.em = em;
         this.access = access;
         this.mapper = mapper;
+        this.checklists = checklists;
+        this.diaryResources = diaryResources;
         this.root = Path.of(uploadDir).toAbsolutePath().normalize();
         if (secret.isBlank()) new SecureRandom().nextBytes(signingKey);
         else {
@@ -52,14 +56,7 @@ public class AttachmentAccessService {
     }
 
     public String normalize(String url) {
-        if (url != null) {
-            url = url.replace('\\', '/');
-            if (url.startsWith("uploads/")) url = "/api/" + url;
-            else if (url.startsWith("/uploads/")) url = "/api" + url;
-        }
-        if (url == null || !url.matches("/api/uploads/(?:[0-9]{8}/)?[a-zA-Z0-9_-]+\\.[a-zA-Z0-9]+"))
-            throw new BusinessException(400, "附件路径无效，请重新上传");
-        return url;
+        return DiaryLinkCodec.normalize(url);
     }
 
     public Set<String> urls(String json) {
@@ -77,7 +74,10 @@ public class AttachmentAccessService {
     }
 
     @Transactional
-    public void bind(FieldRecord record) { bind(record.getProjectId(), record.getPhotos(), record.getAttachments()); }
+    public void bind(FieldRecord record) {
+        bind(record.getProjectId(), record.getPhotos(), record.getAttachments());
+        if (record instanceof DailyInspection daily) bind(record.getProjectId(), null, checklists.fileJson(daily.getChecklist()));
+    }
 
     @Transactional
     public void bind(Long projectId, String photos, String attachments) {
@@ -182,13 +182,15 @@ public class AttachmentAccessService {
         if (ids.isEmpty()) throw new BusinessException(403, "没有附件访问权限");
         for (FieldRecordKind kind : FieldRecordKind.values()) {
             List<? extends FieldRecord> records = em.createQuery("select r from " + kind.getEntityClass().getSimpleName()
-                    + " r where r.projectId in :ids and r.status <> 'inactive' and (r.photos like :url escape '!' or r.attachments like :url escape '!')", kind.getEntityClass())
+                    + " r where r.projectId in :ids and r.status <> 'inactive' and (r.photos like :url escape '!' or r.attachments like :url escape '!'"
+                                        + (kind == FieldRecordKind.DAILY ? " or r.checklist like :url escape '!'" : "") + ")", kind.getEntityClass())
                     .setParameter("ids", ids).setParameter("url", candidate).getResultList();
             for (FieldRecord record : records) {
                 Object author = org.springframework.beans.PropertyAccessorFactory.forBeanPropertyAccess(record).getPropertyValue(kind.getAuthorField());
                 boolean visible = uid.equals(author) || !"draft".equals(record.getStatus()) && access.canReview(record.getProjectId())
-                        || List.of("approved", "recorded", "fixed").contains(record.getStatus());
-                if (visible && (references(record.getPhotos(), url) || references(record.getAttachments(), url))) return;
+                        || kind.isPublished(record.getStatus());
+                if (visible && (references(record.getPhotos(), url) || references(record.getAttachments(), url)
+                        || record instanceof DailyInspection daily && checklistReferences(daily.getChecklist(), url))) return;
             }
         }
         for (ProjectDocument document : em.createQuery("select d from ProjectDocument d where d.projectId in :ids", ProjectDocument.class)
@@ -203,9 +205,10 @@ public class AttachmentAccessService {
                 if (current == null || !ids.contains(current.getProjectId()) || "inactive".equals(current.getStatus())) continue;
                 Object author = org.springframework.beans.PropertyAccessorFactory.forBeanPropertyAccess(current).getPropertyValue(kind.getAuthorField());
                 boolean visible = uid.equals(author) || !"draft".equals(current.getStatus()) && access.canReview(current.getProjectId())
-                        || List.of("approved", "recorded", "fixed").contains(current.getStatus());
+                        || kind.isPublished(current.getStatus());
                 JsonNode snapshot = mapper.readTree(event.getSnapshot());
-                if (visible && (references(snapshot.path("photos").asText(), url) || references(snapshot.path("attachments").asText(), url))) return;
+                if (visible && (references(snapshot.path("photos").asText(), url) || references(snapshot.path("attachments").asText(), url)
+                        || kind == FieldRecordKind.DAILY && checklistReferences(snapshot.path("checklist").asText(), url))) return;
             } catch (java.io.IOException ignored) { }
         }
         // 非现场单据保留原项目可见范围，仍检查精确引用。
@@ -218,6 +221,11 @@ public class AttachmentAccessService {
             }
         }
         throw new BusinessException(403, "没有附件访问权限");
+    }
+
+    private boolean checklistReferences(String json, String url) {
+        try { return references(checklists.fileJson(json), url); }
+        catch (BusinessException ignored) { return false; }
     }
 
     private boolean references(String json, String url) {
@@ -236,6 +244,19 @@ public class AttachmentAccessService {
     }
 
     @Transactional(readOnly = true)
+    public Map<String, Object> referenceLink(String sourceType, Long sourceId, String file) {
+        Map<String, Object> resource = diaryResources.resolve(sourceType, sourceId, file);
+        long expires = Instant.now().getEpochSecond() + 120;
+        String payload = access.currentUser().getId() + "\n" + expires + "\n" + resource.get("file") + "\nv2\n" + sourceType + "\n" + sourceId;
+        String ticket = Base64.getUrlEncoder().withoutPadding().encodeToString(payload.getBytes(StandardCharsets.UTF_8));
+        Map<String, Object> result = new LinkedHashMap<>(resource);
+        result.put("stableUrl", resource.get("url"));
+        result.put("url", "/api/files/content?ticket=" + ticket + "&signature=" + sign(ticket));
+        result.put("expiresAt", expires);
+        return result;
+    }
+
+    @Transactional(readOnly = true)
     public Path content(String ticket, String signature) {
         if (ticket == null || ticket.length() > 1500 || signature == null || !MessageDigest.isEqual(
                 sign(ticket).getBytes(StandardCharsets.US_ASCII), signature.getBytes(StandardCharsets.US_ASCII)))
@@ -243,9 +264,12 @@ public class AttachmentAccessService {
         AuthContext.CurrentUser previous = AuthContext.get();
         try {
             String[] values = new String(Base64.getUrlDecoder().decode(ticket), StandardCharsets.UTF_8).split("\n", -1);
-            if (values.length != 3 || Long.parseLong(values[1]) < Instant.now().getEpochSecond()) throw new IllegalArgumentException();
+            if ((values.length != 3 && values.length != 6) || Long.parseLong(values[1]) < Instant.now().getEpochSecond()) throw new IllegalArgumentException();
             AuthContext.set(new AuthContext.CurrentUser(Long.valueOf(values[0]), "", List.of()));
-            authorize(values[2]);
+            if (values.length == 6) {
+                if (!"v2".equals(values[3])) throw new IllegalArgumentException();
+                diaryResources.resolve(values[4], Long.valueOf(values[5]), values[2]);
+            } else authorize(values[2]);
             Path file = root.resolve(normalize(values[2]).substring("/api/uploads/".length())).normalize();
             if (!file.startsWith(root) || !Files.isRegularFile(file) || !file.toRealPath().startsWith(root.toRealPath()))
                 throw new BusinessException(404, "附件不存在");

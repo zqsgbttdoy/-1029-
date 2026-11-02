@@ -4,9 +4,10 @@ const fs = require('fs');
 const path = require('path');
 const http = require('http');
 
-const PORT = 19222;
-const BASE = 'http://localhost:18081';
-const OUT = path.join(__dirname, '巡检旁站逐字段验收');
+// 默认为既有隔离环境（18081/19222）；可用 QA_CDP_PORT / QA_BASE / QA_OUT 指向另起的独立实例
+const PORT = Number(process.env.QA_CDP_PORT || 19222);
+const BASE = process.env.QA_BASE || 'http://localhost:18081';
+const OUT = path.join(__dirname, process.env.QA_OUT || '巡检旁站逐字段验收');
 fs.mkdirSync(OUT, { recursive: true });
 const DL_DIR = path.join(OUT, 'downloads');
 fs.mkdirSync(DL_DIR, { recursive: true });
@@ -181,15 +182,19 @@ const MATRIX = `(() => {
   await s.send('Page.handleJavaScriptDialog', { accept: true }).catch(() => { });
   await s.send('Browser.setDownloadBehavior', { behavior: 'allowAndName', downloadPath: DL_DIR, eventsEnabled: true });
 
-  // 提交一次（自动接受确认框），返回错误文案与状态
+  // 提交一次：非巡检需接受审核确认框；巡检为备忘录，提交即保存、不弹确认、成功后关闭编辑器
   async function attemptSubmit() {
     await s.eval(`(() => { document.getElementById('fwError').textContent = ''; return true; })()`);
+    const daily = await s.eval(`document.getElementById('fieldWorkspace').dataset.kind === 'daily-inspections'`);
     await s.eval(`document.getElementById('fwSubmit').click()`);
-    await s.waitFor(`!!document.querySelector('[data-act="ok"]')`, '提交确认弹窗', 10000);
-    await s.eval(`document.querySelector('[data-act="ok"]').click()`);
-    await s.waitFor(`(() => { const e = document.getElementById('fwError').textContent.trim(); const c = (document.querySelector('#fwState .fw-chip') || {}).textContent; return !!e || c === '待审核'; })()`, '提交结果返回', 25000);
+    if (!daily) {
+      await s.waitFor(`!!document.querySelector('[data-act="ok"]')`, '提交确认弹窗', 10000);
+      await s.eval(`document.querySelector('[data-act="ok"]').click()`);
+    }
+    await s.waitFor(`(() => { const e = document.getElementById('fwError').textContent.trim(); const c = (document.querySelector('#fwState .fw-chip') || {}).textContent; return !!e || c === '待审核' || (${daily} && document.getElementById('fwEditor').hidden); })()`, '提交结果返回', 25000);
     await sleep(1200); // 提交成功后提示在 load() 之后写入，避免读到空的 #fwError
-    return s.eval(`(() => ({ error: document.getElementById('fwError').textContent.replace(/\\s+/g, ' ').trim(), chip: (document.querySelector('#fwState .fw-chip') || {}).textContent || '', editorOpen: !document.getElementById('fwEditor').hidden }))()`);
+    const result = await s.eval(`(() => { const chip = (document.querySelector('#fwState .fw-chip') || {}).textContent || ''; const cell = document.querySelector('#fwRows tr td:nth-child(5) .fw-chip'); return { error: document.getElementById('fwError').textContent.replace(/\\s+/g, ' ').trim(), chip, listChip: cell ? cell.textContent.trim() : '', editorOpen: !document.getElementById('fwEditor').hidden }; })()`);
+    return Object.assign(result, { confirmed: !daily });
   }
 
   async function openNew(label) {
@@ -286,20 +291,30 @@ const MATRIX = `(() => {
     const dm = await s.eval(MATRIX);
     matrices.daily = dm.rows;
     const dOrder = dm.rows.map((r) => r.field);
-    check('日常巡检：字段清单与顺序完整（日期/项目/编号/检查部位/巡视内容/发现问题）',
-      dOrder.join(',') === 'inspectionDate,projectId,code,location,content,issues', dOrder);
+    check('日常巡检：字段清单与顺序完整（日期/项目/编号/时间人数/检查部位/巡视内容/发现问题）',
+      dOrder.join(',') === 'inspectionDate,projectId,code,startTime,endTime,workerCount,manageCount,location,content,issues', dOrder);
     check('日常巡检：检查人员按登录账号只读显示、不可手工修改',
       !!dm.author && dm.author.label === '检查人员' && dm.author.value === me && !!dm.author.hint, dm.author);
 
     const d = Object.fromEntries(dm.rows.map((r) => [r.field, r]));
-    check('日常巡检：日期默认当天且可填写历史日期（非只读）',
-      d.inspectionDate.type === 'date' && d.inspectionDate.value === today && !d.inspectionDate.readonly, d.inspectionDate);
-    check('日常巡检：项目下拉可用且已选中授权项目',
-      d.projectId.tag === 'select' && !!d.projectId.value, { value: d.projectId.value });
+    // 2026-10-30 起巡检日期与起止时间改用带“确定/取消”的选择面板：输入框只读，选择在面板内确认后才写回
+    const dDatePicker = await s.eval(`(() => { const el = document.getElementById('fwF-inspectionDate'); return { type: el.type, readonly: el.readOnly, picker: el.getAttribute('data-picker'), value: el.value, api: typeof window.FdDateTimePicker }; })()`);
+    check('日常巡检：日期默认当天，只读展开选择面板（带确定/取消）且可改历史日期',
+      dDatePicker.type === 'text' && dDatePicker.readonly === true && dDatePicker.picker === 'date'
+      && dDatePicker.value === today && dDatePicker.api === 'object', dDatePicker);
+    // 可见项目多于一个时需在表单中选择（新建不再强制先选工具栏项目），只有一个时仍自动带出
+    const dProject = await s.eval(`(() => {
+      const el = document.getElementById('fwF-projectId');
+      const picked = el.value || ((el.options[1] || {}).value || '');
+      if (!el.value && picked) { el.value = picked; el.dispatchEvent(new Event('change', { bubbles: true })); }
+      return { picked: el.value, options: el.options.length };
+    })()`);
+    check('日常巡检：项目下拉可在表单中选择并生效',
+      d.projectId.tag === 'select' && dProject.options > 1 && !!dProject.picked, dProject);
     check('日常巡检：编号为单行输入、留空自动生成有占位提示',
       d.code.tag === 'input' && d.code.type === 'text' && /留空由系统生成/.test(d.code.placeholder + d.code.hint), { placeholder: d.code.placeholder, hint: d.code.hint });
     check('日常巡检：三个正文栏目为整行文本域并带栏目标题',
-      ['location', 'content', 'issues'].every((k) => d[k].tag === 'textarea' && d[k].w > 800) && d.location.label === '检查部位' && d.content.label === '巡视内容' && d.issues.label === '发现问题',
+      ['location', 'content', 'issues'].every((k) => d[k].tag === 'textarea' && d[k].w > 800) && d.location.label === '检查部位' && d.content.label === '巡视内容' && d.issues.label === '发现问题补充说明',
       ['location', 'content', 'issues'].map((k) => ({ k, tag: d[k].tag, w: d[k].w, h: d[k].h, label: d[k].label })));
 
     // 逐字段：必填标识 / 填写提示（当前实现的缺口在这里暴露）
@@ -355,18 +370,43 @@ const MATRIX = `(() => {
     check('日常巡检：编辑回显逐字段一致', dEcho.date === today && dEcho.location === dValues.location && dEcho.content === dValues.content && dEcho.issues === dValues.issues, { date: dEcho.date, lens: [dEcho.location.length, dEcho.content.length, dEcho.issues.length] });
     await s.screenshot('巡检-04-桌面-编辑回显.png');
 
-    // 提交并锁定
+    // 提交即保存：不弹审核确认、不锁定正文，列表状态为“已保存”
     const dSubmit = await attemptSubmit();
-    const dLock = await s.eval(`(() => ({ chip: (document.querySelector('#fwState .fw-chip') || {}).textContent || '', saveHidden: document.getElementById('fwSave').hidden, readonly: document.getElementById('fwF-content').readOnly }))()`);
-    check('日常巡检：补齐必填后提交成功、状态待审核并锁定正文', dLock.chip === '待审核' && dLock.saveHidden && dLock.readonly, { ...dLock, notice: dSubmit.error });
-    await s.screenshot('巡检-05-桌面-已提交待审核.png');
-    await closeEditor();
+    check('日常巡检：补齐必填后提交即保存（无审核确认、列表显示已保存）',
+      dSubmit.listChip === '已保存' && !dSubmit.editorOpen && /巡检已保存/.test(dSubmit.error), dSubmit);
+    await s.screenshot('巡检-05-桌面-已保存.png');
+    await openByCode(dSaved.code);
+    const dReopen = await s.eval(`(() => ({ chip: (document.querySelector('#fwState .fw-chip') || {}).textContent || '', editable: !document.getElementById('fwF-content').readOnly, submitLabel: document.getElementById('fwSubmit').textContent.trim(), saveHidden: document.getElementById('fwSave').hidden, approveHidden: document.getElementById('fwApprove').hidden, reviseHidden: document.getElementById('fwRevise').hidden }))()`);
+    check('日常巡检：已保存记录未锁定，可再次编辑且不提供审核/修订入口',
+      dReopen.chip === '已保存' && dReopen.editable && dReopen.submitLabel === '保存修改' && dReopen.saveHidden && dReopen.approveHidden && dReopen.reviseHidden, dReopen);
+    // 已保存巡检本人可原地“保存修改”，仍写同一条记录且不进入审核
+    await s.eval(`(() => { const el = document.getElementById('fwF-issues'); el.value = '复查：立杆垫板已补齐并复核合格。'; el.dispatchEvent(new Event('input', { bubbles: true })); return true; })()`);
+    await s.eval(`document.getElementById('fwSubmit').click()`);
+    await s.waitFor(`document.getElementById('fwEditor').hidden`, '保存修改后返回列表', 25000);
+    await sleep(1000);
+    const dModified = await s.eval(`(() => { const tr = [...document.querySelectorAll('#fwRows tr[data-status]')].find(r => r.textContent.includes(${JSON.stringify(dSaved.code)})); return { chip: tr ? (tr.querySelector('.fw-chip') || {}).textContent.trim() : '', error: document.getElementById('fwError').textContent.replace(/\\s+/g, ' ').trim() }; })()`);
+    check('日常巡检：再次打开保存修改仍为已保存且不进入审核', dModified.chip === '已保存' && /巡检修改已保存/.test(dModified.error), dModified);
+    await s.screenshot('巡检-05b-桌面-保存修改.png');
 
     const dCsv = await downloadCsv();
     const dHeader = (dCsv.text.split('\r\n')[0] || '');
     check('日常巡检：CSV 表头覆盖全部字段（检查部位/巡视内容/发现问题）',
       /编号/.test(dHeader) && /日期/.test(dHeader) && /检查部位/.test(dHeader) && /巡视内容/.test(dHeader) && /发现问题/.test(dHeader), dHeader);
-    check('日常巡检：CSV 行内容与本记录一致', dCsv.text.includes(dSaved.code) && dCsv.text.includes('立杆底部垫板缺失'), { suggested: dCsv.suggested, bytes: dCsv.bytes });
+    // 前面“保存修改”已把发现问题改写为复查文案，CSV 应与改写后的当前值一致
+    check('日常巡检：CSV 行内容与本记录一致', dCsv.text.includes(dSaved.code) && dCsv.text.includes('复查：立杆垫板已补齐'), { suggested: dCsv.suggested, bytes: dCsv.bytes });
+
+    // 关闭不保存：新建后直接关闭，列表与本机暂存都不留下这条
+    await reloadPage('/daily-inspection.html');
+    const beforeClose = await s.eval(`document.querySelectorAll('#fwRows tr[data-status]').length`);
+    await openNew('日常巡检');
+    await s.eval(`(() => { const p = document.getElementById('fwF-projectId'); const v = p.value || ((p.options[1] || {}).value || ''); if (!p.value && v) { p.value = v; p.dispatchEvent(new Event('change', { bubbles: true })); } return p.value; })()`);
+    await s.setValue('fwF-location', '关闭不保存验证部位');
+    await s.setValue('fwF-content', '关闭不保存验证内容');
+    await s.eval(`document.getElementById('fwClose').click()`);
+    await s.waitFor(`document.getElementById('fwEditor').hidden`, '关闭编辑器（不保存）', 10000);
+    const afterClose = await s.eval(`(() => ({ rows: document.querySelectorAll('#fwRows tr[data-status]').length, local: document.querySelectorAll('#fwLocalRows tr').length, drafts: Object.keys(sessionStorage).filter(k => /:draft:/.test(k) && /daily-inspections/.test(k)).length }))()`);
+    check('日常巡检：关闭不保存时列表不新增记录且本机暂存已丢弃',
+      afterClose.rows === beforeClose && afterClose.local === 0 && afterClose.drafts === 0, { beforeClose, afterClose });
 
     // 窄屏逐字段
     await s.metrics(768, 900, false);
@@ -374,6 +414,15 @@ const MATRIX = `(() => {
     await openNew('日常巡检');
     const d768 = await s.eval(MATRIX);
     await s.screenshot('巡检-06-768-新建.png');
+    await closeEditor();
+    await s.metrics(375, 812, true);
+    await reloadPage('/daily-inspection.html');
+    await openNew('日常巡检');
+    const d375 = await s.eval(MATRIX);
+    const d375Bad = d375.rows.filter((r) => r.right > 375 || r.w > 375);
+    check('日常巡检：375 宽下逐字段单列、无横向溢出', d375.docOverflowX <= 0 && d375Bad.length === 0,
+      { vw: d375.vw, overflow: d375.docOverflowX, bad: d375Bad.map((r) => ({ f: r.field, w: r.w, right: r.right })) });
+    await s.screenshot('巡检-07-375-新建.png');
     await closeEditor();
     await s.metrics(320, 720, true);
     await openNew('日常巡检');
@@ -384,7 +433,7 @@ const MATRIX = `(() => {
       d768.rows.map((r) => ({ f: r.field, w: r.w, right: r.right })));
     check('日常巡检：320 宽下逐字段单列、无横向溢出', d320.docOverflowX <= 0 && d320Bad.length === 0,
       { vw: d320.vw, overflow: d320.docOverflowX, bad: d320Bad.map((r) => ({ f: r.field, w: r.w, right: r.right })) });
-    await s.screenshot('巡检-07-320-新建.png');
+    await s.screenshot('巡检-08-320-新建.png');
     await closeEditor();
     await s.metrics(1440, 900, false);
 
@@ -403,9 +452,16 @@ const MATRIX = `(() => {
     check('旁站检查：旁站人员按登录账号只读显示', !!sm.author && sm.author.label === '旁站人员' && sm.author.value === me, sm.author);
 
     const t = Object.fromEntries(sm.rows.map((r) => [r.field, r]));
-    check('旁站检查：日期默认当天、项目下拉已选中、编号有自动生成提示',
-      t.inspectionDate.type === 'date' && t.inspectionDate.value === today && !!t.projectId.value
-      && /留空由系统生成/.test(t.code.placeholder + t.code.hint), { date: t.inspectionDate.value, project: t.projectId.value, code: t.code.placeholder });
+    // 旁站同样支持在表单中选择项目；多项目实例下不依赖自动带出
+    const sProject = await s.eval(`(() => {
+      const el = document.getElementById('fwF-projectId');
+      const picked = el.value || ((el.options[1] || {}).value || '');
+      if (!el.value && picked) { el.value = picked; el.dispatchEvent(new Event('change', { bubbles: true })); }
+      return { picked: el.value, options: el.options.length };
+    })()`);
+    check('旁站检查：日期默认当天、项目可在表单中选择、编号有自动生成提示',
+      t.inspectionDate.type === 'date' && t.inspectionDate.value === today && sProject.options > 1 && !!sProject.picked
+      && /留空由系统生成/.test(t.code.placeholder + t.code.hint), { date: t.inspectionDate.value, project: sProject, code: t.code.placeholder });
 
     const sRequired = ['location', 'process', 'startTime', 'endTime', 'manageCount', 'workerCount', 'result', 'docsText'];
     const sNoStar = sRequired.filter((k) => !t[k].star);
@@ -490,7 +546,7 @@ const MATRIX = `(() => {
 
     const sSubmit = await attemptSubmit();
     const sLock = await s.eval(`(() => ({ chip: (document.querySelector('#fwState .fw-chip') || {}).textContent || '', saveHidden: document.getElementById('fwSave').hidden, readonly: document.getElementById('fwF-result').readOnly }))()`);
-    check('旁站检查：补全后提交成功、状态待审核并锁定正文', sLock.chip === '待审核' && sLock.saveHidden && sLock.readonly, { ...sLock, notice: sSubmit.error });
+    check('旁站检查：补全后提交成功、状态待审核并锁定正文', sLock.chip === '已提交（待审核）' && sLock.saveHidden && sLock.readonly, { ...sLock, notice: sSubmit.error });
     await s.screenshot('旁站-05-桌面-已提交待审核.png');
     await closeEditor();
 

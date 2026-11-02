@@ -37,4 +37,8 @@ public class ProjectDocument extends BaseEntity {
 
     @Column(length = 500)
     private String description;
+
+    @Transient
+    @com.fasterxml.jackson.annotation.JsonProperty(access = com.fasterxml.jackson.annotation.JsonProperty.Access.READ_ONLY)
+    private Long diaryReferenceCount = 0L;
 }

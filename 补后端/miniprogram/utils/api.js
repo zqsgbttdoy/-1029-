@@ -54,6 +54,26 @@ function upload(filePath) {
   });
 }
 async function fileUrl(url) { const data = await request('/files/access', 'GET', { url }); return baseUrl() + data.url; }
+function referenceUrl(item) { return baseUrl() + '/' + require('./diary-links').stable(item); }
+async function referenceAccess(item, projectId) {
+  const data = await request('/files/reference-access', 'GET', { sourceType: item.sourceType, sourceId: item.sourceId, file: item.file });
+  if (projectId && String(data.projectId) !== String(projectId)) throw new Error('不可关联其他项目文件，粘贴文字已保留');
+  return data;
+}
+async function openReference(item) {
+  const uid = userId(), data = await referenceAccess(item);
+  assertUser(uid);
+  const type = String(data.type || '').toLowerCase(), image = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(type);
+  if (!image && !['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(type)) throw new Error('小程序不支持此格式，请复制稳定链接到浏览器下载原件');
+  const result = await new Promise((resolve, reject) => wx.downloadFile({ url: baseUrl() + data.url, success: resolve, fail: () => reject(new Error('无法下载原件，请检查网络后重试')) }));
+  assertUser(uid);
+  if (result.statusCode !== 200) throw new Error('资料已删除／不可用，请刷新后重试');
+  await new Promise((resolve, reject) => {
+    const common = { success: resolve, fail: () => reject(new Error('此文件无法在小程序打开，请复制稳定链接到浏览器下载原件')) };
+    if (image) wx.previewImage(Object.assign({ current: result.tempFilePath, urls: [result.tempFilePath] }, common));
+    else wx.openDocument(Object.assign({ filePath: result.tempFilePath, fileType: type, showMenu: true }, common));
+  });
+}
 async function allProjects() {
   const list = []; let page = 1;
   while (true) {
@@ -62,4 +82,4 @@ async function allProjects() {
     if (list.length >= data.total || !data.list.length) return list;
   }
 }
-module.exports = { namespace, session, saveSession, logout, userId, isAdmin, assertUser, request, upload, fileUrl, allProjects };
+module.exports = { namespace, session, saveSession, logout, userId, isAdmin, assertUser, request, upload, fileUrl, allProjects, referenceUrl, referenceAccess, openReference };

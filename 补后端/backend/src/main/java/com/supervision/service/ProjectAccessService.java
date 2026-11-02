@@ -96,7 +96,7 @@ public class ProjectAccessService {
 
     /**
      * 人员编辑“分配项目”整体替换：已勾选的保留成员行及其审核授权不动，
-     * 取消勾选的删除成员行，新增勾选的按“成员、无审核权”补建（审核权仍由项目成员面板显式授予）。
+     * 取消勾选的删除成员行，新增勾选的按“成员、无审核权”补建（审核权需由项目授权接口或后续权限设置页授予）。
      * projectIds 为 null 表示旧客户端未传列表，不触碰显式绑定。
      */
     @Transactional
@@ -159,6 +159,10 @@ public class ProjectAccessService {
         return ids.isEmpty() ? cb.disjunction() : root.get("projectId").in(ids);
     }
 
+    /**
+     * 项目授权列表。现场记录页的“项目成员授权”入口已下线，权限统一在“权限设置”页维护；
+     * 该方法保留供回归测试与运维排查调用，不对外暴露页面入口。
+     */
     public List<Map<String, Object>> members(Long projectId) {
         requireAdmin();
         List<Map<String, Object>> result = new ArrayList<>();
@@ -171,6 +175,10 @@ public class ProjectAccessService {
         return result;
     }
 
+    /**
+     * 设置项目级访问与审核权。页面入口已下线，目前由人员分配、演示数据初始化与回归测试调用；
+     * 在“权限设置”支持项目级审核权之前不得删除，否则审核权将无法授予。
+     */
     @Transactional
     public ProjectMember setMember(Long projectId, Long userId, boolean enabled, boolean canReview) {
         requireAdmin();

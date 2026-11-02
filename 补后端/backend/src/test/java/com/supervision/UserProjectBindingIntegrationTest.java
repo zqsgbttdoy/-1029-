@@ -208,6 +208,107 @@ class UserProjectBindingIntegrationTest {
     }
 
     @Test
+    @DisplayName("项目台账通用 PUT 保存状态后：响应、数据库、详情和状态筛选一致")
+    void testProjectStatusUpdateRoundTrip() throws Exception {
+        long id = createProject("QA项目状态回显");
+        JsonNode original = call(adminToken, get("/projects/" + id), 200);
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("name", original.path("name").asText());
+        body.put("code", original.path("code").asText());
+        body.put("buildUnit", original.path("buildUnit").asText());
+        String previous = "active";
+        for (String next : List.of("paused", "completed", "planning", "active")) {
+            body.put("status", next);
+            if ("completed".equals(next)) body.put("name", "QA项目状态与名称同时修改");
+            JsonNode saved = putJson(adminToken, "/projects/" + id, body, 200);
+            assertEquals(next, saved.path("status").asText(), "成功响应必须反映本次选择的状态");
+            // 测试不套外层事务：独立 JDBC 读取验证提交结果，不依赖实体一级缓存。
+            assertEquals(next, db.queryForObject("select status from biz_project where id=?", String.class, id));
+            JsonNode detail = call(adminToken, get("/projects/" + id), 200);
+            assertEquals(next, detail.path("status").asText());
+            assertEquals(body.get("name"), detail.path("name").asText());
+            JsonNode list = call(adminToken, get("/projects").param("code", body.get("code").toString()), 200);
+            assertEquals(1, list.path("total").asInt());
+            assertEquals(next, list.path("list").get(0).path("status").asText());
+            JsonNode filtered = call(adminToken, get("/projects").param("code", body.get("code").toString()).param("status", next), 200);
+            assertEquals(id, filtered.path("list").get(0).path("id").asLong());
+            JsonNode oldFilter = call(adminToken, get("/projects").param("code", body.get("code").toString()).param("status", previous), 200);
+            assertEquals(0, oldFilter.path("total").asInt(), "不再属于旧状态筛选结果");
+            previous = next;
+        }
+    }
+
+    @Test
+    @DisplayName("旧客户端省略或传 null 状态时保留原状态，重复保存不回退")
+    void testProjectStatusOmittedPreserved() throws Exception {
+        long id = createProject("QA项目状态兼容");
+        call(adminToken, put("/projects/" + id + "/status").param("status", "paused"), 200);
+        JsonNode original = call(adminToken, get("/projects/" + id), 200);
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("name", "QA只修改项目名称");
+        body.put("code", original.path("code").asText());
+        body.put("buildUnit", original.path("buildUnit").asText());
+        assertEquals("paused", putJson(adminToken, "/projects/" + id, body, 200).path("status").asText());
+        body.put("status", null);
+        assertEquals("paused", putJson(adminToken, "/projects/" + id, body, 200).path("status").asText());
+        body.put("status", "paused");
+        assertEquals("paused", putJson(adminToken, "/projects/" + id, body, 200).path("status").asText());
+        assertEquals("paused", db.queryForObject("select status from biz_project where id=?", String.class, id));
+        assertEquals(body.get("name"), call(adminToken, get("/projects/" + id), 200).path("name").asText());
+    }
+
+    @Test
+    @DisplayName("项目非法状态明确返回400且不能部分修改名称或绕过删除入口")
+    void testProjectInvalidStatusRejected() throws Exception {
+        long id = createProject("QA非法项目状态");
+        JsonNode original = call(adminToken, get("/projects/" + id), 200);
+        for (String invalid : List.of("", " ", "unknown", "inactive", "已暂停")) {
+            putJson(adminToken, "/projects/" + id, Map.of("name", "不应保存的新名称",
+                    "code", original.path("code").asText(), "buildUnit", "不应保存的新单位", "status", invalid), 400);
+            assertEquals("active", db.queryForObject("select status from biz_project where id=?", String.class, id));
+            JsonNode after = call(adminToken, get("/projects/" + id), 200);
+            assertEquals(original.path("name"), after.path("name"));
+            assertEquals(original.path("buildUnit"), after.path("buildUnit"));
+        }
+    }
+
+    @Test
+    @DisplayName("项目状态更新权限及数据库提交失败不得伪报成功或部分写入")
+    void testProjectStatusUpdateFailureIsAtomic() throws Exception {
+        long id = createProject("QA项目状态失败保护");
+        JsonNode original = call(adminToken, get("/projects/" + id), 200);
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("name", "不应保存的新名称");
+        body.put("code", original.path("code").asText());
+        body.put("buildUnit", "QA建设单位");
+        body.put("status", "paused");
+        putJson(normalToken, "/projects/" + id, body, 403);
+        putJson(null, "/projects/" + id, body, 401);
+        // 越过 DTO 未限制的地址长度，触发真正的数据库写入失败。
+        body.put("address", "x".repeat(501));
+        putJson(adminToken, "/projects/" + id, body, 400);
+        assertEquals("active", db.queryForObject("select status from biz_project where id=?", String.class, id));
+        assertEquals(original.path("name"), call(adminToken, get("/projects/" + id), 200).path("name"));
+    }
+
+    @Test
+    @DisplayName("同一项目表单新建时采用所选状态，未提供则兼容默认为进行中")
+    void testProjectCreateSelectedStatus() throws Exception {
+        for (String selected : List.of("planning", "paused", "completed", "active")) {
+            JsonNode created = postJson(adminToken, "/projects", Map.of("name", "QA新建状态" + selected,
+                    "code", "QA-CREATE-STATUS-" + SEQ.incrementAndGet(), "buildUnit", "QA建设单位", "status", selected), 200);
+            assertEquals(selected, created.path("status").asText());
+            assertEquals(selected, db.queryForObject("select status from biz_project where id=?", String.class, created.path("id").asLong()));
+        }
+        long id = createProject("QA旧客户端新建状态");
+        assertEquals("active", call(adminToken, get("/projects/" + id), 200).path("status").asText());
+        String code = "QA-CREATE-INVALID-" + SEQ.incrementAndGet();
+        postJson(adminToken, "/projects", Map.of("name", "QA无效新建", "code", code,
+                "buildUnit", "QA建设单位", "status", "inactive"), 400);
+        assertEquals(0, db.queryForObject("select count(*) from biz_project where code=?", Integer.class, code));
+    }
+
+    @Test
     @DisplayName("普通用户读项目绑定接口 -> 403")
     void testBindingsReadableOnlyByAdmin() throws Exception {
         call(normalToken, get("/users/project-map"), 403);

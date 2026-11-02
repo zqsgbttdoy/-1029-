@@ -224,7 +224,7 @@ class Session {
     // 模板页新建前需选定单一项目（多项目且未选会阻止新建），先选第一个获授权项目
     await s.eval(`(() => { const sel = document.getElementById('fwProject'); if (sel.options.length > 1) { sel.value = sel.options[1].value; sel.dispatchEvent(new Event('change')); } return true; })()`);
     await sleep(400);
-    await s.clickByText('button', '新建监理日志');
+    await s.eval(`document.getElementById('fwNew').click()`);
     await s.waitFor(`!document.getElementById('fwEditor').hidden`, '新建编辑器打开');
     await sleep(600);
 

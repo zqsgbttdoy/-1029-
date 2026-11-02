@@ -1,5 +1,5 @@
 {
-  "pages": ["pages/login/index", "pages/home/index", "pages/record/index", "pages/personnel/index", "pages/departments/index", "pages/reports/index"],
+  "pages": ["pages/login/index", "pages/home/index", "pages/record/index", "pages/personnel/index", "pages/departments/index", "pages/reports/index", "pages/project-documents/index"],
   "window": {
     "navigationBarTitleText": "监理现场工作台",
     "navigationBarBackgroundColor": "#1E3A5F",

@@ -1,10 +1,16 @@
-<view class="container {{kind === 'supervision-diaries' || kind === 'supervision-logs' ? 'diary-record' : ''}} {{kind === 'supervision-logs' ? 'log-record' : ''}}">
+<view class="container {{kind === 'supervision-diaries' || kind === 'supervision-logs' ? 'diary-record' : ''}} {{kind === 'supervision-logs' ? 'log-record' : ''}} {{kind === 'daily-inspections' ? 'inspection-record' : ''}}">
   <view class="hero"><view class="title">{{title}}</view><view>{{projectName}}</view><view>{{state}}</view></view>
   <view class="warning" wx:if="{{conflict}}">服务器内容已变化，本机稿已保留，不会自动覆盖。请先核对再决定是否另建副本。</view>
   <view class="error">{{error}}</view><view class="warning" wx:if="{{rejectReason}}">退回原因：{{rejectReason}}</view>
+  <view class="card" wx:if="{{kind === 'supervision-diaries' || kind === 'supervision-logs'}}">
+    <view class="label">业务版本 V{{businessVersion || 1}}</view>
+    <view wx:if="{{sourceRecordId}}">修订自记录 #{{sourceRecordId}}</view>
+    <view class="muted">{{status === 'draft' || !serverId ? '当前为可编辑草稿，提交后冻结。' : '正文、附件及审批结果已冻结；被驳回后须建立下一版本，原件永久保留。'}}</view>
+  </view>
   <view class="card">
     <view class="label">基本信息</view><view class="muted">项目不可在编辑时更换；如项目错误，请返回新建。</view>
     <view>{{body.code || '编号由服务器生成'}}</view>
+    <view wx:if="{{kind === 'daily-inspections'}}">检查人：{{people.author}}（只读）</view>
     <block wx:if="{{kind === 'supervision-diaries' || kind === 'supervision-logs'}}">
       <view class="diary-meta"><view class="label">工程名称</view><view>{{projectName}}</view><view class="muted">{{hints.projectId}}</view></view>
       <view class="diary-meta"><view class="label">日期</view><view>{{body[dateField]}}</view><view class="muted">{{hints[dateField]}}</view></view>
@@ -20,15 +26,41 @@
     <view wx:for="{{sources}}" wx:key="id" class="muted">来源日记：{{item.code}} · {{item.date}} · 版本 {{item.lockVersion}}</view>
   </view>
   <view class="card diary-guide" wx:if="{{guide}}"><view class="label">{{kind === 'supervision-logs' ? '监理日志填写指引 · 9 项规范' : '监理日记填写指引 · 14 项规范'}}</view><view>{{guide}}</view></view>
-  <view class="card" wx:for="{{fields}}" wx:key="key">
+  <view class="card" wx:if="{{kind === 'supervision-diaries' && editable}}"><diary-resources project-id="{{body.projectId}}" date="{{body.diaryDate}}" context="{{linkContext}}" disabled="{{busy}}" /></view>
+  <block wx:for="{{fields}}" wx:key="key">
+  <view class="card inspection-checklist" wx:if="{{kind === 'daily-inspections' && item.key === 'issues'}}">
+    <view class="label">检查项</view><view class="muted">{{checkSummary}}</view>
+    <view class="muted">检查项手动添加；不符合可添加问题，不会自动创建问题。</view>
+    <view class="error">{{checkError}}</view><view class="pre" wx:if="{{checkError}}">{{body.checklist}}</view>
+    <block wx:if="{{editable && !checkError}}"><button disabled="{{busy}}" bindtap="addCheckItem">添加检查项</button><button disabled="{{busy}}" bindtap="deleteCheckItems">删除勾选项</button></block>
+    <checkbox-group bindchange="selectCheckItems">
+      <view class="inspection-item" wx:for="{{checkItems}}" wx:for-item="check" wx:for-index="checkIndex" wx:key="id">
+        <label class="inspection-choice"><checkbox wx:if="{{editable}}" value="{{check.id}}" checked="{{check.selected}}" disabled="{{busy}}" />检查项 {{checkIndex + 1}}</label>
+        <view class="label">检查类别</view><textarea value="{{check.category}}" maxlength="10000" auto-height disabled="{{!editable || busy}}" data-id="{{check.id}}" data-field="category" bindinput="checkInput" />
+        <view class="label">检查内容（提交必填）</view><textarea value="{{check.content}}" maxlength="10000" auto-height disabled="{{!editable || busy}}" data-id="{{check.id}}" data-field="content" bindinput="checkInput" />
+        <button data-id="{{check.id}}" bindtap="toggleCheckDetails">{{check.expanded ? '收起' : '展开'}}检查方法与规范条目</button>
+        <block wx:if="{{check.expanded}}"><view class="label">检查方法</view><textarea value="{{check.method}}" maxlength="10000" auto-height disabled="{{!editable || busy}}" data-id="{{check.id}}" data-field="method" bindinput="checkInput" /><view class="label">规范条目</view><textarea value="{{check.standard}}" maxlength="10000" auto-height disabled="{{!editable || busy}}" data-id="{{check.id}}" data-field="standard" bindinput="checkInput" /></block>
+        <view class="inspection-choice">是否必检：<switch checked="{{check.required}}" disabled="{{!editable || busy}}" data-id="{{check.id}}" data-field="required" bindchange="checkInput" />{{check.required ? '是' : '否'}}</view>
+        <radio-group data-id="{{check.id}}" data-field="result" bindchange="checkInput"><label class="inspection-choice" wx:for="{{resultOptions}}" wx:for-item="result" wx:key="key"><radio value="{{result.key}}" checked="{{check.result === result.key}}" disabled="{{!editable || busy}}" />{{result.label}}</label></radio-group>
+        <view class="muted" wx:if="{{check.result === 'noncompliant'}}">可点击“问题”补充说明与附件。</view>
+        <button data-id="{{check.id}}" bindtap="openProblems">问题（{{check.problems.length}}）</button><button wx:if="{{editable}}" disabled="{{busy}}" data-id="{{check.id}}" bindtap="deleteCheckItems">删除此项</button>
+      </view>
+    </checkbox-group>
+    <view class="muted" wx:if="{{!checkItems.length && !checkError}}">未录入检查项</view>
+  </view>
+  <view class="card">
     <view class="row"><view class="label">{{item.label}}</view><button wx:if="{{editable && !item.short}}" class="small" disabled="{{busy}}" data-field="{{item.key}}" bindtap="recordVoice">{{recording ? '结束录音' : '语音'}}</button></view>
-    <block wx:if="{{editable}}">
-      <input wx:if="{{item.short}}" value="{{body[item.key]}}" maxlength="30" disabled="{{busy}}" data-field="{{item.key}}" bindinput="input" placeholder="{{item.placeholder}}" />
+    <diary-body wx:if="{{item.link}}" class="fd-body-editor" data-field="{{item.key}}" value="{{body[item.key]}}" readonly="{{!editable}}" disabled="{{busy}}" project-id="{{body.projectId}}" context="{{linkContext}}" bindchange="input" />
+    <block wx:elif="{{editable}}">
+      <block wx:if="{{item.time}}"><picker mode="date" value="{{item.datePart || body.inspectionDate}}" disabled="{{busy}}" data-field="{{item.key}}" data-part="date" bindchange="inspectionTime"><view class="picker">日期：{{item.datePart || '未填写'}}</view></picker><picker mode="time" value="{{item.timePart || '00:00'}}" disabled="{{busy}}" data-field="{{item.key}}" data-part="time" bindchange="inspectionTime"><view class="picker">时间：{{item.timePart || '未填写'}}</view></picker><button disabled="{{busy}}" data-field="{{item.key}}" data-part="clear" bindtap="inspectionTime">清空时间</button></block>
+      <input wx:elif="{{item.number}}" type="number" value="{{body[item.key]}}" maxlength="10" disabled="{{busy}}" data-field="{{item.key}}" bindinput="input" placeholder="未填写；请输入非负整数" />
+      <input wx:elif="{{item.short}}" value="{{body[item.key]}}" maxlength="30" disabled="{{busy}}" data-field="{{item.key}}" bindinput="input" placeholder="{{item.placeholder}}" />
       <textarea wx:else class="{{kind === 'supervision-logs' && item.key === 'inspection' ? 'log-inspection' : ''}}" value="{{body[item.key]}}" maxlength="60000" auto-height disabled="{{busy}}" data-field="{{item.key}}" bindinput="input" placeholder="{{item.placeholder}}" />
     </block>
-    <view wx:else class="pre">{{body[item.key] || '未填写'}}</view>
+    <view wx:else class="pre">{{item.value === '' ? '未填写' : item.value}}</view>
     <view wx:if="{{item.hint && kind !== 'supervision-logs'}}" class="muted diary-hint">{{item.hint}}</view>
   </view>
+  </block>
   <view class="card">
     <view class="label">照片附件</view>
     <view wx:if="{{attachmentHint}}" class="muted">{{attachmentHint}} 非图片文件请在电脑端上传；此处可查看已同步附件。</view>
@@ -39,7 +71,7 @@
       <view wx:else>{{item.description}}</view><view class="error">{{item.error}}</view>
       <button wx:if="{{editable}}" class="small" disabled="{{busy}}" data-url="{{item.url}}" bindtap="removeRemotePhoto">移除此照片</button>
     </block>
-    <view wx:for="{{media}}" wx:key="id">
+    <view wx:for="{{media}}" wx:key="id" wx:if="{{!item.problemId}}">
       <image class="photo" mode="aspectFit" src="{{item.path}}" data-path="{{item.path}}" bindtap="preview" />
       <view class="muted">{{item.source === 'camera' ? '现场拍摄' : '相册补传'}} · {{item.url ? '照片已上传' : '照片仅在本机 / 待上传'}}</view>
       <input wx:if="{{editable}}" value="{{item.description}}" disabled="{{busy}}" data-id="{{item.id}}" bindinput="photoDescription" placeholder="照片部位、情况说明" />
@@ -51,14 +83,39 @@
   </view>
   <view class="card">
     <button wx:if="{{storageFailed}}" bindtap="persist">重试保存到本机（请勿退出）</button>
-    <block wx:if="{{editable}}"><button class="primary" disabled="{{busy || recording}}" loading="{{busy}}" data-action="save" bindtap="action">联网保存草稿 / 重试</button><button class="primary" disabled="{{busy || recording || conflict}}" data-action="submit" bindtap="action">确认提交审核</button></block>
-    <block wx:if="{{canReview && (status === 'submitted' || status === 'pending')}}"><button class="primary" disabled="{{busy}}" data-status="approved" bindtap="review">审核通过</button><button disabled="{{busy}}" data-status="rejected" bindtap="review">退回修改</button></block>
-    <button wx:if="{{serverId}}" bindtap="history">查看处理记录与快照</button>
+    <block wx:if="{{editable}}"><button class="primary" disabled="{{busy || recording}}" loading="{{busy}}" data-action="save" bindtap="action">{{memo ? '联网保存 / 重试' : '联网保存草稿 / 重试'}}</button><button class="primary" disabled="{{busy || recording || conflict}}" data-action="submit" bindtap="action">{{submitLabel}}</button></block>
+    <block wx:if="{{!readonly && canReview && kind !== 'daily-inspections' && (status === 'submitted' || status === 'pending')}}"><button class="primary" disabled="{{busy}}" data-status="approved" bindtap="review">审核通过</button><button disabled="{{busy}}" data-status="rejected" bindtap="review">退回修改</button></block>
+    <button wx:if="{{serverId}}" bindtap="history">查看版本与处理历史</button>
     <button wx:if="{{conflict && serverId}}" bindtap="remote">核对服务器正文</button>
     <button wx:if="{{conflict}}" bindtap="fork">保留原稿，另建核对副本</button>
-    <button wx:if="{{canRevise}}" bindtap="revise">建立修订稿</button>
+    <button wx:if="{{canRevise}}" disabled="{{busy}}" bindtap="revise">{{status === 'rejected' ? '修订后重提 / 打开后续版本' : '建立修订稿 / 打开后续版本'}}</button>
     <button wx:if="{{canClear}}" disabled="{{busy || storageFailed}}" bindtap="forget">清除已同步本机副本</button>
     <view class="muted">本机保存不是备份；只有服务器确认后才显示已提交。录音及专业数据须本人核对。</view>
   </view>
-  <view class="card" wx:for="{{history}}" wx:key="id"><view>{{item.actorName}} · {{item.action}} · {{item.createTime}}</view><view>{{item.reason}}</view><view class="pre muted">{{item.text}}</view></view>
+  <view class="card" wx:for="{{versions}}" wx:key="id">
+    <view class="label">V{{item.version}} · {{item.status}} · {{item.date}}</view>
+    <view>提交时间：{{item.submittedAt}}</view><view>审核：{{item.reviewer}}</view>
+    <view class="warning" wx:if="{{item.rejectReason}}">驳回原因：{{item.rejectReason}}</view>
+    <button data-id="{{item.id}}" bindtap="openVersion">只读查看此版本正文与附件</button>
+  </view>
+  <view class="card" wx:for="{{history}}" wx:key="id"><view>{{item.actorName}} · {{item.action}} · {{item.createTime}}</view><view>{{item.reason}}</view><view class="pre muted">{{item.text}}</view><view wx:for="{{item.fields}}" wx:for-item="field" wx:key="key"><view class="label">{{field.label}}</view><diary-body value="{{field.value}}" readonly="{{true}}" /></view></view>
+  <view class="inspection-overlay" wx:if="{{problemPanel}}">
+    <view class="inspection-panel-head"><view class="label">检查项问题</view><button bindtap="cancelProblems">关闭</button></view>
+    <scroll-view scroll-y class="inspection-panel-body">
+      <view class="pre">{{problemPanel.content || '尚未填写检查内容'}}</view><view class="muted">确认后仅回填本机草稿，仍需联网保存巡视。图片确认后排队上传；非图片请在电脑上传。</view>
+      <view class="error">{{panelError}}</view><view class="error">{{error}}</view>
+      <view class="inspection-item" wx:for="{{problemPanel.problems}}" wx:for-item="problem" wx:key="id">
+        <view class="label">问题名称 *</view><textarea value="{{problem.name}}" maxlength="10000" auto-height disabled="{{!editable}}" data-id="{{problem.id}}" data-field="name" bindinput="problemInput" />
+        <view class="label">问题类型 *</view><picker range="{{problemTypes}}" value="{{problem.typeIndex}}" disabled="{{!editable}}" data-id="{{problem.id}}" data-field="type" bindchange="problemInput"><view class="picker">{{problem.type}}</view></picker>
+        <view class="label">问题说明</view><textarea value="{{problem.description}}" maxlength="10000" auto-height disabled="{{!editable}}" data-id="{{problem.id}}" data-field="description" bindinput="problemInput" />
+        <view class="muted">发现人：{{problem.discoverer}}</view>
+        <view wx:for="{{problem.files}}" wx:for-item="file" wx:key="url"><button data-name="{{file.name}}" data-url="{{file.url}}" bindtap="viewProblemFile">查看：{{file.name || '附件'}}</button><button wx:if="{{editable}}" data-id="{{problem.id}}" data-url="{{file.url}}" bindtap="removeProblemFile">移除附件引用</button></view>
+        <view wx:for="{{problem.localMedia}}" wx:for-item="file" wx:key="id"><image class="photo" src="{{file.path}}" mode="aspectFit" data-path="{{file.path}}" bindtap="preview" /><view class="muted">{{file.url ? '图片已上传，仍需保存表单' : '图片仅在本机 / 待上传'}}</view><button wx:if="{{editable}}" data-id="{{problem.id}}" data-media="{{file.id}}" bindtap="removeProblemFile">移除图片引用</button></view>
+        <block wx:if="{{editable}}"><button data-id="{{problem.id}}" data-source="camera" bindtap="chooseProblemPhoto">问题拍照</button><button data-id="{{problem.id}}" data-source="album" bindtap="chooseProblemPhoto">问题相册选图</button><button data-id="{{problem.id}}" bindtap="deleteProblem">删除问题</button></block>
+      </view>
+      <view class="muted" wx:if="{{!problemPanel.problems.length}}">尚无问题；打开此面板不会自动创建问题。</view><button wx:if="{{editable}}" bindtap="addProblem">添加问题</button>
+      <button wx:if="{{editable && panelError}}" bindtap="cacheProblemPanel">重试暂存问题编辑</button>
+    </scroll-view>
+    <view class="inspection-panel-footer"><button wx:if="{{editable}}" class="primary" bindtap="confirmProblems">确认问题</button><button bindtap="cancelProblems">{{editable ? '取消修改' : '关闭'}}</button></view>
+  </view>
 </view>

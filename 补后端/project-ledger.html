@@ -8,9 +8,8 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; background: #F0F5FF; color: #1F2937; display: flex; min-height: 100vh; }
         .sidebar { width: 240px; background: linear-gradient(180deg, #1E3A5F 0%, #0F2440 100%); color: #fff; position: fixed; top: 0; left: 0; bottom: 0; z-index: 100; overflow-y: auto; }
-        .sidebar-logo { padding: 20px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
-        .sidebar-logo h2 { font-size: 16px; font-weight: 600; letter-spacing: 1px; }
-        .sidebar-logo p { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 4px; }
+        .sidebar-logo { padding: 22px 16px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .sidebar-logo h2 { font-size: 17px; font-weight: 600; letter-spacing: 2px; }
         .menu-group { padding: 8px 0; }
         .menu-group-title { padding: 10px 20px 6px; font-size: 11px; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 1px; }
         .menu-item { display: flex; align-items: center; padding: 10px 20px; color: rgba(255,255,255,0.7); text-decoration: none; font-size: 13px; transition: all 0.2s; cursor: pointer; }
@@ -78,6 +77,11 @@
         .form-group label .required { color: #EF4444; }
         .form-control { width: 100%; height: 36px; border: 1px solid #E5E7EB; border-radius: 6px; padding: 0 12px; font-size: 13px; outline: none; transition: border-color 0.2s; }
         .form-control:focus { border-color: #2563EB; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+        /* 项目状态、总监理师为可编辑下拉：显式使用白底深色文字，避免浏览器默认灰底被误认为已禁用 */
+        .form-group select.form-control { background-color: #fff; color: #1F2937; cursor: pointer; }
+        .form-group select.form-control option { background-color: #fff; color: #1F2937; }
+        /* 仅在真正因权限或保存中禁用时才变灰，与可用状态区分 */
+        .form-group select.form-control:disabled { background-color: #F9FAFB; color: #6B7280; cursor: not-allowed; }
         textarea.form-control { height: 80px; padding: 8px 12px; resize: vertical; }
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
         .confirm-modal .modal { width: 400px; }
@@ -93,7 +97,6 @@
     <div class="sidebar">
         <div class="sidebar-logo">
             <h2>监理现场管理系统</h2>
-            <p>Supervision Site Management</p>
         </div>
         <div class="menu-group">
             <a class="menu-item" href="index.html"><span class="icon">📊</span> 仪表盘</a>
@@ -331,13 +334,26 @@
             document.getElementById('endDate').value = '';
             document.getElementById('projectAddress').value = '';
             document.getElementById('projectDesc').value = '';
+            enableStatusAndChief();
             document.getElementById('createModal').classList.add('show');
+        }
+
+        /* 项目状态与总监理师在新建/编辑时都必须可选，避免任何遗留禁用状态影响保存 */
+        function enableStatusAndChief() {
+            ['projectStatus', 'chiefEngineer'].forEach(function (id) {
+                var el = document.getElementById(id);
+                if (!el) return;
+                el.disabled = false;
+                el.removeAttribute('disabled');
+                el.removeAttribute('aria-disabled');
+            });
         }
 
         function openEditModal(id) {
             editingId = id;
             document.getElementById('modalTitle').textContent = '编辑项目';
             var rec = recById(id);
+            enableStatusAndChief();
             var set = function (fid, v) { var el = document.getElementById(fid); if (el) el.value = (v == null ? '' : v); };
             if (rec) {
                 set('projectCode', rec.code);

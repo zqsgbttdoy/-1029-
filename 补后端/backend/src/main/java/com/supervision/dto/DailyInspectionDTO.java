@@ -5,6 +5,8 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import jakarta.validation.constraints.Min;
 
 @Data
 public class DailyInspectionDTO {
@@ -22,6 +24,13 @@ public class DailyInspectionDTO {
     private String location;
     private String content;
     private String issues;
+    private LocalDateTime startTime;
+    private LocalDateTime endTime;
+    @Min(value = 0, message = "施工人数必须为非负整数")
+    private Integer workerCount;
+    @Min(value = 0, message = "管理人数必须为非负整数")
+    private Integer manageCount;
+    private String checklist;
     private String status;
     private String photos;
     private String attachments;

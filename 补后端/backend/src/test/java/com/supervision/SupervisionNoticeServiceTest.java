@@ -29,12 +29,17 @@ class SupervisionNoticeServiceTest {
 
     @Mock private com.supervision.service.ProjectAccessService access;
     @Mock private com.supervision.service.AttachmentAccessService attachmentAccess;
+    @Mock private com.supervision.service.DiaryReferenceService diaryReferences;
+    @Mock private com.supervision.service.DiaryResourceResolver diaryResources;
 
     @org.junit.jupiter.api.BeforeEach
     void identity() {
         var user = new com.supervision.entity.User();
         user.setId(1L);
         lenient().when(access.currentUser()).thenReturn(user);
+        lenient().when(diaryResources.load(eq("supervision-notices"), anyLong(), eq(true)))
+                .thenAnswer(call -> supervisionNoticeRepository.findById(call.getArgument(1))
+                        .orElseThrow(() -> new BusinessException("监理通知不存在")));
     }
 
     @InjectMocks
@@ -283,6 +288,8 @@ class SupervisionNoticeServiceTest {
         supervisionNoticeService.delete(1L);
 
         verify(supervisionNoticeRepository).save(argThat(n -> "inactive".equals(n.getStatus())));
+        verify(diaryResources).load("supervision-notices", 1L, true);
+        verify(diaryReferences).invalidate("supervision-notices", notice, true);
     }
 
     @Test

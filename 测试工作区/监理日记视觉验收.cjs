@@ -178,12 +178,12 @@ class Session {
     await s.send('Page.navigate', { url: BASE + '/supervision-diary.html' });
     await s.waitFor(`document.readyState === 'complete' && !!document.getElementById('fwNew')`, '监理日记页加载', 20000);
     const overview = await s.eval(`(() => ({ vw: document.documentElement.clientWidth, docOverflowX: document.documentElement.scrollWidth - document.documentElement.clientWidth, newText: document.getElementById('fwNew').textContent.trim() }))()`);
-    check('列表页加载且无横向溢出', overview.docOverflowX <= 0 && overview.newText === '新建监理日记', overview);
+    check('列表页加载且无横向溢出', overview.docOverflowX <= 0 && overview.newText === '新建', overview);
 
     // ---------- 桌面新建 ----------
     await s.eval(`(() => { const sel = document.getElementById('fwProject'); if (sel.options.length > 1) { sel.value = sel.options[1].value; sel.dispatchEvent(new Event('change')); } return true; })()`);
     await sleep(400);
-    await s.clickByText('button', '新建监理日记');
+    await s.eval(`document.getElementById('fwNew').click()`);
     await s.waitFor(`!document.getElementById('fwEditor').hidden`, '新建编辑器打开');
     await sleep(600);
 

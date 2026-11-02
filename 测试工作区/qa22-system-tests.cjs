@@ -4,7 +4,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID, randomBytes } = require('node:crypto');
-const base = 'http://127.0.0.1:8091/api';
+const base = process.env.QA22_API_BASE || 'http://127.0.0.1:8091/api';
 const run = 'QA22-' + new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);
 const out = path.join(__dirname, run);
 const results = [], fixtures = [], requests = [];
@@ -104,6 +104,41 @@ async function fieldFlow(module, kind) {
   const p2 = await api('GET', '/' + kind + '?projectId=' + project.id + '&pageNum=2&pageSize=2', null, author);
   check(module, '分页总数一致且无重复记录', ok(p1) && ok(p2) && p1.data.total === 5 && p2.data.total === 5 && !p1.data.list.some(a => p2.data.list.some(b => b.id === a.id)), { page1: p1.data?.list.map(x => x.id), page2: p2.data?.list.map(x => x.id), total: p1.data?.total });
 }
+// 日常巡检按现场备忘录验收：提交即保存、服务端拒绝审核、已保存仍可本人修改
+async function dailyMemoFlow(module, kind) {
+  const input = business(kind, '-flow'); input.authorId = outsiderUser.id; input.inspectorId = outsiderUser.id;
+  const h = key(); let r = await create(module, '/' + kind, input, author, h); const id = r.id, route = '/' + kind + '/' + id;
+  check(module, '服务端绑定真实作者，不接受冒名', (r.authorId ?? r.inspectorId) === authorUser.id, { authorId: r.authorId, inspectorId: r.inspectorId });
+  let q = await api('POST', '/' + kind, input, author, h); check(module, '重复请求幂等，不生成第二张单', ok(q) && q.data.id === id, q.data?.id);
+  q = await api('POST', '/' + kind, { ...input, location: '另一处部位' }, author, h); check(module, '同键不同正文返回409', q.http === 409, q);
+  q = await api('GET', route, null, outsider); check(module, '其他项目用户禁止查看', q.http === 403, q);
+  q = await api('GET', route, null, reviewer); check(module, '审核人不能查看未提交私人草稿', q.http === 403, q);
+  q = await api('PUT', route, input, author); check(module, '缺并发版本拒绝写入', q.http === 428, q);
+  const oldVersion = r.lockVersion;
+  q = await api('PUT', route, { location: 'QA22并发验证：已补充现场实测部位说明', code: '' }, author, ver(r));
+  check(module, '实际编辑草稿并保留编号、递增并发版本', ok(q) && q.data.code === r.code && q.data.lockVersion > oldVersion, q.data); if (!ok(q)) throw new Error('编辑失败'); r = q.data;
+  q = await api('PUT', route, input, author, { 'X-Record-Version': String(oldVersion) }); check(module, '旧版本更新返回409，不覆盖新稿', q.http === 409, q);
+  q = await api('GET', route, null, author); check(module, '冲突后服务端保留较新正文', ok(q) && q.data.location === 'QA22并发验证：已补充现场实测部位说明', q.data?.location);
+  q = await api('POST', route + '/submit', null, author, ver(r));
+  check(module, '提交即保存为已保存，不产生待审核', ok(q) && q.data.status === 'recorded', q.data); if (!ok(q)) throw new Error('提交失败'); r = q.data;
+  q = await api('POST', route + '/approve', { status: 'approved' }, reviewer, ver(r)); check(module, '巡检不提供审核（服务端拒绝审核）', q.http === 400 && /无需审核/.test(q.message || ''), q);
+  q = await api('POST', route + '/approve', { status: 'rejected', rejectReason: '巡检不应退回' }, reviewer, ver(r)); check(module, '巡检同样拒绝退回', q.http === 400, q);
+  q = await api('PUT', route, { ...business(kind, '-flow'), code: r.code }, author, ver(r));
+  check(module, '已保存巡检本人可继续修改且仍为已保存', ok(q) && q.data.status === 'recorded' && q.data.lockVersion > r.lockVersion, q.data); if (!ok(q)) throw new Error('修改失败'); r = q.data;
+  q = await api('PUT', route, { content: '不应被其他账号覆盖' }, outsider, ver(r)); check(module, '非本人禁止修改已保存巡检', err4(q), q);
+  q = await api('GET', route + '/history', null, author); const actions = q.data?.map(e => e.action) || [];
+  check(module, '保存历史含提交与修改且保留快照', ok(q) && actions.includes('submit') && actions.includes('save') && q.data.every(e => !!e.snapshot), { actions, length: q.data?.length });
+  const draftSample = await create(module, '/' + kind, business(kind, '-draft'), author, key());
+  const savedSample = await create(module, '/' + kind, business(kind, '-saved'), author, key());
+  q = await api('POST', '/' + kind + '/' + savedSample.id + '/submit', null, author, ver(savedSample)); check(module, '第二条巡检提交后同为已保存', ok(q) && q.data.status === 'recorded', q.data);
+  q = await api('GET', '/' + kind + '?projectId=' + project.id + '&status=recorded&dateFrom=' + date + '&dateTo=' + date, null, author);
+  check(module, '按已保存筛选只返回保存态记录', ok(q) && q.data.total === 2 && q.data.list.some(x => x.id === id) && !q.data.list.some(x => x.id === draftSample.id), q.data);
+  q = await api('GET', '/' + kind + '?projectId=' + project.id + '&status=draft&dateFrom=' + date + '&dateTo=' + date, null, author);
+  check(module, '按草稿筛选不含已保存记录', ok(q) && q.data.total === 1 && q.data.list[0].id === draftSample.id, q.data);
+  const p1 = await api('GET', '/' + kind + '?projectId=' + project.id + '&pageNum=1&pageSize=2', null, author);
+  const p2 = await api('GET', '/' + kind + '?projectId=' + project.id + '&pageNum=2&pageSize=2', null, author);
+  check(module, '分页总数一致且无重复记录', ok(p1) && ok(p2) && p1.data.total === 3 && p2.data.total === 3 && !p1.data.list.some(a => p2.data.list.some(b => b.id === a.id)), { page1: p1.data?.list.map(x => x.id), page2: p2.data?.list.map(x => x.id), total: p1.data?.total });
+}
 async function main() {
   if (process.env.QA22_ISOLATED !== '1' || !process.env.QA_ADMIN_PASSWORD) throw new Error('需确认本地H2并设置 QA22_ISOLATED=1 与 QA_ADMIN_PASSWORD；禁止指向正式数据。');
   fs.mkdirSync(out, { recursive: true });
@@ -123,7 +158,7 @@ async function main() {
   q = await api('GET', '/users?deptId=' + team.id); check('人员管理', '部门筛选返回三种测试人员', ok(q) && q.data.total === 3, q.data);
   q = await api('POST', '/users', { name: run + '无效手机号', phone: '123' }); check('人员管理', '不合规手机号拒绝', q.http === 400, q);
   const role = await create('权限设置', '/roles', { name: run + '只读角色', code: run + '-read', description: '测试角色，不具管理员权限' });
-  const reviewRole = await create('权限设置', '/roles', { name: run + '总监角色', code: run + '-review', description: '审核权限由项目成员授权' });
+  const reviewRole = await create('权限设置', '/roles', { name: run + '总监角色', code: run + '-review', description: '审核权限由项目授权配置' });
   const permission = await create('权限设置', '/permissions', { name: run + '日记查看', code: run + ':diary:read', module: 'supervision-diary', sortOrder: 1 });
   q = await api('POST', '/roles/' + role.id + '/permissions', [permission.id]); check('权限设置', '管理员配置测试角色权限', ok(q), q);
   q = await api('GET', '/permissions/tree'); check('权限设置', '权限树可读取新增模块节点', ok(q) && JSON.stringify(q.data).includes(permission.name), q.data);
@@ -140,6 +175,39 @@ async function main() {
   q = await api('POST', '/projects', { name: run + '越权项目', code: run + '-forbidden', buildUnit: '模拟' }, author); check('项目台账', '普通用户不能新增项目', q.http === 403, q);
   q = await api('POST', '/projects', { name: run + '重复项目', code: project.code, buildUnit: '模拟' }); check('项目台账', '重复项目编号拒绝', err4(q), q);
   q = await api('GET', '/projects?code=' + encodeURIComponent(project.code)); check('项目台账', '项目编号搜索准确', ok(q) && q.data.total === 1, q.data);
+  await group('项目台账', async () => {
+    const body = { code: run + '-STATUS', name: run + '项目状态回归', buildUnit: '模拟建设单位', status: 'planning' };
+    const sample = await create('项目台账', '/projects', body);
+    check('项目台账', '新建采用表单选择的项目状态', sample.status === 'planning', sample.status, 'planning');
+    const route = '/projects/' + sample.id, query = '/projects?code=' + encodeURIComponent(body.code);
+    let previous = 'planning';
+    for (const status of ['active', 'paused', 'completed', 'planning']) {
+      const changed = { ...body, status };
+      const saved = await api('PUT', route, changed);
+      check('项目台账', '通用PUT返回实际保存状态 ' + status, ok(saved) && saved.data?.status === status, saved.data?.status, status);
+      const detail = await api('GET', route), list = await api('GET', query);
+      check('项目台账', '重新读取详情和列表状态一致 ' + status,
+        ok(detail) && detail.data?.status === status && ok(list) && list.data?.total === 1 && list.data.list[0].status === status,
+        { detail: detail.data?.status, list: list.data?.list?.map(p => p.status) }, status);
+      const filtered = await api('GET', query + '&status=' + status), old = await api('GET', query + '&status=' + previous);
+      check('项目台账', '状态变更同步新旧筛选结果 ' + status,
+        ok(filtered) && filtered.data?.total === 1 && ok(old) && old.data?.total === 0,
+        { current: filtered.data?.total, previous: old.data?.total });
+      previous = status;
+    }
+    const { status, ...withoutStatus } = body;
+    const renamed = { ...withoutStatus, name: body.name + '改名' };
+    q = await api('PUT', route, renamed);
+    check('项目台账', '旧客户端省略状态时不覆盖原状态', ok(q) && q.data?.status === previous && q.data.name === renamed.name, q.data);
+    for (const invalid of ['', 'unknown', 'inactive']) {
+      q = await api('PUT', route, { ...body, status: invalid });
+      check('项目台账', '非法状态明确拒绝 ' + JSON.stringify(invalid), q.http === 400, q);
+    }
+    q = await api('PUT', route, { ...body, status: 'active' }, author);
+    check('项目台账', '普通用户禁止修改项目状态', q.http === 403, q);
+    q = await api('GET', route);
+    check('项目台账', '失败请求未部分覆盖状态与名称', ok(q) && q.data?.status === previous && q.data.name === renamed.name, q.data);
+  });
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aS9sAAAAASUVORK5CYII=', 'base64');
   q = await upload('模拟现场图.png', png, 'image/png', author); check('工程资料目录与上传', 'multipart照片上传与UUID存储', ok(q) && !!q.data?.url, q); photo = q.data?.url;
   q = await upload('模拟检查说明.txt', 'QA22 模拟检查附件：保护层25mm，复查完成。非真实工程资料。', 'text/plain', author); check('工程资料目录与上传', '文字附件上传', ok(q) && !!q.data?.url, q); doc = q.data?.url;
@@ -155,7 +223,8 @@ async function main() {
   const pd = await create('工程资料目录与上传', '/project-documents', { projectId: project.id, subItemId: leaf.id, name: run + '隐蔽验收说明', filePath: doc, fileType: 'txt' }, author);
   q = await api('GET', '/project-documents/' + pd.id, null, outsider); check('工程资料目录与上传', '跨项目文档详情拒绝', q.http === 403, q);
   q = await upload('模拟专项说明.txt', 'QA22 钢筋隐蔽验收专项说明。', 'text/plain', author, '/project-documents/upload?projectId=' + project.id + '&subItemId=' + leaf.id); check('工程资料目录与上传', '工程资料专用上传接口', ok(q) && q.data.subItemId === leaf.id, q.data);
-  for (const [module, kind] of [['监理日记', 'supervision-diaries'], ['监理日志', 'supervision-logs'], ['日常巡检', 'daily-inspections'], ['旁站检查', 'sideline-inspections']]) await group(module, () => fieldFlow(module, kind));
+  for (const [module, kind] of [['监理日记', 'supervision-diaries'], ['监理日志', 'supervision-logs'], ['旁站检查', 'sideline-inspections']]) await group(module, () => fieldFlow(module, kind));
+  await group('日常巡检', () => dailyMemoFlow('日常巡检', 'daily-inspections'));
   const createdWithReadOnlyRole = await api('GET', '/supervision-diaries?projectId=' + project.id, null, author);
   check('权限设置', '仅查看权限角色不应能创建/编辑日记', ok(createdWithReadOnlyRole) && createdWithReadOnlyRole.data.total === 0, { created: createdWithReadOnlyRole.data?.total, assignedPermissions: [permission.code] }, '模块权限矩阵应参与服务端授权');
   await group('工程资料目录与上传', async () => {
@@ -173,7 +242,13 @@ async function main() {
     const source = await api('GET', '/field/diary-source?projectId=' + project.id + '&date=' + date, null, author); check('统计报表', '当日取数仅含已通过日记', ok(source) && source.data.sources.length === 1, source.data);
     q = await api('GET', '/field/diary-source?projectId=' + project.id + '&date=2026-09-24', null, author); check('统计报表', '次日不混入当日日记', ok(q) && q.data.sources.length === 0, q.data);
     const summary = await api('GET', '/field/summary?projectId=' + project.id + '&date=' + date, null, author);
-    check('统计报表', '每日摘要按四类业务及真实状态计数', ok(summary) && ['supervision-diaries', 'supervision-logs', 'daily-inspections', 'sideline-inspections'].every(k => summary.data[k].approved === 1 && summary.data[k].draft === 2 && summary.data[k].submitted === 1 && summary.data[k].rejected === 1), summary.data);
+    check('统计报表', '每日摘要按四类业务及真实状态计数（巡检只计草稿与已保存）',
+      ok(summary) && ['supervision-diaries', 'supervision-logs', 'daily-inspections', 'sideline-inspections'].every(k => {
+        const e = k === 'daily-inspections'
+          ? { draft: 1, recorded: 2, submitted: 0, approved: 0, rejected: 0 }
+          : { approved: 1, draft: 2, submitted: 1, rejected: 1 };
+        return Object.keys(e).every(s => summary.data[k][s] === e[s]);
+      }), summary.data);
     const generated = await create('监理日志', '/supervision-logs', { ...business('supervision-logs', '-source'), content: source.data.content, diarySources: JSON.stringify(source.data.sources) }, author, key());
     check('监理日志', '日记取数日志持久化且来源可追溯', JSON.parse(generated.diarySources)[0].id === source.data.sources[0].id, generated);
     q = await api('POST', '/supervision-logs', { ...business('supervision-logs', '-badsource'), logDate: '2026-09-24', diarySources: JSON.stringify(source.data.sources) }, author, key()); check('监理日志', '跨日日记来源拒绝', q.http === 409, q);
@@ -269,7 +344,7 @@ async function main() {
   note('流程管理', '配置真实审批节点并驱动业务', '功能尚未实现', 'process-management.html仅本地演示，saveFlow显示alert，无控制器或持久化端点；未伪造成功样本。');
   const pages = ['index', 'welcome', 'project-ledger', 'daily-inspection', 'sideline-inspection', 'supervision-notice', 'work-contact', 'supervision-diary', 'supervision-log', 'safety-log', 'meeting-minutes', 'supervision-monthly-report', 'sub-item-database', 'project-data-upload', 'diary-statistics', 'log-statistics', 'safety-log-statistics', 'diary-report', 'message-center', 'department-management', 'personnel-management', 'permission-settings', 'process-management', 'operation-log', 'work-standard-config', 'login'];
   const availability = [];
-  for (const name of pages) { const response = await fetch('http://127.0.0.1:8091/' + name + '.html'); const text = await response.text(); availability.push({ page: name + '.html', http: response.status, html: text.includes('<html'), note: '仅HTTP静态资源可用性；非浏览器功能验收' }); }
+  for (const name of pages) { const response = await fetch((process.env.QA22_STATIC_BASE || 'http://127.0.0.1:8091') + '/' + name + '.html'); const text = await response.text(); availability.push({ page: name + '.html', http: response.status, html: text.includes('<html'), note: '仅HTTP静态资源可用性；非浏览器功能验收' }); }
   fs.writeFileSync(path.join(out, '页面资源可用性.json'), JSON.stringify(availability, null, 2));
 }
 function finish(error) {

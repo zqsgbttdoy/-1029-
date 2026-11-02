@@ -9,13 +9,17 @@
   <view class="error" wx:if="{{error}}">{{error}}</view>
   <view class="card">
     <view class="label">管理与报表</view>
+    <button data-url="/pages/project-documents/index?projectId={{projects[projectIndex].id}}" bindtap="go">工程资料 · 日记引用</button>
     <view class="grid"><button class="small" data-url="/pages/personnel/index" bindtap="go">人员管理</button><button class="small" data-url="/pages/departments/index" bindtap="go">部门管理</button><button class="small" data-url="/pages/reports/index" bindtap="go">报表统计</button></view>
     <view class="muted">人员与部门仅管理员可编辑；报表为只读汇总，详细分析请使用 PC 端。</view>
   </view>
   <view class="card" wx:if="{{summary.length}}">
     <view class="label">今日可见记录摘要</view>
-    <view wx:for="{{summary}}" wx:key="title" class="muted">{{item.title}}：草稿 {{item.counts.draft}} · 待审核 {{item.counts.submitted}} · 通过 {{item.counts.approved}} · 退回 {{item.counts.rejected}}</view>
-    <view class="muted">统计按本人及项目审核权限计算，草稿不计为已提交。</view>
+    <block wx:for="{{summary}}" wx:key="kind">
+      <view wx:if="{{item.memo}}" class="muted">{{item.title}}：草稿 {{item.counts.draft}} · 已保存 {{item.counts.recorded}}</view>
+      <view wx:else class="muted">{{item.title}}：草稿 {{item.counts.draft}} · 待审核 {{item.counts.submitted}} · 通过 {{item.counts.approved}} · 退回 {{item.counts.rejected}}</view>
+    </block>
+    <view class="muted">统计按本人及项目审核权限计算；巡检提交即保存为备忘，不产生审核待办。草稿不计为已提交。</view>
   </view>
   <view class="card">
     <view class="row"><view class="label">本账号本机草稿</view><button class="small" loading="{{syncing}}" disabled="{{syncing}}" bindtap="sync">同步 / 重试</button></view>
@@ -27,7 +31,7 @@
     <view class="muted" wx:if="{{!drafts.length}}">暂无本机草稿</view>
   </view>
   <view class="card">
-    <button class="small" data-mode="mine" bindtap="mode">我的记录</button><button wx:if="{{canReview}}" class="small" data-mode="todo" bindtap="mode">项目待审核</button>
+    <button class="small" data-mode="mine" bindtap="mode">我的记录</button><button wx:if="{{canReview && kind !== 'daily-inspections'}}" class="small" data-mode="todo" bindtap="mode">项目待审核</button>
     <view><button wx:for="{{types}}" wx:key="kind" class="small" data-kind="{{item.kind}}" bindtap="selectKind">{{item.title}}{{kind === item.kind ? ' ✓' : ''}}</button></view>
     <view class="label">{{mode === 'todo' ? '待审核' : '我的记录'}}</view>
     <view wx:for="{{records}}" wx:key="id" class="card" data-id="{{item.id}}" bindtap="open"><view>{{item.code}}</view><view class="muted">{{item.diaryDate || item.logDate || item.inspectionDate}}</view><view class="badge">{{item.statusText}}</view></view>

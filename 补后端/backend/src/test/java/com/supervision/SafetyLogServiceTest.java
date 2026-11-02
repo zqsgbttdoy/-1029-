@@ -29,6 +29,7 @@ class SafetyLogServiceTest {
 
     @Mock private com.supervision.service.ProjectAccessService access;
     @Mock private com.supervision.service.AttachmentAccessService attachmentAccess;
+    @Mock private jakarta.persistence.EntityManager em;
 
     @org.junit.jupiter.api.BeforeEach
     void identity() {
@@ -202,6 +203,7 @@ class SafetyLogServiceTest {
     void testNewVersion() {
         SafetyLog existing = buildExisting();
         existing.setVersion(2);
+        existing.setStatus("rejected");
         when(safetyLogRepository.findById(1L)).thenReturn(Optional.of(existing));
         when(safetyLogRepository.save(any(SafetyLog.class))).thenAnswer(invocation -> {
             SafetyLog newVer = invocation.getArgument(0);
@@ -214,10 +216,37 @@ class SafetyLogServiceTest {
         assertNotNull(result);
         assertEquals("draft", result.getStatus());
         assertEquals(3, result.getVersion());
-        assertEquals(existing.getCode(), result.getCode());
+        assertNotEquals(existing.getCode(), result.getCode());
+        assertEquals(existing.getId(), result.getSourceRecordId());
+        assertEquals("rejected", existing.getStatus());
         assertEquals(existing.getProjectId(), result.getProjectId());
         assertEquals(existing.getWeather(), result.getWeather());
         verify(safetyLogRepository).save(any(SafetyLog.class));
+    }
+
+    @Test
+    void frozenVersionsCannotBeUpdatedOrDeleted() {
+        SafetyLog existing = buildExisting();
+        when(safetyLogRepository.findById(1L)).thenReturn(Optional.of(existing));
+        for (String status : java.util.List.of("submitted", "rejected", "approved", "pending")) {
+            existing.setStatus(status);
+            assertEquals(409, assertThrows(BusinessException.class, () -> safetyLogService.update(1L, buildDTO())).getCode());
+            assertEquals(409, assertThrows(BusinessException.class, () -> safetyLogService.delete(1L)).getCode());
+            assertEquals("安全日志内容", existing.getContent());
+        }
+        verify(safetyLogRepository, never()).save(any());
+    }
+
+    @Test
+    void revisionResumesExistingDraftAndRequiresOriginalAuthor() {
+        SafetyLog existing = buildExisting(); existing.setStatus("rejected");
+        SafetyLog next = buildExisting(); next.setId(2L); next.setVersion(2); next.setSourceRecordId(1L);
+        when(safetyLogRepository.findById(1L)).thenReturn(Optional.of(existing));
+        when(safetyLogRepository.findFirstBySourceRecordIdAndStatusNotOrderByIdAsc(1L, "inactive")).thenReturn(Optional.of(next));
+        assertSame(next, safetyLogService.newVersion(1L));
+        existing.setAuthorId(2L);
+        assertEquals(403, assertThrows(BusinessException.class, () -> safetyLogService.newVersion(1L)).getCode());
+        verify(safetyLogRepository, never()).save(any());
     }
 
     @Test

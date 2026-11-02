@@ -19,8 +19,7 @@
         }
         .login-logo { text-align: center; margin-bottom: 28px; }
         .login-logo .icon { font-size: 44px; }
-        .login-logo h1 { font-size: 20px; color: #1e3a8a; margin-top: 8px; }
-        .login-logo p { font-size: 13px; color: #9CA3AF; margin-top: 4px; }
+        .login-logo h1 { font-size: 21px; color: #1e3a8a; margin-top: 10px; letter-spacing: 1px; }
         .form-group { margin-bottom: 18px; }
         .form-group label { display: block; font-size: 13px; color: #374151; margin-bottom: 6px; }
         .form-group input {
@@ -54,7 +53,6 @@
         <div class="login-logo">
             <div class="icon">🏗️</div>
             <h1>监理现场管理系统</h1>
-            <p>Supervision Site Management System</p>
         </div>
         <form id="loginForm" onsubmit="return doLogin(event)">
             <div class="form-group">
@@ -77,7 +75,7 @@
     <script src="assets/app.js"></script>
     <script>
         // 已登录则直接进入首页
-        if (App.getToken()) { location.href = 'index.html'; }
+        if (App.getToken()) { location.href = App.loginTarget(); }
 
         // ---------------- 记住密码 ----------------
         // 内网场景允许轻量存储：密码经「加盐 + Base64」简单编码后存入 localStorage，不裸存明文。
@@ -152,7 +150,7 @@
                     clearRemember();
                 }
                 App.saveSession(data);
-                location.href = 'index.html';
+                location.href = App.loginTarget();
             }).catch(function (err) {
                 showError((err && err.message) || '登录失败，请检查账号或密码');
                 btn.disabled = false;

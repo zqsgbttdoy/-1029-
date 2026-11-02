@@ -28,9 +28,12 @@ public class FieldRecordService {
     private final EntityManager em;
     private final ProjectAccessService access;
     private final AttachmentAccessService attachments;
+    private final InspectionChecklist checklists;
     private final ObjectMapper mapper;
     private final Validator validator;
     private final PlatformTransactionManager transactions;
+    private final DiaryReferenceService diaryReferences;
+    private final FieldRecordVisibility visibility;
 
     @Transactional(readOnly = true)
     public PageResult<? extends FieldRecord> list(FieldRecordKind kind, int pageNum, int pageSize, Long projectId,
@@ -55,17 +58,18 @@ public class FieldRecordService {
     private Predicate[] filters(FieldRecordKind kind, Root<?> root, CriteriaBuilder cb, Long pid, String code,
                                 String status, LocalDate from, LocalDate to, Long authorId) {
         List<Predicate> p = new ArrayList<>();
-        p.add(access.scope(root, cb));
-        p.add(cb.notEqual(root.get("status"), "inactive"));
-        Long uid = access.currentUser().getId();
-        List<Long> reviews = access.projectIds(true);
-        Predicate reviewer = reviews.isEmpty() ? cb.disjunction() : cb.and(root.get("projectId").in(reviews), cb.notEqual(root.get("status"), "draft"));
-        p.add(cb.or(cb.equal(root.get(kind.getAuthorField()), uid), root.get("status").in("approved", "recorded", "fixed"), reviewer));
+        p.add(visibility.predicate(kind, root, cb));
         if (pid != null) p.add(cb.equal(root.get("projectId"), pid));
         if (authorId != null) p.add(cb.equal(root.get(kind.getAuthorField()), authorId));
         if (code != null && !code.isBlank()) p.add(cb.like(root.get("code"), "%" + code + "%"));
-        if (status != null && !status.isBlank()) p.add("submitted".equals(normalizeStatus(status))
-                ? root.get("status").in("submitted", "pending") : cb.equal(root.get("status"), normalizeStatus(status)));
+        if (status != null && !status.isBlank()) {
+            if (kind == FieldRecordKind.DAILY) {
+                // 日常巡检不再产生审核待办；历史状态只在“已保存”中聚合一次。
+                p.add("recorded".equals(status) ? root.get("status").in(FieldRecordKind.DAILY_SAVED_STATUSES)
+                        : "draft".equals(status) ? cb.equal(root.get("status"), "draft") : cb.disjunction());
+            } else p.add("submitted".equals(normalizeStatus(status))
+                    ? root.get("status").in("submitted", "pending") : cb.equal(root.get("status"), normalizeStatus(status)));
+        }
         if (from != null) p.add(cb.greaterThanOrEqualTo(root.get(kind.getDateField()), from));
         if (to != null) p.add(cb.lessThanOrEqualTo(root.get(kind.getDateField()), to));
         return p.toArray(Predicate[]::new);
@@ -82,10 +86,10 @@ public class FieldRecordService {
 
     // 仅为已获准访问的记录补充姓名；不返回人员实体，也不接受客户端写入展示姓名。
     private void fillDiaryNames(Collection<? extends FieldRecord> records) {
-        var namedRecords = records.stream().filter(r -> r instanceof SupervisionDiary || r instanceof SupervisionLog).toList();
+        var namedRecords = records.stream().filter(r -> r instanceof SupervisionDiary || r instanceof SupervisionLog || r instanceof DailyInspection).toList();
         Set<Long> ids = new HashSet<>();
         for (FieldRecord record : namedRecords) {
-            for (String field : List.of("authorId", "reviewerId")) {
+            for (String field : record instanceof DailyInspection ? List.of("inspectorId") : List.of("authorId", "reviewerId")) {
                 Long id = (Long) bean(record).getPropertyValue(field);
                 if (id != null) ids.add(id);
             }
@@ -95,17 +99,16 @@ public class FieldRecordService {
         em.createQuery("select u from User u where u.id in :ids", User.class).setParameter("ids", ids)
                 .getResultList().forEach(user -> names.put(user.getId(), user.getName()));
         for (FieldRecord record : namedRecords) {
-            bean(record).setPropertyValue("authorName", names.get(bean(record).getPropertyValue("authorId")));
-            bean(record).setPropertyValue("reviewerName", names.get(bean(record).getPropertyValue("reviewerId")));
+            if (record instanceof DailyInspection daily) daily.setAuthorName(names.get(daily.getInspectorId()));
+            else {
+                bean(record).setPropertyValue("authorName", names.get(bean(record).getPropertyValue("authorId")));
+                bean(record).setPropertyValue("reviewerName", names.get(bean(record).getPropertyValue("reviewerId")));
+            }
         }
     }
 
     private void checkVisible(FieldRecordKind kind, FieldRecord record) {
-        access.requireRead(record.getProjectId());
-        boolean own = access.currentUser().getId().equals(bean(record).getPropertyValue(kind.getAuthorField()));
-        boolean published = Set.of("approved", "recorded", "fixed").contains(record.getStatus());
-        if (!own && !published && ("draft".equals(record.getStatus()) || !access.canReview(record.getProjectId())))
-            throw new BusinessException(403, "无权查看他人的草稿或待办");
+        visibility.require(kind, record);
     }
 
     public FieldRecord create(FieldRecordKind kind, Map<String, Object> input, String requestId) {
@@ -126,18 +129,22 @@ public class FieldRecordService {
                 if (bean(record).isWritableProperty("version")) bean(record).setPropertyValue("version", 1);
                 Object source = input.get("sourceRecordId");
                 if (source != null) {
-                    FieldRecord old = get(kind, Long.valueOf(source.toString()));
-                    requireOwner(kind, old);
-                    if (!"approved".equals(old.getStatus())) throw new BusinessException(409, "只能从已审核记录建立修订稿");
+                    FieldRecord old = revisionSource(kind, Long.valueOf(source.toString()));
+                    if (kind.retainsSubmittedVersions() && nextRevision(kind, old.getId()) != null)
+                        throw new BusinessException(409, "已有后续版本，请从原记录的修订入口打开，不能重复建立同一版本");
                     if (!Objects.equals(old.getProjectId(), record.getProjectId())) throw new BusinessException(400, "修订稿不能更换项目");
+                    if (kind.retainsSubmittedVersions() && !Objects.equals(bean(old).getPropertyValue(kind.getDateField()), bean(record).getPropertyValue(kind.getDateField())))
+                        throw new BusinessException(400, "修订稿不能更换记录日期");
                     record.setSourceRecordId(old.getId());
-                    if (bean(record).isWritableProperty("version")) bean(record).setPropertyValue("version", ((Number) bean(old).getPropertyValue("version")).intValue() + 1);
+                    if (bean(record).isWritableProperty("version")) bean(record).setPropertyValue("version", businessVersion(old) + 1);
                 }
+                if (record instanceof SupervisionDiary diary) diaryReferences.lockSources(diary);
                 attachments.bind(record);
                 checkCode(kind, record, null);
                 applyRequestedStatus(kind, record, input.get("status"));
                 em.persist(record);
                 em.flush();
+                if (record instanceof SupervisionDiary diary) diaryReferences.sync(diary);
                 event(kind, record, "create", null);
                 return record;
             });
@@ -174,12 +181,18 @@ public class FieldRecordService {
         requireEditable(kind, record);
         FieldRecord candidate = candidate(kind, input, record);
         if (!Objects.equals(record.getProjectId(), candidate.getProjectId())) throw new BusinessException(400, "已有记录不能更换项目");
+        if (kind.retainsSubmittedVersions() && record.getSourceRecordId() != null
+                && !Objects.equals(bean(record).getPropertyValue(kind.getDateField()), bean(candidate).getPropertyValue(kind.getDateField())))
+            throw new BusinessException(400, "修订稿不能更换记录日期");
+        if (candidate instanceof SupervisionDiary diary) diaryReferences.lockSources(diary);
         attachments.bind(candidate);
         checkCode(kind, candidate, id);
         for (String field : kind.getFields()) bean(record).setPropertyValue(field, bean(candidate).getPropertyValue(field));
         if (record instanceof SupervisionLog log) log.setDiarySources(((SupervisionLog) candidate).getDiarySources());
         applyRequestedStatus(kind, record, input.get("status"));
         em.flush();
+        if (record instanceof SupervisionDiary diary) diaryReferences.sync(diary);
+        else if (kind.isInspection()) diaryReferences.invalidate(kind.getPath(), record, false);
         event(kind, record, "save", null);
         return record;
     }
@@ -197,6 +210,7 @@ public class FieldRecordService {
     @Transactional
     public FieldRecord approve(FieldRecordKind kind, Long id, Long version, String status, String reason) {
         FieldRecord record = locked(kind, id, version);
+        if (!kind.requiresReview()) throw new BusinessException(400, "日常巡检无需审核");
         access.requireReview(record.getProjectId());
         if (!Set.of("submitted", "pending").contains(record.getStatus())) throw new BusinessException(409, "只有已提交记录可以审核");
         if (!Set.of("approved", "rejected").contains(status)) throw new BusinessException(400, "审核状态无效");
@@ -219,8 +233,12 @@ public class FieldRecordService {
     public void delete(FieldRecordKind kind, Long id, Long version) {
         FieldRecord record = locked(kind, id, version);
         requireEditable(kind, record);
+        if (kind == FieldRecordKind.DAILY && !"draft".equals(record.getStatus()))
+            throw new BusinessException(409, "只能删除日常巡检草稿，已保存记录不可删除");
         record.setStatus("inactive");
         em.flush();
+        if (kind == FieldRecordKind.DIARY) diaryReferences.deleteDiary(id);
+        else if (kind.isInspection()) diaryReferences.invalidate(kind.getPath(), record, true);
         event(kind, record, "delete", null);
     }
 
@@ -240,7 +258,63 @@ public class FieldRecordService {
 
     private void requireEditable(FieldRecordKind kind, FieldRecord record) {
         requireOwner(kind, record);
+        if (kind.isSavedMemo(record.getStatus())) return;
+        if (kind.retainsSubmittedVersions() && !"draft".equals(record.getStatus()))
+            throw new BusinessException(409, "已提交版本已冻结，不可修改、删除或再次提交；被驳回后请建立下一版本");
         if (!Set.of("draft", "rejected").contains(record.getStatus())) throw new BusinessException(409, "记录已提交或已审核，不能直接修改；已审核记录请建立修订稿");
+    }
+
+    private int businessVersion(FieldRecord record) {
+        Object value = bean(record).isReadableProperty("version") ? bean(record).getPropertyValue("version") : null;
+        return value instanceof Number n ? Math.max(1, n.intValue()) : 1;
+    }
+
+    private FieldRecord revisionSource(FieldRecordKind kind, Long id) {
+        FieldRecord old = em.find(kind.getEntityClass(), id, LockModeType.PESSIMISTIC_WRITE);
+        checkVisible(kind, old);
+        requireOwner(kind, old);
+        if (!"approved".equals(old.getStatus()) && !(kind.retainsSubmittedVersions() && "rejected".equals(old.getStatus())))
+            throw new BusinessException(409, "只能从已审核通过或已驳回的冻结版本建立修订稿");
+        return old;
+    }
+
+    private FieldRecord nextRevision(FieldRecordKind kind, Long id) {
+        // 锁住原版本后进行当前读，跨端并发只能建立一份后续版本。
+        return em.createQuery("select r from " + kind.getEntityClass().getSimpleName()
+                        + " r where r.sourceRecordId=:id and r.status <> 'inactive' order by r.id", kind.getEntityClass())
+                .setParameter("id", id).setLockMode(LockModeType.PESSIMISTIC_WRITE).setMaxResults(1)
+                .getResultStream().findFirst().orElse(null);
+    }
+
+    @Transactional
+    public FieldRecord newVersion(FieldRecordKind kind, Long id) {
+        if (!kind.retainsSubmittedVersions()) throw new BusinessException(400, "此记录类型请使用原有工作流程");
+        FieldRecord old = revisionSource(kind, id);
+        FieldRecord next = nextRevision(kind, id);
+        if (next != null) { checkVisible(kind, next); fillDiaryNames(List.of(next)); return next; }
+        Map<String, Object> input = new LinkedHashMap<>();
+        for (String field : kind.getFields()) input.put(field, bean(old).getPropertyValue(field));
+        input.remove("code");
+        input.put("sourceRecordId", id);
+        if (old instanceof SupervisionLog log) input.put("diarySources", log.getDiarySources());
+        return create(kind, input, UUID.randomUUID().toString());
+    }
+
+    @Transactional(readOnly = true)
+    public List<FieldRecord> versions(FieldRecordKind kind, Long id) {
+        FieldRecord current = get(kind, id);
+        List<FieldRecord> result = new ArrayList<>();
+        Set<Long> seen = new HashSet<>();
+        while (current != null) {
+            if (!seen.add(current.getId()) || seen.size() > 500) throw new BusinessException(409, "版本链异常，请联系管理员核对");
+            try { checkVisible(kind, current); result.add(current); }
+            catch (BusinessException e) { if (e.getCode() != 403 && e.getCode() != 404) throw e; }
+            Long parent = current.getSourceRecordId();
+            current = parent == null ? null : em.find(kind.getEntityClass(), parent);
+        }
+        Collections.reverse(result);
+        fillDiaryNames(result);
+        return result;
     }
 
     private FieldRecord candidate(FieldRecordKind kind, Map<String, Object> input, FieldRecord previous) {
@@ -253,12 +327,25 @@ public class FieldRecordService {
         if (fields.get("code") == null || fields.get("code").toString().isBlank())
             fields.put("code", previous == null ? kind.name() + "-" + UUID.randomUUID() : bean(previous).getPropertyValue("code"));
         if (fields.get("code").toString().length() > 50) throw new BusinessException(400, "编号不能超过 50 字符");
+        if (kind == FieldRecordKind.DAILY) {
+            for (String field : List.of("workerCount", "manageCount")) {
+                Object value = fields.get(field);
+                if (value != null && !value.toString().matches("[0-9]{1,10}"))
+                    throw new BusinessException(400, "施工人数、管理人数必须为非负整数");
+            }
+        }
         try {
             Object dto = mapper.convertValue(fields, kind.getDtoClass());
             var errors = validator.validate(dto);
             if (!errors.isEmpty()) throw new BusinessException(400, errors.stream().map(v -> v.getMessage()).collect(Collectors.joining("；")));
             FieldRecord record = kind.getEntityClass().getDeclaredConstructor().newInstance();
             for (String field : kind.getFields()) bean(record).setPropertyValue(field, bean(dto).getPropertyValue(field));
+            if (record instanceof DailyInspection daily) {
+                if (daily.getStartTime() != null && daily.getEndTime() != null && !daily.getEndTime().isAfter(daily.getStartTime()))
+                    throw new BusinessException(400, "巡视结束时间必须晚于开始时间");
+                daily.setChecklist(checklists.normalize(daily.getChecklist(), previous instanceof DailyInspection old ? old.getChecklist() : null,
+                        access.currentUser().getId(), access.currentUser().getName()));
+            }
             if (record instanceof SupervisionLog log) {
                 Object source = input.containsKey("diarySources") ? input.get("diarySources") : previous instanceof SupervisionLog old ? old.getDiarySources() : null;
                 log.setDiarySources(validateSources(log, source));
@@ -276,9 +363,16 @@ public class FieldRecordService {
 
     private void applyRequestedStatus(FieldRecordKind kind, FieldRecord record, Object requested) {
         String status = requested == null ? "draft" : normalizeStatus(requested.toString());
-        if ("rejected".equals(status)) status = "draft";
-        if (!Set.of("draft", "submitted").contains(status))
-            throw new BusinessException(400, "请通过提交或审核操作改变状态");
+        if (kind == FieldRecordKind.DAILY) {
+            if (!Set.of("draft", "submitted", "recorded").contains(status))
+                throw new BusinessException(400, "日常巡检只能保存草稿或提交保存，无需审核");
+            // 已保存巡检修改原件，不因旧客户端的草稿请求而降级或退出项目可见列表。
+            if (kind.isSavedMemo(record.getStatus()) || !"draft".equals(status)) status = "recorded";
+        } else {
+            if ("rejected".equals(status)) status = "draft";
+            if (!Set.of("draft", "submitted").contains(status))
+                throw new BusinessException(400, "请通过提交或审核操作改变状态");
+        }
         if (!"draft".equals(status)) {
             String primary = kind == FieldRecordKind.DIARY ? "construction" : "content";
             Set<String> workFields = kind == FieldRecordKind.LOG
@@ -294,6 +388,11 @@ public class FieldRecordService {
             }
             if (kind.isInspection() && (bean(record).getPropertyValue("location") == null || bean(record).getPropertyValue("location").toString().isBlank()))
                 throw new BusinessException(400, "请填写检查部位");
+            if (record instanceof DailyInspection daily) {
+                if ((daily.getStartTime() == null) != (daily.getEndTime() == null))
+                    throw new BusinessException(400, "提交时请补齐巡视开始和结束时间");
+                checklists.validateForSubmit(daily.getChecklist());
+            }
             if (kind == FieldRecordKind.SIDELINE) {
                 LocalDateTime start = (LocalDateTime) bean(record).getPropertyValue("startTime");
                 LocalDateTime end = (LocalDateTime) bean(record).getPropertyValue("endTime");
@@ -351,7 +450,18 @@ public class FieldRecordService {
         List<SupervisionDiary> sources = em.createQuery("select d from SupervisionDiary d where d.projectId=:pid and d.diaryDate=:date and d.status='approved' and not exists (select revision.id from SupervisionDiary revision where revision.sourceRecordId=d.id and revision.status='approved') order by d.authorId,d.id", SupervisionDiary.class)
                 .setParameter("pid", projectId).setParameter("date", date).setMaxResults(501).getResultList();
         if (sources.size() > 500) throw new BusinessException(400, "当日日记超过 500 份，请分工核对后人工整编，不进行截断取数");
-        return sources;
+        // 审核通过的修订可能隔着被驳回的中间版本；所有已被后续通过版本替代的祖先都不再参与整编。
+        Set<Long> superseded = new HashSet<>();
+        for (SupervisionDiary diary : sources) {
+            Long parent = diary.getSourceRecordId();
+            Set<Long> seen = new HashSet<>();
+            while (parent != null && seen.add(parent)) {
+                superseded.add(parent);
+                SupervisionDiary old = em.find(SupervisionDiary.class, parent);
+                parent = old == null ? null : old.getSourceRecordId();
+            }
+        }
+        return sources.stream().filter(d -> !superseded.contains(d.getId())).toList();
     }
 
     /** 自动预填仅返回对应字段原值；不添加作者、编号、附件或来源标记。 */

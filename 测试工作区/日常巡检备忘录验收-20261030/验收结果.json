@@ -1,0 +1,1500 @@
+{
+  "results": [
+    {
+      "name": "日常巡检：新建标题正确",
+      "ok": true,
+      "detail": "新建日常巡检"
+    },
+    {
+      "name": "日常巡检：字段清单与顺序完整（日期/项目/编号/时间人数/检查部位/巡视内容/发现问题）",
+      "ok": true,
+      "detail": [
+        "inspectionDate",
+        "projectId",
+        "code",
+        "startTime",
+        "endTime",
+        "workerCount",
+        "manageCount",
+        "location",
+        "content",
+        "issues"
+      ]
+    },
+    {
+      "name": "日常巡检：检查人员按登录账号只读显示、不可手工修改",
+      "ok": true,
+      "detail": {
+        "label": "检查人员",
+        "value": "admin",
+        "hint": "按当前登录账号记录，不支持手工修改。"
+      }
+    },
+    {
+      "name": "日常巡检：日期默认当天且可填写历史日期（非只读）",
+      "ok": true,
+      "detail": {
+        "field": "inspectionDate",
+        "tag": "input",
+        "type": "date",
+        "label": "日期",
+        "star": true,
+        "starRed": true,
+        "placeholder": "",
+        "title": "",
+        "hint": "新建时默认当天，可按实际巡视日期修改。",
+        "aria": "",
+        "maxlength": null,
+        "readonly": false,
+        "w": 457,
+        "h": 44,
+        "left": 248,
+        "right": 705,
+        "value": "2026-10-30"
+      }
+    },
+    {
+      "name": "日常巡检：项目下拉可在表单中选择并生效",
+      "ok": true,
+      "detail": {
+        "picked": "3",
+        "options": 4
+      }
+    },
+    {
+      "name": "日常巡检：编号为单行输入、留空自动生成有占位提示",
+      "ok": true,
+      "detail": {
+        "placeholder": "",
+        "hint": "留空由系统生成，可按需修改。"
+      }
+    },
+    {
+      "name": "日常巡检：三个正文栏目为整行文本域并带栏目标题",
+      "ok": true,
+      "detail": [
+        {
+          "k": "location",
+          "tag": "textarea",
+          "w": 938,
+          "h": 104,
+          "label": "检查部位"
+        },
+        {
+          "k": "content",
+          "tag": "textarea",
+          "w": 938,
+          "h": 104,
+          "label": "巡视内容"
+        },
+        {
+          "k": "issues",
+          "tag": "textarea",
+          "w": 938,
+          "h": 104,
+          "label": "发现问题补充说明"
+        }
+      ]
+    },
+    {
+      "name": "日常巡检：提交必填项均有红色必填标识（检查部位、巡视内容）",
+      "ok": true,
+      "detail": {
+        "missing": []
+      }
+    },
+    {
+      "name": "日常巡检：每个正文栏目都有占位示例或填写提示",
+      "ok": true,
+      "detail": {
+        "missing": []
+      }
+    },
+    {
+      "name": "日常巡检：三个栏目逐字段输入成功并写入本机草稿",
+      "ok": true,
+      "detail": {
+        "typed": [
+          29,
+          79,
+          33
+        ],
+        "saved": true
+      }
+    },
+    {
+      "name": "日常巡检：全空提交被拒绝（提示填写实际工作内容）",
+      "ok": true,
+      "detail": {
+        "error": "请填写实际工作内容后提交",
+        "chip": "",
+        "listChip": "已保存",
+        "editorOpen": true,
+        "confirmed": false
+      }
+    },
+    {
+      "name": "日常巡检：仅填巡视内容时提交被拒绝（提示检查部位）",
+      "ok": true,
+      "detail": {
+        "error": "请填写检查部位",
+        "chip": "",
+        "listChip": "已保存",
+        "editorOpen": true,
+        "confirmed": false
+      }
+    },
+    {
+      "name": "日常巡检：保存草稿成功并生成编号、状态草稿",
+      "ok": true,
+      "detail": {
+        "title": "日常巡检 · DAILY-75684c72-16eb-4f62-97c0-f559cb3d59c5",
+        "chip": "草稿",
+        "state": "草稿并发版本 2",
+        "code": "DAILY-75684c72-16eb-4f62-97c0-f559cb3d59c5"
+      }
+    },
+    {
+      "name": "日常巡检：列表出现该草稿并显示项目/日期/状态",
+      "ok": true,
+      "detail": "DAILY-75684c72-16eb-4f62-97c0-f559cb3d59c5未录入检查项原行政办公楼装修监理项目2026-10-30admin草稿1继续编辑"
+    },
+    {
+      "name": "日常巡检：编辑回显逐字段一致",
+      "ok": true,
+      "detail": {
+        "date": "2026-10-30",
+        "lens": [
+          29,
+          79,
+          33
+        ]
+      }
+    },
+    {
+      "name": "日常巡检：补齐必填后提交即保存（无审核确认、列表显示已保存）",
+      "ok": true,
+      "detail": {
+        "error": "巡检已保存到数据列表，不进入审核。",
+        "chip": "",
+        "listChip": "已保存",
+        "editorOpen": false,
+        "confirmed": false
+      }
+    },
+    {
+      "name": "日常巡检：已保存记录未锁定，可再次编辑且不提供审核/修订入口",
+      "ok": true,
+      "detail": {
+        "chip": "已保存",
+        "editable": true,
+        "submitLabel": "保存修改",
+        "saveHidden": true,
+        "approveHidden": true,
+        "reviseHidden": true
+      }
+    },
+    {
+      "name": "日常巡检：再次打开保存修改仍为已保存且不进入审核",
+      "ok": true,
+      "detail": {
+        "chip": "已保存",
+        "error": "巡检修改已保存，可在数据列表中继续查看或再次编辑。"
+      }
+    },
+    {
+      "name": "日常巡检：CSV 表头覆盖全部字段（检查部位/巡视内容/发现问题）",
+      "ok": true,
+      "detail": "﻿\"编号\",\"项目 ID\",\"日期\",\"状态\",\"检查部位\",\"巡视开始时间\",\"巡视结束时间\",\"施工人数\",\"管理人数\",\"巡视内容\",\"发现问题补充说明\",\"检查统计\",\"检查项与问题明细\",\"照片与附件名称\""
+    },
+    {
+      "name": "日常巡检：CSV 行内容与本记录一致",
+      "ok": true,
+      "detail": {
+        "suggested": "日常巡检-2026-10-30.csv",
+        "bytes": 3745
+      }
+    },
+    {
+      "name": "日常巡检：关闭不保存时列表不新增记录且本机暂存已丢弃",
+      "ok": true,
+      "detail": {
+        "beforeClose": 10,
+        "afterClose": {
+          "rows": 10,
+          "local": 0,
+          "drafts": 0
+        }
+      }
+    },
+    {
+      "name": "日常巡检：375 宽下逐字段单列、无横向溢出",
+      "ok": true,
+      "detail": {
+        "vw": 375,
+        "overflow": 0,
+        "bad": []
+      }
+    },
+    {
+      "name": "日常巡检：768 宽下逐字段单列且不超屏",
+      "ok": true,
+      "detail": [
+        {
+          "f": "inspectionDate",
+          "w": 730,
+          "right": 746
+        },
+        {
+          "f": "projectId",
+          "w": 730,
+          "right": 746
+        },
+        {
+          "f": "code",
+          "w": 730,
+          "right": 746
+        },
+        {
+          "f": "startTime",
+          "w": 730,
+          "right": 746
+        },
+        {
+          "f": "endTime",
+          "w": 730,
+          "right": 746
+        },
+        {
+          "f": "workerCount",
+          "w": 730,
+          "right": 746
+        },
+        {
+          "f": "manageCount",
+          "w": 730,
+          "right": 746
+        },
+        {
+          "f": "location",
+          "w": 730,
+          "right": 746
+        },
+        {
+          "f": "content",
+          "w": 730,
+          "right": 746
+        },
+        {
+          "f": "issues",
+          "w": 730,
+          "right": 746
+        }
+      ]
+    },
+    {
+      "name": "日常巡检：320 宽下逐字段单列、无横向溢出",
+      "ok": true,
+      "detail": {
+        "vw": 320,
+        "overflow": 0,
+        "bad": []
+      }
+    },
+    {
+      "name": "旁站检查：新建标题正确",
+      "ok": true,
+      "detail": "新建旁站检查"
+    },
+    {
+      "name": "旁站检查：字段清单与顺序完整（10 个业务字段 + 日期/项目/编号）",
+      "ok": true,
+      "detail": [
+        "inspectionDate",
+        "projectId",
+        "code",
+        "location",
+        "process",
+        "startTime",
+        "endTime",
+        "manageCount",
+        "workerCount",
+        "result",
+        "docsText",
+        "issuesText",
+        "content"
+      ]
+    },
+    {
+      "name": "旁站检查：旁站人员按登录账号只读显示",
+      "ok": true,
+      "detail": {
+        "label": "旁站人员",
+        "value": "admin",
+        "hint": "按当前登录账号记录，不支持手工修改。"
+      }
+    },
+    {
+      "name": "旁站检查：日期默认当天、项目可在表单中选择、编号有自动生成提示",
+      "ok": true,
+      "detail": {
+        "date": "2026-10-30",
+        "project": {
+          "picked": "3",
+          "options": 4
+        },
+        "code": ""
+      }
+    },
+    {
+      "name": "旁站检查：八个必填字段均带必填标识",
+      "ok": true,
+      "detail": {
+        "missing": []
+      }
+    },
+    {
+      "name": "旁站检查：必填标识与其它字段统一为红色星号（而非写在标题文字里）",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "旁站检查：每个业务字段都有占位示例或填写提示",
+      "ok": true,
+      "detail": {
+        "missing": []
+      }
+    },
+    {
+      "name": "旁站检查：时间与人数使用单行输入框（非 128px 多行文本域）",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "旁站检查：缺少开始/结束时间时提交被拒绝",
+      "ok": true,
+      "detail": {
+        "error": "旁站结束时间必须晚于开始时间",
+        "chip": "",
+        "listChip": "已提交（待审核）",
+        "editorOpen": true,
+        "confirmed": true
+      }
+    },
+    {
+      "name": "旁站检查：结束时间等于开始时间时提交被拒绝",
+      "ok": true,
+      "detail": {
+        "error": "旁站结束时间必须晚于开始时间",
+        "chip": "",
+        "listChip": "已提交（待审核）",
+        "editorOpen": true,
+        "confirmed": true
+      }
+    },
+    {
+      "name": "旁站检查：结束时间早于开始时间时提交被拒绝",
+      "ok": true,
+      "detail": {
+        "error": "旁站结束时间必须晚于开始时间",
+        "chip": "",
+        "listChip": "已提交（待审核）",
+        "editorOpen": true,
+        "confirmed": true
+      }
+    },
+    {
+      "name": "旁站检查：时间格式不规范时给出可理解的格式提示",
+      "ok": true,
+      "detail": {
+        "error": "字段格式不正确，请检查日期和时间",
+        "chip": "",
+        "listChip": "已提交（待审核）",
+        "editorOpen": true,
+        "confirmed": true
+      }
+    },
+    {
+      "name": "旁站检查：缺旁站工序/结果/人员数量/关联资料时被拒绝",
+      "ok": true,
+      "detail": {
+        "error": "请填写旁站工序、结果、关联资料和非负整数人员数量",
+        "chip": "",
+        "listChip": "已提交（待审核）",
+        "editorOpen": true,
+        "confirmed": true
+      }
+    },
+    {
+      "name": "旁站检查：管理人员数填非数字时被拒绝",
+      "ok": true,
+      "detail": {
+        "error": "请填写旁站工序、结果、关联资料和非负整数人员数量",
+        "chip": "",
+        "listChip": "已提交（待审核）",
+        "editorOpen": true,
+        "confirmed": true
+      }
+    },
+    {
+      "name": "旁站检查：人员数为负数时被拒绝",
+      "ok": true,
+      "detail": {
+        "error": "请填写旁站工序、结果、关联资料和非负整数人员数量",
+        "chip": "",
+        "listChip": "已提交（待审核）",
+        "editorOpen": true,
+        "confirmed": true
+      }
+    },
+    {
+      "name": "旁站检查：关联工程资料为空时被拒绝",
+      "ok": true,
+      "detail": {
+        "error": "请填写旁站工序、结果、关联资料和非负整数人员数量",
+        "chip": "",
+        "listChip": "已提交（待审核）",
+        "editorOpen": true,
+        "confirmed": true
+      }
+    },
+    {
+      "name": "旁站检查：补全后保存草稿成功并生成编号",
+      "ok": true,
+      "detail": {
+        "title": "旁站检查 · SIDELINE-27d229b3-2462-4c1e-8b5f-a30a7e0b5b27",
+        "chip": "草稿",
+        "state": "草稿并发版本 7",
+        "code": "SIDELINE-27d229b3-2462-4c1e-8b5f-a30a7e0b5b27"
+      }
+    },
+    {
+      "name": "旁站检查：草稿回显十个业务字段逐字段一致（含换行资料清单）",
+      "ok": true,
+      "detail": {
+        "location": "2 号楼 3 层顶板梁板钢筋隐蔽工程",
+        "process": "梁板钢筋绑扎隐蔽验收旁站",
+        "start": "2026-10-29 08:00:00",
+        "end": "2026-10-29 11:30:00",
+        "manage": "3",
+        "worker": "12",
+        "result": "钢筋规格、间距、锚固长度及保护层厚度符合设计图纸与规范要求，同意进入下道工序",
+        "docs": "钢筋进场复验报告 GJ-2026-031\n隐蔽工程验收记录 YS-2026-079",
+        "issues": "无",
+        "content": "旁站期间无异常情况，见证取样混凝土试块 2 组。"
+      }
+    },
+    {
+      "name": "旁站检查：补全后提交成功、状态待审核并锁定正文",
+      "ok": true,
+      "detail": {
+        "chip": "已提交（待审核）",
+        "saveHidden": true,
+        "readonly": true,
+        "notice": "服务器已确认提交审核，正文已锁定；可在列表“已提交（待审核）”中查看。"
+      }
+    },
+    {
+      "name": "旁站检查：CSV 表头覆盖十个业务字段且不暴露内部 JSON",
+      "ok": true,
+      "detail": {
+        "missingHeaders": [],
+        "json": false
+      }
+    },
+    {
+      "name": "旁站检查：CSV 行含工序/结果/资料清单",
+      "ok": true,
+      "detail": "\"SIDELINE-27d229b3-2462-4c1e-8b5f-a30a7e0b5b27\",\"3\",\"2026-10-30\",\"submitted\",\"2 号楼 3 层顶板梁板钢筋隐蔽工程\",\"梁板钢筋绑扎隐蔽验收旁站\",\"2026-10-29 08:00:00\",\"2026-10-29 11:30:00\",\"3\",\"12\",\"钢筋规格、间距、锚固长度及保护层厚度符合设计图纸与规范要求，同意进入下道工序\",\"钢筋进场复验报告 GJ-2026-031\n隐蔽工程验收记录 YS-2026-079\",\"无\",\"旁站期间无异常情况，见证取样混凝土试块 2 组。\""
+    },
+    {
+      "name": "旁站检查：CSV 时间列保持 YYYY-MM-DD HH:mm:ss 格式",
+      "ok": true,
+      "detail": "2026-10-29 08:00:00"
+    },
+    {
+      "name": "旁站检查：768 宽下逐字段单列且不超屏",
+      "ok": true,
+      "detail": [
+        {
+          "f": "inspectionDate",
+          "w": 730,
+          "right": 746
+        },
+        {
+          "f": "projectId",
+          "w": 730,
+          "right": 746
+        },
+        {
+          "f": "code",
+          "w": 730,
+          "right": 746
+        },
+        {
+          "f": "location",
+          "w": 730,
+          "right": 746
+        },
+        {
+          "f": "process",
+          "w": 730,
+          "right": 746
+        },
+        {
+          "f": "startTime",
+          "w": 730,
+          "right": 746
+        },
+        {
+          "f": "endTime",
+          "w": 730,
+          "right": 746
+        },
+        {
+          "f": "manageCount",
+          "w": 730,
+          "right": 746
+        },
+        {
+          "f": "workerCount",
+          "w": 730,
+          "right": 746
+        },
+        {
+          "f": "result",
+          "w": 730,
+          "right": 746
+        },
+        {
+          "f": "docsText",
+          "w": 730,
+          "right": 746
+        },
+        {
+          "f": "issuesText",
+          "w": 730,
+          "right": 746
+        },
+        {
+          "f": "content",
+          "w": 730,
+          "right": 746
+        }
+      ]
+    },
+    {
+      "name": "旁站检查：320 宽下逐字段单列、无横向溢出",
+      "ok": true,
+      "detail": {
+        "vw": 320,
+        "overflow": 0,
+        "bad": []
+      }
+    },
+    {
+      "name": "两个页面无业务控制台错误",
+      "ok": true,
+      "detail": []
+    }
+  ],
+  "consoleErrors": [],
+  "downloads": [
+    {
+      "frameId": "6972970217CBA58BF6B56FF667668CF0",
+      "guid": "a728c413-6f79-44e1-909e-a3be4633dddc",
+      "url": "blob:http://localhost:18091/819afced-3cb1-4745-b8b0-1c8096c88f01",
+      "suggestedFilename": "日常巡检-2026-10-30.csv"
+    },
+    {
+      "frameId": "6972970217CBA58BF6B56FF667668CF0",
+      "guid": "7b43c53e-bb6d-482a-832a-aee5805911c5",
+      "url": "blob:http://localhost:18091/5eab20ab-1b67-4f05-8640-ceddfbdd331f",
+      "suggestedFilename": "旁站检查-2026-10-30.csv"
+    }
+  ],
+  "matrices": {
+    "daily": [
+      {
+        "field": "inspectionDate",
+        "tag": "input",
+        "type": "date",
+        "label": "日期",
+        "star": true,
+        "starRed": true,
+        "placeholder": "",
+        "title": "",
+        "hint": "新建时默认当天，可按实际巡视日期修改。",
+        "aria": "",
+        "maxlength": null,
+        "readonly": false,
+        "w": 457,
+        "h": 44,
+        "left": 248,
+        "right": 705,
+        "value": "2026-10-30"
+      },
+      {
+        "field": "projectId",
+        "tag": "select",
+        "type": "select-one",
+        "label": "项目名称",
+        "star": true,
+        "starRed": true,
+        "placeholder": "",
+        "title": "",
+        "hint": "从获授权项目中选择本次填报项目。",
+        "aria": "",
+        "maxlength": null,
+        "readonly": false,
+        "w": 457,
+        "h": 44,
+        "left": 729,
+        "right": 1186,
+        "value": ""
+      },
+      {
+        "field": "code",
+        "tag": "input",
+        "type": "text",
+        "label": "编号",
+        "star": false,
+        "starRed": false,
+        "placeholder": "",
+        "title": "",
+        "hint": "留空由系统生成，可按需修改。",
+        "aria": "",
+        "maxlength": "60",
+        "readonly": false,
+        "w": 457,
+        "h": 44,
+        "left": 729,
+        "right": 1186,
+        "value": ""
+      },
+      {
+        "field": "startTime",
+        "tag": "input",
+        "type": "datetime-local",
+        "label": "巡视开始时间",
+        "star": false,
+        "starRed": false,
+        "placeholder": "",
+        "title": "",
+        "hint": "可选；提交时若填写一个时间，需补齐另一个。草稿可只记录开始时间。",
+        "aria": "",
+        "maxlength": null,
+        "readonly": false,
+        "w": 457,
+        "h": 44,
+        "left": 248,
+        "right": 705,
+        "value": ""
+      },
+      {
+        "field": "endTime",
+        "tag": "input",
+        "type": "datetime-local",
+        "label": "巡视结束时间",
+        "star": false,
+        "starRed": false,
+        "placeholder": "",
+        "title": "",
+        "hint": "可选；结束时间须晚于开始时间。",
+        "aria": "",
+        "maxlength": null,
+        "readonly": false,
+        "w": 457,
+        "h": 44,
+        "left": 729,
+        "right": 1186,
+        "value": ""
+      },
+      {
+        "field": "workerCount",
+        "tag": "input",
+        "type": "number",
+        "label": "施工人数",
+        "star": false,
+        "starRed": false,
+        "placeholder": "",
+        "title": "",
+        "hint": "可选，填写现场施工人数；0 表示无人，留空表示未记录。",
+        "aria": "",
+        "maxlength": null,
+        "readonly": false,
+        "w": 457,
+        "h": 44,
+        "left": 248,
+        "right": 705,
+        "value": ""
+      },
+      {
+        "field": "manageCount",
+        "tag": "input",
+        "type": "number",
+        "label": "管理人数",
+        "star": false,
+        "starRed": false,
+        "placeholder": "",
+        "title": "",
+        "hint": "可选，填写现场管理人数，须为非负整数。",
+        "aria": "",
+        "maxlength": null,
+        "readonly": false,
+        "w": 457,
+        "h": 44,
+        "left": 729,
+        "right": 1186,
+        "value": ""
+      },
+      {
+        "field": "location",
+        "tag": "textarea",
+        "type": "textarea",
+        "label": "检查部位",
+        "star": true,
+        "starRed": true,
+        "placeholder": "例：3 号楼 5 层东侧模板支撑区（轴线 A~C / 1~3）",
+        "title": "",
+        "hint": "写明楼栋、楼层、轴线或区段，便于复查问题。",
+        "aria": "",
+        "maxlength": "60000",
+        "readonly": false,
+        "w": 938,
+        "h": 104,
+        "left": 248,
+        "right": 1186,
+        "value": ""
+      },
+      {
+        "field": "content",
+        "tag": "textarea",
+        "type": "textarea",
+        "label": "巡视内容",
+        "star": true,
+        "starRed": true,
+        "placeholder": "例：上午 9:00 巡视 5 层模板支撑体系，立杆间距、扫地杆、剪刀撑符合专项方案；抽查 12 处扣件扭矩全部合格。",
+        "title": "",
+        "hint": "按时间顺序记录巡视部位、检查内容与结果；具体问题可在检查项中单独记录。",
+        "aria": "",
+        "maxlength": "60000",
+        "readonly": false,
+        "w": 938,
+        "h": 104,
+        "left": 248,
+        "right": 1186,
+        "value": ""
+      },
+      {
+        "field": "issues",
+        "tag": "textarea",
+        "type": "textarea",
+        "label": "发现问题补充说明",
+        "star": false,
+        "starRed": false,
+        "placeholder": "例：3 根立杆底部垫板缺失，已通知施工班组补齐，下午复查合格。",
+        "title": "",
+        "hint": "记录问题类别、部位、已采取措施、责任人与复查结果；无问题请填“无”。",
+        "aria": "",
+        "maxlength": "60000",
+        "readonly": false,
+        "w": 938,
+        "h": 104,
+        "left": 248,
+        "right": 1186,
+        "value": ""
+      }
+    ],
+    "daily320": [
+      {
+        "field": "inspectionDate",
+        "tag": "input",
+        "type": "date",
+        "label": "日期",
+        "star": true,
+        "starRed": true,
+        "placeholder": "",
+        "title": "",
+        "hint": "新建时默认当天，可按实际巡视日期修改。",
+        "aria": "",
+        "maxlength": null,
+        "readonly": false,
+        "w": 282,
+        "h": 44,
+        "left": 16,
+        "right": 298,
+        "value": "2026-10-30"
+      },
+      {
+        "field": "projectId",
+        "tag": "select",
+        "type": "select-one",
+        "label": "项目名称",
+        "star": true,
+        "starRed": true,
+        "placeholder": "",
+        "title": "",
+        "hint": "从获授权项目中选择本次填报项目。",
+        "aria": "",
+        "maxlength": null,
+        "readonly": false,
+        "w": 282,
+        "h": 44,
+        "left": 16,
+        "right": 298,
+        "value": ""
+      },
+      {
+        "field": "code",
+        "tag": "input",
+        "type": "text",
+        "label": "编号",
+        "star": false,
+        "starRed": false,
+        "placeholder": "",
+        "title": "",
+        "hint": "留空由系统生成，可按需修改。",
+        "aria": "",
+        "maxlength": "60",
+        "readonly": false,
+        "w": 282,
+        "h": 44,
+        "left": 16,
+        "right": 298,
+        "value": ""
+      },
+      {
+        "field": "startTime",
+        "tag": "input",
+        "type": "datetime-local",
+        "label": "巡视开始时间",
+        "star": false,
+        "starRed": false,
+        "placeholder": "",
+        "title": "",
+        "hint": "可选；提交时若填写一个时间，需补齐另一个。草稿可只记录开始时间。",
+        "aria": "",
+        "maxlength": null,
+        "readonly": false,
+        "w": 282,
+        "h": 44,
+        "left": 16,
+        "right": 298,
+        "value": ""
+      },
+      {
+        "field": "endTime",
+        "tag": "input",
+        "type": "datetime-local",
+        "label": "巡视结束时间",
+        "star": false,
+        "starRed": false,
+        "placeholder": "",
+        "title": "",
+        "hint": "可选；结束时间须晚于开始时间。",
+        "aria": "",
+        "maxlength": null,
+        "readonly": false,
+        "w": 282,
+        "h": 44,
+        "left": 16,
+        "right": 298,
+        "value": ""
+      },
+      {
+        "field": "workerCount",
+        "tag": "input",
+        "type": "number",
+        "label": "施工人数",
+        "star": false,
+        "starRed": false,
+        "placeholder": "",
+        "title": "",
+        "hint": "可选，填写现场施工人数；0 表示无人，留空表示未记录。",
+        "aria": "",
+        "maxlength": null,
+        "readonly": false,
+        "w": 282,
+        "h": 44,
+        "left": 16,
+        "right": 298,
+        "value": ""
+      },
+      {
+        "field": "manageCount",
+        "tag": "input",
+        "type": "number",
+        "label": "管理人数",
+        "star": false,
+        "starRed": false,
+        "placeholder": "",
+        "title": "",
+        "hint": "可选，填写现场管理人数，须为非负整数。",
+        "aria": "",
+        "maxlength": null,
+        "readonly": false,
+        "w": 282,
+        "h": 44,
+        "left": 16,
+        "right": 298,
+        "value": ""
+      },
+      {
+        "field": "location",
+        "tag": "textarea",
+        "type": "textarea",
+        "label": "检查部位",
+        "star": true,
+        "starRed": true,
+        "placeholder": "例：3 号楼 5 层东侧模板支撑区（轴线 A~C / 1~3）",
+        "title": "",
+        "hint": "写明楼栋、楼层、轴线或区段，便于复查问题。",
+        "aria": "",
+        "maxlength": "60000",
+        "readonly": false,
+        "w": 282,
+        "h": 104,
+        "left": 16,
+        "right": 298,
+        "value": ""
+      },
+      {
+        "field": "content",
+        "tag": "textarea",
+        "type": "textarea",
+        "label": "巡视内容",
+        "star": true,
+        "starRed": true,
+        "placeholder": "例：上午 9:00 巡视 5 层模板支撑体系，立杆间距、扫地杆、剪刀撑符合专项方案；抽查 12 处扣件扭矩全部合格。",
+        "title": "",
+        "hint": "按时间顺序记录巡视部位、检查内容与结果；具体问题可在检查项中单独记录。",
+        "aria": "",
+        "maxlength": "60000",
+        "readonly": false,
+        "w": 282,
+        "h": 104,
+        "left": 16,
+        "right": 298,
+        "value": ""
+      },
+      {
+        "field": "issues",
+        "tag": "textarea",
+        "type": "textarea",
+        "label": "发现问题补充说明",
+        "star": false,
+        "starRed": false,
+        "placeholder": "例：3 根立杆底部垫板缺失，已通知施工班组补齐，下午复查合格。",
+        "title": "",
+        "hint": "记录问题类别、部位、已采取措施、责任人与复查结果；无问题请填“无”。",
+        "aria": "",
+        "maxlength": "60000",
+        "readonly": false,
+        "w": 282,
+        "h": 104,
+        "left": 16,
+        "right": 298,
+        "value": ""
+      }
+    ],
+    "sideline": [
+      {
+        "field": "inspectionDate",
+        "tag": "input",
+        "type": "date",
+        "label": "日期",
+        "star": true,
+        "starRed": true,
+        "placeholder": "",
+        "title": "",
+        "hint": "新建时默认当天，可按实际旁站日期修改。",
+        "aria": "",
+        "maxlength": null,
+        "readonly": false,
+        "w": 457,
+        "h": 44,
+        "left": 248,
+        "right": 705,
+        "value": "2026-10-30"
+      },
+      {
+        "field": "projectId",
+        "tag": "select",
+        "type": "select-one",
+        "label": "项目名称",
+        "star": true,
+        "starRed": true,
+        "placeholder": "",
+        "title": "",
+        "hint": "从获授权项目中选择本次填报项目。",
+        "aria": "",
+        "maxlength": null,
+        "readonly": false,
+        "w": 457,
+        "h": 44,
+        "left": 729,
+        "right": 1186,
+        "value": ""
+      },
+      {
+        "field": "code",
+        "tag": "input",
+        "type": "text",
+        "label": "编号",
+        "star": false,
+        "starRed": false,
+        "placeholder": "",
+        "title": "",
+        "hint": "留空由系统生成，可按需修改。",
+        "aria": "",
+        "maxlength": "60",
+        "readonly": false,
+        "w": 457,
+        "h": 44,
+        "left": 729,
+        "right": 1186,
+        "value": ""
+      },
+      {
+        "field": "location",
+        "tag": "textarea",
+        "type": "textarea",
+        "label": "旁站部位",
+        "star": true,
+        "starRed": true,
+        "placeholder": "例：2 号楼 3 层顶板梁板钢筋隐蔽工程",
+        "title": "",
+        "hint": "填写旁站的具体部位，如“2 号楼 3 层顶板梁板钢筋”。",
+        "aria": "",
+        "maxlength": "60000",
+        "readonly": false,
+        "w": 938,
+        "h": 104,
+        "left": 248,
+        "right": 1186,
+        "value": ""
+      },
+      {
+        "field": "process",
+        "tag": "textarea",
+        "type": "textarea",
+        "label": "旁站工序",
+        "star": true,
+        "starRed": true,
+        "placeholder": "例：梁板钢筋绑扎隐蔽验收旁站",
+        "title": "",
+        "hint": "填写本次旁站的工序名称，如“梁板钢筋绑扎隐蔽验收”。",
+        "aria": "",
+        "maxlength": "60000",
+        "readonly": false,
+        "w": 938,
+        "h": 104,
+        "left": 248,
+        "right": 1186,
+        "value": ""
+      },
+      {
+        "field": "startTime",
+        "tag": "input",
+        "type": "text",
+        "label": "开始时间（YYYY-MM-DD HH:mm:ss）",
+        "star": true,
+        "starRed": true,
+        "placeholder": "例：2026-10-29 08:00:00",
+        "title": "",
+        "hint": "格式 YYYY-MM-DD HH:mm:ss，须早于结束时间。",
+        "aria": "",
+        "maxlength": "60",
+        "readonly": false,
+        "w": 457,
+        "h": 44,
+        "left": 248,
+        "right": 705,
+        "value": ""
+      },
+      {
+        "field": "endTime",
+        "tag": "input",
+        "type": "text",
+        "label": "结束时间（YYYY-MM-DD HH:mm:ss）",
+        "star": true,
+        "starRed": true,
+        "placeholder": "例：2026-10-29 11:30:00",
+        "title": "",
+        "hint": "格式 YYYY-MM-DD HH:mm:ss，须晚于开始时间。",
+        "aria": "",
+        "maxlength": "60",
+        "readonly": false,
+        "w": 457,
+        "h": 44,
+        "left": 729,
+        "right": 1186,
+        "value": ""
+      },
+      {
+        "field": "manageCount",
+        "tag": "input",
+        "type": "text",
+        "label": "施工管理人员数（非负整数）",
+        "star": true,
+        "starRed": true,
+        "placeholder": "例：3",
+        "title": "",
+        "hint": "填写现场施工单位管理人员实际人数，非负整数。",
+        "aria": "",
+        "maxlength": "60",
+        "readonly": false,
+        "w": 457,
+        "h": 44,
+        "left": 248,
+        "right": 705,
+        "value": ""
+      },
+      {
+        "field": "workerCount",
+        "tag": "input",
+        "type": "text",
+        "label": "施工人员数（非负整数）",
+        "star": true,
+        "starRed": true,
+        "placeholder": "例：12",
+        "title": "",
+        "hint": "填写现场施工人员实际人数，非负整数。",
+        "aria": "",
+        "maxlength": "60",
+        "readonly": false,
+        "w": 457,
+        "h": 44,
+        "left": 729,
+        "right": 1186,
+        "value": ""
+      },
+      {
+        "field": "result",
+        "tag": "textarea",
+        "type": "textarea",
+        "label": "旁站结果",
+        "star": true,
+        "starRed": true,
+        "placeholder": "例：钢筋规格、间距、锚固长度及保护层厚度符合设计要求，同意进入下道工序。",
+        "title": "",
+        "hint": "写明检查结论，是否同意进入下道工序。",
+        "aria": "",
+        "maxlength": "60000",
+        "readonly": false,
+        "w": 938,
+        "h": 104,
+        "left": 248,
+        "right": 1186,
+        "value": ""
+      },
+      {
+        "field": "docsText",
+        "tag": "textarea",
+        "type": "textarea",
+        "label": "关联工程资料编号 / 名称（每行一项）",
+        "star": true,
+        "starRed": true,
+        "placeholder": "例：钢筋进场复验报告 GJ-2026-031\n例：隐蔽工程验收记录 YS-2026-079",
+        "title": "",
+        "hint": "每行一项，可填资料编号或名称；提交至少需要一项。",
+        "aria": "",
+        "maxlength": "60000",
+        "readonly": false,
+        "w": 938,
+        "h": 104,
+        "left": 248,
+        "right": 1186,
+        "value": ""
+      },
+      {
+        "field": "issuesText",
+        "tag": "textarea",
+        "type": "textarea",
+        "label": "发现问题及处理情况",
+        "star": false,
+        "starRed": false,
+        "placeholder": "例：无异常；或写明问题、处理措施与复查结果。",
+        "title": "",
+        "hint": "记录旁站期间发现的问题及处理情况；无问题请填“无”。",
+        "aria": "",
+        "maxlength": "60000",
+        "readonly": false,
+        "w": 938,
+        "h": 104,
+        "left": 248,
+        "right": 1186,
+        "value": ""
+      },
+      {
+        "field": "content",
+        "tag": "textarea",
+        "type": "textarea",
+        "label": "其他旁站记录",
+        "star": false,
+        "starRed": false,
+        "placeholder": "例：旁站期间无异常，见证取样混凝土试块 2 组。",
+        "title": "",
+        "hint": "补充旁站过程、见证取样等需要说明的情况。",
+        "aria": "",
+        "maxlength": "60000",
+        "readonly": false,
+        "w": 938,
+        "h": 104,
+        "left": 248,
+        "right": 1186,
+        "value": ""
+      }
+    ],
+    "sideline320": [
+      {
+        "field": "inspectionDate",
+        "tag": "input",
+        "type": "date",
+        "label": "日期",
+        "star": true,
+        "starRed": true,
+        "placeholder": "",
+        "title": "",
+        "hint": "新建时默认当天，可按实际旁站日期修改。",
+        "aria": "",
+        "maxlength": null,
+        "readonly": false,
+        "w": 282,
+        "h": 44,
+        "left": 16,
+        "right": 298,
+        "value": "2026-10-30"
+      },
+      {
+        "field": "projectId",
+        "tag": "select",
+        "type": "select-one",
+        "label": "项目名称",
+        "star": true,
+        "starRed": true,
+        "placeholder": "",
+        "title": "",
+        "hint": "从获授权项目中选择本次填报项目。",
+        "aria": "",
+        "maxlength": null,
+        "readonly": false,
+        "w": 282,
+        "h": 44,
+        "left": 16,
+        "right": 298,
+        "value": ""
+      },
+      {
+        "field": "code",
+        "tag": "input",
+        "type": "text",
+        "label": "编号",
+        "star": false,
+        "starRed": false,
+        "placeholder": "",
+        "title": "",
+        "hint": "留空由系统生成，可按需修改。",
+        "aria": "",
+        "maxlength": "60",
+        "readonly": false,
+        "w": 282,
+        "h": 44,
+        "left": 16,
+        "right": 298,
+        "value": ""
+      },
+      {
+        "field": "location",
+        "tag": "textarea",
+        "type": "textarea",
+        "label": "旁站部位",
+        "star": true,
+        "starRed": true,
+        "placeholder": "例：2 号楼 3 层顶板梁板钢筋隐蔽工程",
+        "title": "",
+        "hint": "填写旁站的具体部位，如“2 号楼 3 层顶板梁板钢筋”。",
+        "aria": "",
+        "maxlength": "60000",
+        "readonly": false,
+        "w": 282,
+        "h": 104,
+        "left": 16,
+        "right": 298,
+        "value": ""
+      },
+      {
+        "field": "process",
+        "tag": "textarea",
+        "type": "textarea",
+        "label": "旁站工序",
+        "star": true,
+        "starRed": true,
+        "placeholder": "例：梁板钢筋绑扎隐蔽验收旁站",
+        "title": "",
+        "hint": "填写本次旁站的工序名称，如“梁板钢筋绑扎隐蔽验收”。",
+        "aria": "",
+        "maxlength": "60000",
+        "readonly": false,
+        "w": 282,
+        "h": 104,
+        "left": 16,
+        "right": 298,
+        "value": ""
+      },
+      {
+        "field": "startTime",
+        "tag": "input",
+        "type": "text",
+        "label": "开始时间（YYYY-MM-DD HH:mm:ss）",
+        "star": true,
+        "starRed": true,
+        "placeholder": "例：2026-10-29 08:00:00",
+        "title": "",
+        "hint": "格式 YYYY-MM-DD HH:mm:ss，须早于结束时间。",
+        "aria": "",
+        "maxlength": "60",
+        "readonly": false,
+        "w": 282,
+        "h": 44,
+        "left": 16,
+        "right": 298,
+        "value": ""
+      },
+      {
+        "field": "endTime",
+        "tag": "input",
+        "type": "text",
+        "label": "结束时间（YYYY-MM-DD HH:mm:ss）",
+        "star": true,
+        "starRed": true,
+        "placeholder": "例：2026-10-29 11:30:00",
+        "title": "",
+        "hint": "格式 YYYY-MM-DD HH:mm:ss，须晚于开始时间。",
+        "aria": "",
+        "maxlength": "60",
+        "readonly": false,
+        "w": 282,
+        "h": 44,
+        "left": 16,
+        "right": 298,
+        "value": ""
+      },
+      {
+        "field": "manageCount",
+        "tag": "input",
+        "type": "text",
+        "label": "施工管理人员数（非负整数）",
+        "star": true,
+        "starRed": true,
+        "placeholder": "例：3",
+        "title": "",
+        "hint": "填写现场施工单位管理人员实际人数，非负整数。",
+        "aria": "",
+        "maxlength": "60",
+        "readonly": false,
+        "w": 282,
+        "h": 44,
+        "left": 16,
+        "right": 298,
+        "value": ""
+      },
+      {
+        "field": "workerCount",
+        "tag": "input",
+        "type": "text",
+        "label": "施工人员数（非负整数）",
+        "star": true,
+        "starRed": true,
+        "placeholder": "例：12",
+        "title": "",
+        "hint": "填写现场施工人员实际人数，非负整数。",
+        "aria": "",
+        "maxlength": "60",
+        "readonly": false,
+        "w": 282,
+        "h": 44,
+        "left": 16,
+        "right": 298,
+        "value": ""
+      },
+      {
+        "field": "result",
+        "tag": "textarea",
+        "type": "textarea",
+        "label": "旁站结果",
+        "star": true,
+        "starRed": true,
+        "placeholder": "例：钢筋规格、间距、锚固长度及保护层厚度符合设计要求，同意进入下道工序。",
+        "title": "",
+        "hint": "写明检查结论，是否同意进入下道工序。",
+        "aria": "",
+        "maxlength": "60000",
+        "readonly": false,
+        "w": 282,
+        "h": 104,
+        "left": 16,
+        "right": 298,
+        "value": ""
+      },
+      {
+        "field": "docsText",
+        "tag": "textarea",
+        "type": "textarea",
+        "label": "关联工程资料编号 / 名称（每行一项）",
+        "star": true,
+        "starRed": true,
+        "placeholder": "例：钢筋进场复验报告 GJ-2026-031\n例：隐蔽工程验收记录 YS-2026-079",
+        "title": "",
+        "hint": "每行一项，可填资料编号或名称；提交至少需要一项。",
+        "aria": "",
+        "maxlength": "60000",
+        "readonly": false,
+        "w": 282,
+        "h": 104,
+        "left": 16,
+        "right": 298,
+        "value": ""
+      },
+      {
+        "field": "issuesText",
+        "tag": "textarea",
+        "type": "textarea",
+        "label": "发现问题及处理情况",
+        "star": false,
+        "starRed": false,
+        "placeholder": "例：无异常；或写明问题、处理措施与复查结果。",
+        "title": "",
+        "hint": "记录旁站期间发现的问题及处理情况；无问题请填“无”。",
+        "aria": "",
+        "maxlength": "60000",
+        "readonly": false,
+        "w": 282,
+        "h": 104,
+        "left": 16,
+        "right": 298,
+        "value": ""
+      },
+      {
+        "field": "content",
+        "tag": "textarea",
+        "type": "textarea",
+        "label": "其他旁站记录",
+        "star": false,
+        "starRed": false,
+        "placeholder": "例：旁站期间无异常，见证取样混凝土试块 2 组。",
+        "title": "",
+        "hint": "补充旁站过程、见证取样等需要说明的情况。",
+        "aria": "",
+        "maxlength": "60000",
+        "readonly": false,
+        "w": 282,
+        "h": 104,
+        "left": 16,
+        "right": 298,
+        "value": ""
+      }
+    ]
+  }
+}

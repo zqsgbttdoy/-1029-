@@ -8,9 +8,8 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; background: #F0F5FF; color: #1F2937; display: flex; min-height: 100vh; }
         .sidebar { width: 240px; background: linear-gradient(180deg, #1E3A5F 0%, #0F2440 100%); color: #fff; position: fixed; top: 0; left: 0; bottom: 0; z-index: 100; overflow-y: auto; }
-        .sidebar-logo { padding: 20px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
-        .sidebar-logo h2 { font-size: 16px; font-weight: 600; letter-spacing: 1px; }
-        .sidebar-logo p { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 4px; }
+        .sidebar-logo { padding: 22px 16px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .sidebar-logo h2 { font-size: 17px; font-weight: 600; letter-spacing: 2px; }
         .menu-group { padding: 8px 0; }
         .menu-group-title { padding: 10px 20px 6px; font-size: 11px; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 1px; }
         .menu-item { display: flex; align-items: center; padding: 10px 20px; color: rgba(255,255,255,0.7); text-decoration: none; font-size: 13px; transition: all 0.2s; cursor: pointer; }
@@ -301,7 +300,8 @@
         .vc-photo-viewer .vc-viewer-close { position: absolute; top: 20px; right: 20px; width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,0.2); color: #fff; font-size: 18px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
         .vc-photo-viewer .vc-viewer-name { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); color: #fff; font-size: 13px; background: rgba(0,0,0,0.5); padding: 6px 16px; border-radius: 20px; }
         .vc-attachment-list { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
-        .vc-attachment-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 6px; font-size: 12px; }
+        .vc-attachment-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 6px; font-size: 12px; color: inherit; text-decoration: none; cursor: pointer; }
+        a.vc-attachment-item:hover { background: #F3F4F6; border-color: #D1D5DB; }
         .vc-att-icon { font-size: 16px; flex-shrink: 0; }
         .vc-att-name { flex: 1; color: #1F2937; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .vc-att-size { color: #6B7280; flex-shrink: 0; }
@@ -323,7 +323,7 @@
         }
         @media screen and (max-width: 768px) {
             .sidebar { width: 60px; overflow: visible; }
-            .sidebar .menu-group-title, .sidebar-logo p, .sidebar-logo h2, .menu-item .icon + * { display: none; }
+            .sidebar .menu-group-title, .sidebar-logo h2, .menu-item .icon + * { display: none; }
             .sidebar-logo { padding: 12px 8px; }
             .menu-item { padding: 10px; justify-content: center; }
             .menu-item .icon { margin-right: 0; }
@@ -392,7 +392,7 @@
 </head>
 <body>
     <div class="sidebar">
-        <div class="sidebar-logo"><h2>监理现场管理系统</h2><p>Supervision Site Management</p></div>
+        <div class="sidebar-logo"><h2>监理现场管理系统</h2></div>
         <div class="menu-group"><a class="menu-item" href="index.html"><span class="icon">📊</span> 仪表盘</a></div>
         <div class="menu-group"><div class="menu-group-title">项目管理</div><a class="menu-item" href="project-ledger.html"><span class="icon">📁</span> 项目台账</a></div>
         <div class="menu-group">
@@ -429,12 +429,12 @@
                     </div>
                     <div class="search-box"><span class="search-icon">🔍</span><input type="text" placeholder="搜索安全日志..." id="searchInput"><button class="btn btn-primary btn-sm" onclick="searchData()" style="margin-left:8px;height:32px;">搜索</button></div>
                     <select class="filter-select" id="projectFilter" aria-label="筛选或选择本次填报项目" onchange="clearSafetyProjectHint()"><option value="">全部项目</option></select>
-                    <select class="filter-select" id="statusFilter"><option value="">全部状态</option><option value="draft">草稿</option><option value="pending">待审核</option><option value="approved">审核通过</option><option value="rejected">驳回</option></select>
+                    <select class="filter-select" id="statusFilter" aria-label="按记录状态筛选" title="选择草稿后，点击列表中的继续编辑" onchange="window.__urlStatus = null; filterData()"><option value="">全部状态</option><option value="draft">草稿</option><option value="pending">已提交（待审核）</option><option value="approved">审核通过</option><option value="rejected">驳回</option></select>
                     <button class="btn btn-primary btn-sm" onclick="filterData()" style="height:36px;">确认</button>
                     <button class="btn btn-outline btn-sm" onclick="resetFilters()" style="height:36px;">重置</button>
                 </div>
                 <div style="display:flex;gap:8px;">
-                    <button class="btn btn-outline" onclick="exportData()">📥 导出CSV</button>
+                    <button class="btn btn-outline" onclick="exportData()">📥 导出</button>
                     <button class="btn btn-outline" onclick="exportWordBatch()">📄 导出Word</button>
                     <button class="btn btn-primary" onclick="openCreateModal()">＋ 新建安全日志</button>
                 </div>
@@ -698,18 +698,27 @@
             document.querySelectorAll('#createModal input, #createModal textarea, #createModal button').forEach(function (el) { el.disabled = value; });
         }
 
+        var safetyViewRecord = null, safetyViewSequence = 0;
+        async function loadSafetyVersions(recordId) {
+            var records = await App.apiFetch('/safety-logs/' + recordId + '/versions');
+            if (!Array.isArray(records) || !records.length) throw new Error('未能取得版本记录');
+            var d = mapLog(records[records.length - 1]);
+            d.versions = records.map(function (r) { return mapLog(r).versions[0]; });
+            return d;
+        }
+
         var roleActionMap = {
             initiator: {
                 draft: ['view', 'export', 'edit', 'delete'],
                 pending: ['view', 'export'],
-                approved: ['view', 'export'],
+                approved: ['view', 'export', 'edit'],
                 rejected: ['view', 'export', 'edit']
             },
             reviewer: {
                 draft: ['view', 'export', 'edit', 'delete'],
                 pending: ['view', 'export', 'approve', 'reject'],
-                approved: ['view', 'export'],
-                rejected: ['view', 'export']
+                approved: ['view', 'export', 'edit'],
+                rejected: ['view', 'export', 'edit']
             }
         };
 
@@ -751,8 +760,12 @@
                 var html = '<div class="actions">';
                 for (var j = 0; j < actions.length; j++) {
                     var act = actions[j];
+                    var record = filteredData[i] || tableData[i];
+                    if (act === 'edit' && status !== 'draft' && (!record || String(record.authorId) !== String(App.getUser().userId))) continue;
                     var label = actionLabelMap[act];
-                    if (act === 'edit' && status === 'rejected') label = '修改';
+                    if (act === 'edit' && status === 'draft') label = '继续编辑';
+                    if (act === 'edit' && status === 'rejected') label = '修订后重提';
+                    if (act === 'edit' && status === 'approved') label = '建立修订稿';
                     var cls = actionClassMap[act];
                     var onclick = '';
                     if (act === 'view') onclick = 'viewDetail(' + (i + 1) + ')';
@@ -815,7 +828,7 @@
 
             var d = editingRecord;
             if (!d) return;
-            var nextVersion = d.version + 1;
+            var nextVersion = d.version;
 
             if (versionNum === nextVersion) {
                 var formChildren = formMain ? formMain.children : [];
@@ -863,13 +876,14 @@
             var existingPanel = viewBody.querySelector('.version-view-panel');
             if (existingPanel) existingPanel.remove();
 
-            var d = filteredData[logId - 1] || tableData[logId - 1];
+            var d = safetyViewRecord;
             if (!d) return;
             var v = null;
             for (var i = 0; i < d.versions.length; i++) {
                 if (d.versions[i].num === versionNum) { v = d.versions[i]; break; }
             }
             if (!v) return;
+            currentViewRecordId = v.id;
 
             var panelHtml = buildViewVersionPanel(d, v);
             viewBody.insertAdjacentHTML('beforeend', panelHtml);
@@ -901,7 +915,7 @@
             html += '<div class="vc-field-item"><div class="vc-field-label">工程名称</div><div class="vc-field-value">' + (esc(d.project) || '未填写') + '</div></div>';
             html += '<div class="vc-field-item"><div class="vc-field-label">日期</div><div class="vc-field-value">' + (esc(d.date) || '未填写') + '</div></div>';
             html += '<div class="vc-field-item"><div class="vc-field-label">填写人</div><div class="vc-field-value">' + (esc(d.author) || '未填写') + '</div></div>';
-            html += '<div class="vc-field-item"><div class="vc-field-label">审核人</div><div class="vc-field-value">' + (esc(d.reviewer) || '未填写') + '</div></div>';
+            html += '<div class="vc-field-item"><div class="vc-field-label">审核人</div><div class="vc-field-value">' + (esc(v.reviewer) || '尚未审核') + '</div></div>';
             html += '<div class="vc-section-divider"><span class="vc-sec-num">2</span><span class="vc-sec-title">天气信息</span></div>';
             html += '<div class="vc-field-item"><div class="vc-field-label">天气</div><div class="vc-field-value' + (v.fields && v.fields.weather ? '' : ' empty') + '">' + (v.fields && v.fields.weather ? esc(v.fields.weather) : '未填写') + '</div></div>';
             html += '<div class="vc-field-item"><div class="vc-field-label">风力</div><div class="vc-field-value' + (v.fields && v.fields.wind ? '' : ' empty') + '">' + (v.fields && v.fields.wind ? esc(v.fields.wind) : '未填写') + '</div></div>';
@@ -917,14 +931,7 @@
             html += '<div class="vc-section-divider"><span class="vc-sec-num">7</span><span class="vc-sec-title">附件上传</span></div>';
 
             var versionPhotos = v.photos;
-            if (!versionPhotos || versionPhotos.length === 0) {
-                for (var vi = 0; vi < d.versions.length; vi++) {
-                    if (d.versions[vi].photos && d.versions[vi].photos.length > 0) {
-                        versionPhotos = d.versions[vi].photos;
-                        break;
-                    }
-                }
-            }
+            // 历史版本没有照片时保持为空，不借用其他版本的附件。
             if (versionPhotos && versionPhotos.length > 0) {
                 html += '<div class="vc-field-item full-width"><div class="vc-field-label">现场照片</div><div class="vc-photo-grid">';
                 for (var pi = 0; pi < versionPhotos.length; pi++) {
@@ -941,7 +948,7 @@
                 for (var ai = 0; ai < versionAttachments.length; ai++) {
                     var att = versionAttachments[ai];
                     var attIcon = att.name.indexOf('.pdf') > -1 ? '📄' : (att.name.indexOf('.doc') > -1 ? '📝' : (att.name.indexOf('.xls') > -1 ? '📊' : '📎'));
-                    html += '<div class="vc-attachment-item"><span class="vc-att-icon">' + attIcon + '</span><span class="vc-att-name">' + esc(att.name) + '</span><span class="vc-att-size">' + esc(att.size) + '</span><span class="vc-att-time">' + esc(att.time) + '</span></div>';
+                    html += '<a class="vc-attachment-item" href="' + esc(att.url) + '" title="查看附件"><span class="vc-att-icon">' + attIcon + '</span><span class="vc-att-name">' + esc(att.name) + '</span><span class="vc-att-size">' + esc(att.size) + '</span><span class="vc-att-time">' + esc(att.time) + '</span></a>';
                 }
                 html += '</div></div>';
             } else {
@@ -1063,10 +1070,24 @@
             document.body.classList.add('fw-modal-open');
             modalBody.scrollTop = 0;
         }
-        function openEditModal(id) {
+        async function openEditModal(id) {
             if (safetySaving) return;
             var d = filteredData[id - 1] || tableData[id - 1];
-            if (!d || ['draft', 'rejected'].indexOf(d.status) < 0) return;
+            if (!d || ['draft', 'rejected', 'approved'].indexOf(d.status) < 0) return;
+            var uid = String(App.getUser().userId);
+            setSafetySaving(true);
+            try {
+                var remoteId = d.id;
+                if (d.status !== 'draft') {
+                    if (!await App.confirm('原版本正文、附件及审核信息保持不变。建立下一版草稿？已有后续版本时直接打开。', { danger: false })) return;
+                    var next = await App.apiFetch('/safety-logs/' + d.id + '/new-version', { method: 'POST' });
+                    remoteId = next.id;
+                }
+                d = await loadSafetyVersions(remoteId);
+                if (String(App.getUser().userId) !== uid) return;
+                if (d.status !== 'draft') { await viewDetail(id, d.id); return; }
+            } catch (e) { App.toast('未能打开修订稿：' + e.message, 'error'); return; }
+            finally { setSafetySaving(false); }
             editingId = id;
             editingRecord = d;
             document.getElementById('safetyFormError').textContent = '';
@@ -1106,15 +1127,16 @@
                 }
             }
 
-            if (d.status === 'rejected') {
-                var nextVersion = d.version + 1;
-                document.querySelector('#createModal .modal-header h3').textContent = '修改监理安全日志 — V' + nextVersion + '.0 提交';
+            var previousVersions = d.versions.filter(function (v) { return v.id !== d.id; });
+            if (previousVersions.length) {
+                var nextVersion = d.version;
+                document.querySelector('#createModal .modal-header h3').textContent = '修订监理安全日志 — V' + nextVersion + ' 草稿';
 
                 var tabsHtml = '<div class="version-tabs">';
-                for (var i = 0; i < d.versions.length; i++) {
-                    var v = d.versions[i];
+                for (var i = 0; i < previousVersions.length; i++) {
+                    var v = previousVersions[i];
                     var badgeClass = v.status === 'rejected' ? 'rejected' : (v.status === 'approved' ? 'readonly' : 'pending');
-                    var badgeText = v.status === 'rejected' ? '已驳回' : (v.status === 'approved' ? '已通过' : '待审核');
+                    var badgeText = v.status === 'rejected' ? '已驳回' : (v.status === 'approved' ? '已通过' : v.status === 'draft' ? '草稿' : '待审核');
                     tabsHtml += '<button class="version-tab" data-tab="v' + v.num + '" onclick="switchVersionTab(this, ' + v.num + ')">V' + v.num + '.0<span class="tab-badge ' + badgeClass + '">' + badgeText + '</span></button>';
                 }
                 tabsHtml += '<button class="version-tab active" data-tab="v' + nextVersion + '" onclick="switchVersionTab(this, ' + nextVersion + ')">V' + nextVersion + '.0<span class="tab-badge editing">编辑中</span></button>';
@@ -1126,8 +1148,8 @@
                 }, 50);
 
                 formMain = modalBody.querySelector('.form-main');
-                for (var i = 0; i < d.versions.length; i++) {
-                    var v = d.versions[i];
+                for (var i = 0; i < previousVersions.length; i++) {
+                    var v = previousVersions[i];
                     var panelHtml = '<div class="version-panel" data-version="v' + v.num + '" style="display:none;">';
                     panelHtml += '<div class="version-content-card">';
                     panelHtml += '<div class="version-card-header">';
@@ -1150,7 +1172,7 @@
                     panelHtml += '<div class="vc-field-item"><div class="vc-field-label">工程名称</div><div class="vc-field-value">' + esc(d.project) + '</div></div>';
                     panelHtml += '<div class="vc-field-item"><div class="vc-field-label">日期</div><div class="vc-field-value">' + esc(d.date) + '</div></div>';
                     panelHtml += '<div class="vc-field-item"><div class="vc-field-label">填写人</div><div class="vc-field-value">' + esc(d.author) + '</div></div>';
-                    panelHtml += '<div class="vc-field-item"><div class="vc-field-label">审核人</div><div class="vc-field-value">' + esc(d.reviewer) + '</div></div>';
+                    panelHtml += '<div class="vc-field-item"><div class="vc-field-label">审核人</div><div class="vc-field-value">' + esc(v.reviewer || '尚未审核') + '</div></div>';
                     panelHtml += '<div class="vc-section-divider"><span class="vc-sec-num">2</span><span class="vc-sec-title">天气信息</span></div>';
                     panelHtml += '<div class="vc-field-item"><div class="vc-field-label">天气</div><div class="vc-field-value' + (v.fields && v.fields.weather ? '' : ' empty') + '">' + (v.fields && v.fields.weather ? esc(v.fields.weather) : '未填写') + '</div></div>';
                     panelHtml += '<div class="vc-field-item"><div class="vc-field-label">风力</div><div class="vc-field-value' + (v.fields && v.fields.wind ? '' : ' empty') + '">' + (v.fields && v.fields.wind ? esc(v.fields.wind) : '未填写') + '</div></div>';
@@ -1166,14 +1188,7 @@
                     panelHtml += '<div class="vc-section-divider"><span class="vc-sec-num">7</span><span class="vc-sec-title">附件上传</span></div>';
 
                     var versionPhotos = v.photos;
-                    if (!versionPhotos || versionPhotos.length === 0) {
-                        for (var vi = 0; vi < d.versions.length; vi++) {
-                            if (d.versions[vi].photos && d.versions[vi].photos.length > 0) {
-                                versionPhotos = d.versions[vi].photos;
-                                break;
-                            }
-                        }
-                    }
+                    // 每个版本只展示自身保存的照片。
                     if (versionPhotos && versionPhotos.length > 0) {
                         panelHtml += '<div class="vc-field-item full-width"><div class="vc-field-label">现场照片</div><div class="vc-photo-grid">';
                         for (var pi = 0; pi < versionPhotos.length; pi++) {
@@ -1190,7 +1205,7 @@
                         for (var ai = 0; ai < versionAttachments.length; ai++) {
                             var att = versionAttachments[ai];
                             var attIcon = att.name.indexOf('.pdf') > -1 ? '📄' : (att.name.indexOf('.doc') > -1 ? '📝' : (att.name.indexOf('.xls') > -1 ? '📊' : '📎'));
-                            panelHtml += '<div class="vc-attachment-item"><span class="vc-att-icon">' + attIcon + '</span><span class="vc-att-name">' + esc(att.name) + '</span><span class="vc-att-size">' + esc(att.size) + '</span><span class="vc-att-time">' + esc(att.time) + '</span></div>';
+                            panelHtml += '<a class="vc-attachment-item" href="' + esc(att.url) + '" title="查看附件"><span class="vc-att-icon">' + attIcon + '</span><span class="vc-att-name">' + esc(att.name) + '</span><span class="vc-att-size">' + esc(att.size) + '</span><span class="vc-att-time">' + esc(att.time) + '</span></a>';
                         }
                         panelHtml += '</div></div>';
                     } else {
@@ -1214,9 +1229,14 @@
                 if (formMain) formMain.style.display = '';
             }
         }
-        function viewDetail(id) {
+        async function viewDetail(id, recordId) {
             var d = filteredData[id - 1] || tableData[id - 1];
-            if (!d) { document.getElementById('viewModal').classList.add('show'); return; }
+            if (!d && !recordId) return;
+            var sequence = ++safetyViewSequence, uid = String(App.getUser().userId);
+            try { d = await loadSafetyVersions(recordId || d.id); }
+            catch (e) { App.toast('读取版本历史失败：' + e.message, 'error'); return; }
+            if (sequence !== safetyViewSequence || String(App.getUser().userId) !== uid) return;
+            safetyViewRecord = d;
             currentViewRecordId = d.id || null;
 
             var viewHeader = document.querySelector('#viewModal .modal-header');
@@ -1259,7 +1279,7 @@
                 for (var i = 0; i < d.versions.length; i++) {
                     var v = d.versions[i];
                     var badgeClass = v.status === 'rejected' ? 'rejected' : (v.status === 'approved' ? 'readonly' : 'pending');
-                    var badgeText = v.status === 'rejected' ? '已驳回' : (v.status === 'approved' ? '已通过' : '待审核');
+                    var badgeText = v.status === 'rejected' ? '已驳回' : (v.status === 'approved' ? '已通过' : v.status === 'draft' ? '草稿' : '待审核');
                     var isActive = (i === d.versions.length - 1) ? ' active' : '';
                     tabsHtml += '<button class="version-tab' + isActive + '" data-tab="vv' + v.num + '" onclick="switchViewVersionTab(this, ' + v.num + ', ' + id + ')">V' + v.num + '.0<span class="tab-badge ' + badgeClass + '">' + badgeText + '</span></button>';
                 }
@@ -1347,6 +1367,11 @@
             }
             var rec = editingRecord;
             var existed = !!rec;
+            if (rec && rec.status !== 'draft') { error.textContent = '原版本已冻结，请从修订入口建立下一版本。'; return; }
+            var activeVersion = document.querySelector('#createModal .version-tab.active');
+            if (rec && activeVersion && activeVersion.getAttribute('data-tab') !== 'v' + rec.version) {
+                error.textContent = '当前为历史版本只读预览，请切回 V' + rec.version + ' 草稿后保存或提交。'; return;
+            }
             var dto = collectSafetyDTO(status === 'pending' ? 'submitted' : status);
             error.textContent = '';
             setSafetySaving(true);
@@ -1378,6 +1403,7 @@
         function saveDraft() { return saveLog('draft', '草稿已保存'); }
         function submitLog() { return saveLog('pending', '安全日志已提交'); }
         function closeModal(id) {
+            if (id === 'viewModal') { safetyViewSequence++; safetyViewRecord = null; }
             if (id === 'createModal' && safetySaving) return;
             document.getElementById(id).classList.remove('show');
             if (id === 'createModal') {
@@ -1428,7 +1454,7 @@
         var projectsMap = {};
 
         function statusTextOf(s) {
-            return ({ draft: '草稿', pending: '待审核', approved: '审核通过', rejected: '驳回' })[s] || s || '';
+            return ({ draft: '草稿', pending: '已提交（待审核）', approved: '审核通过', rejected: '驳回' })[s] || s || '';
         }
         function parseArr(s) {
             if (!s) return [];
@@ -1448,11 +1474,13 @@
             var status = r.status === 'submitted' ? 'pending' : (r.status || 'draft');
             var abnormal = status === 'rejected';
             var photos = parseArr(r.photos).map(function (p) { return (typeof p === 'string') ? { url: p, name: p.split('/').pop() } : p; });
-            var atts = parseArr(r.attachments);
+            var atts = parseArr(r.attachments).map(function (a) { return typeof a === 'string' ? { url: a, name: a.split('/').pop() } : Object.assign({ name: '附件' }, a); });
             var version = (r.version != null) ? r.version : (status === 'draft' ? 0 : 1);
             // 草稿也保留字段快照，供编辑和详情原样回显。
             var versions = [{
+                id: r.id,
                 num: version || 1,
+                reviewer: r.reviewerName || r.rejectedBy || (r.reviewerId ? ('用户#' + r.reviewerId) : ''),
                 content: r.content || '',
                 fields: { weather: r.weather, wind: r.wind, temperature: r.temperature, construction: r.content, inspection: r.inspection, safety: r.safety, majorIssue: r.majorIssue },
                 submittedAt: status === 'draft' ? '' : fmtDateTime(r.submittedAt || r.createTime),
@@ -1466,6 +1494,8 @@
             }];
             return {
                 id: r.id,
+                authorId: r.authorId,
+                sourceRecordId: r.sourceRecordId,
                 projectId: r.projectId,
                 code: r.code || '',
                 date: (r.logDate || '').slice(0, 10),
@@ -1508,7 +1538,7 @@
             var si = document.getElementById('searchInput'); if (si && si.value.trim()) params.code = si.value.trim();
             var seq = ++loadSeq;
             App.tableLoading(document.querySelector('tbody'), 8);
-            return App.apiGetPage('/safety-logs', params).then(function (page) {
+            return App.apiGetPage('/records/safety-logs', params).then(function (page) {
                 if (seq !== loadSeq) return;
                 tableData = (page.list || []).map(mapLog);
                 filteredData = tableData.slice();

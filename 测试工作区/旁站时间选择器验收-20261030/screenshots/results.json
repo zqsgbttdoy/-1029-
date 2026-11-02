@@ -1,0 +1,209 @@
+{
+  "projectId": 3,
+  "recordId": 3,
+  "passed": 28,
+  "failed": 0,
+  "results": [
+    {
+      "name": "独立环境真实登录并建验收项目",
+      "pass": true,
+      "detail": {
+        "projectId": 3
+      }
+    },
+    {
+      "name": "旁站时间改为只读“分钟档”选择器，日期同日改用面板",
+      "pass": true,
+      "detail": {
+        "start": "开始时间（YYYY-MM-DD HH:mm:ss）",
+        "end": "结束时间（YYYY-MM-DD HH:mm:ss）"
+      }
+    },
+    {
+      "name": "面板含确定/取消、24 个整点与 12 个分钟档",
+      "pass": true,
+      "detail": {
+        "minutes": "00,05,10,15,20,25,30,35,40,45,50,55",
+        "preview": "2026-10-30 15:00:00"
+      }
+    },
+    {
+      "name": "选择 08:30 未确认：输入框与草稿均不落库",
+      "pass": true,
+      "detail": {
+        "preview": "2026-10-30 08:30:00"
+      }
+    },
+    {
+      "name": "点遮罩关闭不写入",
+      "pass": true
+    },
+    {
+      "name": "取消不写入",
+      "pass": true
+    },
+    {
+      "name": "Esc 关闭不写入",
+      "pass": true
+    },
+    {
+      "name": "确定后写入 08:30:00 并同步本机草稿与 change",
+      "pass": true,
+      "detail": {
+        "value": "2026-10-30 08:30:00"
+      }
+    },
+    {
+      "name": "结束时间为空时默认取开始时间 +1 小时（09:30:00）",
+      "pass": true,
+      "detail": {
+        "preview": "2026-10-30 09:30:00"
+      }
+    },
+    {
+      "name": "默认值同样需点确定才写回",
+      "pass": true
+    },
+    {
+      "name": "结束等于开始时间时被面板拦截且不关闭",
+      "pass": true,
+      "detail": {
+        "error": "旁站结束时间必须晚于开始时间",
+        "preview": "2026-10-30 08:30:00"
+      }
+    },
+    {
+      "name": "结束早于开始时间时被面板拦截且不关闭",
+      "pass": true,
+      "detail": {
+        "error": "旁站结束时间必须晚于开始时间",
+        "preview": "2026-10-30 07:55:00"
+      }
+    },
+    {
+      "name": "改为 11:30 后通过并写入",
+      "pass": true,
+      "detail": {
+        "value": "2026-10-30 11:30:00"
+      }
+    },
+    {
+      "name": "日期面板无整点/分钟区但仍需确认",
+      "pass": true,
+      "detail": {
+        "hoursHidden": true,
+        "minutesHidden": true,
+        "ok": "确定",
+        "cancel": "取消"
+      }
+    },
+    {
+      "name": "日期选择未确认不写入",
+      "pass": true
+    },
+    {
+      "name": "日期取消后保持原值",
+      "pass": true
+    },
+    {
+      "name": "日期确定后写回同一天",
+      "pass": true
+    },
+    {
+      "name": "保存后服务端时间为 HH:mm:00 且保留分钟",
+      "pass": true,
+      "detail": {
+        "id": 3,
+        "startTime": "2026-10-30T08:30:00",
+        "endTime": "2026-10-30T11:30:00"
+      }
+    },
+    {
+      "name": "历史 08:15:30 原样显示（未被取整到 5 分钟）",
+      "pass": true
+    },
+    {
+      "name": "未改动直接确定不重置历史秒值",
+      "pass": true
+    },
+    {
+      "name": "保存后历史秒值未被改写",
+      "pass": true,
+      "detail": {
+        "startTime": "2026-10-29T08:15:30"
+      }
+    },
+    {
+      "name": "375 面板在视口内且无横向溢出",
+      "pass": true,
+      "detail": {
+        "left": 8,
+        "right": 367,
+        "top": 258,
+        "bottom": 892,
+        "w": 359,
+        "vw": 375,
+        "vh": 900,
+        "scroll": 359,
+        "client": 359
+      }
+    },
+    {
+      "name": "375 确定按钮可滚动到可见区域",
+      "pass": true,
+      "detail": {
+        "okBottom": 880,
+        "okTop": 840,
+        "panelBottom": 892,
+        "vh": 900
+      }
+    },
+    {
+      "name": "320 面板在视口内且无横向溢出",
+      "pass": true,
+      "detail": {
+        "left": 8,
+        "right": 312,
+        "top": 258,
+        "bottom": 892,
+        "w": 304,
+        "vw": 320,
+        "vh": 900,
+        "scroll": 304,
+        "client": 304
+      }
+    },
+    {
+      "name": "320 确定按钮可滚动到可见区域",
+      "pass": true,
+      "detail": {
+        "okBottom": 880,
+        "okTop": 840,
+        "panelBottom": 892,
+        "vh": 900
+      }
+    },
+    {
+      "name": "日常巡检仍为整点面板（分钟区隐藏）",
+      "pass": true,
+      "detail": {
+        "picker": "hour",
+        "readonly": true,
+        "placeholder": "请选择巡视开始时间（精确到小时）"
+      }
+    },
+    {
+      "name": "日常巡检面板无分钟档",
+      "pass": true,
+      "detail": {
+        "minutesHidden": true,
+        "minutes": 0
+      }
+    },
+    {
+      "name": "无浏览器运行异常",
+      "pass": true
+    }
+  ],
+  "errors": []
+}

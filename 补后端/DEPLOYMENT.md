@@ -59,6 +59,8 @@
 ├── personnel-management.html     # 人员管理
 ├── process-management.html       # 流程管理
 ├── operation-log.html            # 操作日志
+├── assets/                       # 公共脚本（api/字段 schema/记录渲染/日期时间面板）
+├── miniprogram/                  # 微信小程序源码（不随 PC 站点部署）
 └── backend/                      # 后端项目
     ├── pom.xml                   # Maven配置
     ├── src/                      # Java源码
@@ -71,6 +73,10 @@
 |------|------|---------|
 | `backend/target/supervision-site-management-1.0.0.jar` | 后端可执行JAR包 | `mvn clean package -DskipTests` |
 | 24个HTML文件 | 前端静态页面 | 直接复制 |
+| `assets/*.js` | 前端公共脚本（含 `datetime-picker.js` 日期时间选择面板） | 与 HTML 一同复制 |
+
+> 仅前端交互或文案调整（例如旁站起止时间改为点选面板）时，只需覆盖 `assets/` 下相关脚本与对应 HTML，**无需重启后端**；
+> 小程序端改动需在微信开发者工具重新上传并提交体验版，不随 PC 静态文件生效。
 
 ---
 

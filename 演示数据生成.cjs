@@ -223,7 +223,7 @@ async function approveRecord(token, kindPath, id, status, rejectReason) {
     req('/roles/' + roleSupervisor.id + '/users', { method: 'POST', token: admin.token,
       body: [users['王强'].id, users['陈静'].id, users['周敏'].id] }));
 
-  // 1.5 项目授权
+  // 1.5 项目授权（现场页“项目成员授权”按钮已下线，此处直接调接口预置启用/审核权，保证演示审核流程可用）
   section('项目授权');
   const memberPlan = [
     [proj.p1, users['王强'].id, true, false], [proj.p1, users['陈静'].id, true, false],
@@ -333,15 +333,15 @@ async function approveRecord(token, kindPath, id, status, rejectReason) {
     for (const r of logs.slice(0, 2)) await approveRecord(zhao.token, 'supervision-logs', r.id, 'approved');
   });
 
-  // 5. 日常巡检
+  // 5. 日常巡检（现场备忘录：提交即保存为已保存，不调用审核接口）
   section('日常巡检');
   const inspections = [
-    [wang, 'p1', T[0], '3# 楼 5 层顶板', '模板支撑立杆间距抽查 10 点，2 点超允许偏差', '要求班组 2 小时内调整并报复检', 'approved'],
-    [wang, 'p1', T[1], '地下室顶板后浇带', '后浇带止水钢板焊缝局部不饱满', '已开通知单要求补焊并全数自查', 'approved'],
-    [chen, 'p1', T[3], '外脚手架（东立面）', '安全平网 2 处破损', '通知安全员当日更换，复查合格', 'submitted'],
+    [wang, 'p1', T[0], '3# 楼 5 层顶板', '模板支撑立杆间距抽查 10 点，2 点超允许偏差', '要求班组 2 小时内调整并报复检', 'recorded'],
+    [wang, 'p1', T[1], '地下室顶板后浇带', '后浇带止水钢板焊缝局部不饱满', '已开通知单要求补焊并全数自查', 'recorded'],
+    [chen, 'p1', T[3], '外脚手架（东立面）', '安全平网 2 处破损', '通知安全员当日更换，复查合格', 'recorded'],
     [chen, 'p1', T[4], '钢筋加工场', '箍筋内净尺寸偏差超出允许范围', '口头提醒，要求校核成型机参数', 'draft'],
-    [zhou, 'p2', T[6], 'K1+200 雨水管道沟槽', '沟槽放坡不到位，局部超载', '要求立即卸载并修整边坡，报验暂停', 'approved'],
-    [zhou, 'p2', T[7], '环湖路水稳基层摊铺', '摊铺厚度个别断面偏差大于 10mm', '旁站监督调整摊铺机标高', 'rejected'],
+    [zhou, 'p2', T[6], 'K1+200 雨水管道沟槽', '沟槽放坡不到位，局部超载', '要求立即卸载并修整边坡，报验暂停', 'recorded'],
+    [zhou, 'p2', T[7], '环湖路水稳基层摊铺', '摊铺厚度个别断面偏差大于 10mm', '旁站监督调整摊铺机标高', 'recorded'],
   ];
   for (const [s, pk, day, location, content, issues, status] of inspections) {
     await step('巡检记录 ' + location + '（' + status + '）', async () => {
@@ -349,8 +349,6 @@ async function approveRecord(token, kindPath, id, status, rejectReason) {
         code: 'XC-' + day.replace(/-/g, '') + '-' + uniq(),
         projectId: proj[pk], inspectionDate: day, location, content, issues });
       if (status !== 'draft') await submitRecord(s.token, 'daily-inspections', created.id);
-      if (status === 'approved') await approveRecord(pk === 'p1' ? zhao.token : li.token, 'daily-inspections', created.id, 'approved');
-      if (status === 'rejected') await approveRecord(li.token, 'daily-inspections', created.id, 'rejected', '整改照片未附，请补充闭环资料后重新提交。');
     });
   }
 

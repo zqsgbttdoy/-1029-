@@ -16,6 +16,9 @@ public interface SafetyLogRepository extends JpaRepository<SafetyLog, Long>, Jpa
 
     Optional<SafetyLog> findByCode(String code);
 
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    Optional<SafetyLog> findFirstBySourceRecordIdAndStatusNotOrderByIdAsc(Long sourceRecordId, String status);
+
     Page<SafetyLog> findByProjectId(Long projectId, Pageable pageable);
 
     Page<SafetyLog> findByAuthorId(Long authorId, Pageable pageable);

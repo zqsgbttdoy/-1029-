@@ -5,6 +5,25 @@
 -- 不导入任何示例账号、不授予新的管理员权限、不推断历史审批结论。
 -- 可重跑：只补缺失字段及本脚本命名的索引，不修改已有业务正文或状态。
 
+-- 日记正文派生的引用索引；不改写历史正文，不维护累计篇数。
+CREATE TABLE IF NOT EXISTS biz_diary_reference (
+    id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    project_id BIGINT NOT NULL,
+    diary_id BIGINT NOT NULL,
+    source_type VARCHAR(40) NOT NULL,
+    source_id BIGINT NOT NULL,
+    file_key VARCHAR(64) NOT NULL,
+    file_url VARCHAR(500) COLLATE utf8mb4_bin NOT NULL,
+    file_name VARCHAR(500) NOT NULL,
+    active BIT NOT NULL DEFAULT b'1',
+    inactive_reason VARCHAR(100),
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_diary_reference (diary_id, source_type, source_id, file_key),
+    KEY idx_diary_reference_file (project_id, file_key, active, diary_id),
+    KEY idx_diary_reference_source (source_type, source_id, active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS biz_project_member (
     id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     project_id BIGINT NOT NULL,
@@ -51,6 +70,25 @@ BEGIN
     DECLARE d VARCHAR(32);
     IF DATABASE() IS NULL THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Select the target database first';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.statistics WHERE table_schema=DATABASE() AND table_name='biz_diary_reference' AND index_name='uk_diary_reference') THEN
+        ALTER TABLE biz_diary_reference ADD UNIQUE INDEX uk_diary_reference (diary_id, source_type, source_id, file_key);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.statistics WHERE table_schema=DATABASE() AND table_name='biz_diary_reference' AND index_name='idx_diary_reference_file') THEN
+        ALTER TABLE biz_diary_reference ADD INDEX idx_diary_reference_file (project_id, file_key, active, diary_id);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.statistics WHERE table_schema=DATABASE() AND table_name='biz_diary_reference' AND index_name='idx_diary_reference_source') THEN
+        ALTER TABLE biz_diary_reference ADD INDEX idx_diary_reference_source (source_type, source_id, active);
+    END IF;
+    -- 安全日志只增加版本关联与并发字段；不推断旧版本关系，也不改写历史审批信息。
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='biz_safety_log' AND column_name='source_record_id') THEN
+        ALTER TABLE biz_safety_log ADD COLUMN source_record_id BIGINT NULL;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='biz_safety_log' AND column_name='lock_version') THEN
+        ALTER TABLE biz_safety_log ADD COLUMN lock_version BIGINT NOT NULL DEFAULT 0;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.statistics WHERE table_schema=DATABASE() AND table_name='biz_safety_log' AND index_name='idx_safety_source') THEN
+        ALTER TABLE biz_safety_log ADD INDEX idx_safety_source (source_record_id, status);
     END IF;
     WHILE n < 4 DO
         SET t = ELT(n + 1, 'biz_supervision_diary', 'biz_supervision_log', 'biz_daily_inspection', 'biz_sideline_inspection');
@@ -104,6 +142,22 @@ BEGIN
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='biz_supervision_diary' AND column_name='material_inspection') THEN
         ALTER TABLE biz_supervision_diary ADD COLUMN material_inspection TEXT NULL COMMENT '材料进场检查';
+    END IF;
+    -- 巡视只增加可空列，原正文、人员和历史检查结论保持不变。
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='biz_daily_inspection' AND column_name='start_time') THEN
+        ALTER TABLE biz_daily_inspection ADD COLUMN start_time DATETIME NULL;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='biz_daily_inspection' AND column_name='end_time') THEN
+        ALTER TABLE biz_daily_inspection ADD COLUMN end_time DATETIME NULL;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='biz_daily_inspection' AND column_name='worker_count') THEN
+        ALTER TABLE biz_daily_inspection ADD COLUMN worker_count INT NULL;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='biz_daily_inspection' AND column_name='manage_count') THEN
+        ALTER TABLE biz_daily_inspection ADD COLUMN manage_count INT NULL;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='biz_daily_inspection' AND column_name='checklist') THEN
+        ALTER TABLE biz_daily_inspection ADD COLUMN checklist LONGTEXT NULL;
     END IF;
 END$$
 CALL migrate_field_workflow()$$

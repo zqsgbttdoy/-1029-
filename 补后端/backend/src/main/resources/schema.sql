@@ -187,6 +187,11 @@ CREATE TABLE IF NOT EXISTS biz_daily_inspection (
     location        VARCHAR(200)                        COMMENT '巡检位置',
     content         TEXT                                COMMENT '巡检内容',
     issues          TEXT                                COMMENT '发现问题',
+    start_time      DATETIME NULL                       COMMENT '巡视开始时间',
+    end_time        DATETIME NULL                       COMMENT '巡视结束时间',
+    worker_count    INT NULL                            COMMENT '施工人数',
+    manage_count    INT NULL                            COMMENT '管理人数',
+    checklist       LONGTEXT NULL                       COMMENT '检查项与问题快照(JSON)',
     status          VARCHAR(20)  DEFAULT 'active'       COMMENT '状态',
     photos          TEXT                                COMMENT '照片(JSON)',
     attachments     TEXT                                COMMENT '附件(JSON)',
@@ -407,6 +412,9 @@ CREATE TABLE IF NOT EXISTS biz_safety_log (
     create_time   DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time   DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (id),
+    source_record_id BIGINT,
+    lock_version BIGINT NOT NULL DEFAULT 0,
+    INDEX idx_safety_source (source_record_id, status),
     UNIQUE INDEX uk_biz_safety_log_code (code),
     INDEX idx_biz_safety_log_project_id (project_id),
     INDEX idx_biz_safety_log_log_date (log_date),
@@ -490,6 +498,25 @@ CREATE TABLE IF NOT EXISTS biz_project_document (
     INDEX idx_biz_project_document_sub_item_id (sub_item_id),
     INDEX idx_biz_project_document_uploader_id (uploader_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='项目文档表';
+
+-- 日记正文派生的引用索引；不改写历史正文，不维护累计篇数。
+CREATE TABLE IF NOT EXISTS biz_diary_reference (
+    id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    project_id BIGINT NOT NULL,
+    diary_id BIGINT NOT NULL,
+    source_type VARCHAR(40) NOT NULL,
+    source_id BIGINT NOT NULL,
+    file_key VARCHAR(64) NOT NULL,
+    file_url VARCHAR(500) COLLATE utf8mb4_bin NOT NULL,
+    file_name VARCHAR(500) NOT NULL,
+    active BIT NOT NULL DEFAULT b'1',
+    inactive_reason VARCHAR(100),
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_diary_reference (diary_id, source_type, source_id, file_key),
+    KEY idx_diary_reference_file (project_id, file_key, active, diary_id),
+    KEY idx_diary_reference_source (source_type, source_id, active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS biz_project_member (
     id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,

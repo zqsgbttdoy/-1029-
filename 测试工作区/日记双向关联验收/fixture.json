@@ -1,0 +1,18 @@
+{
+  "run": "b7173248-b93c-4f67-a07d-205b7c5a9e2f",
+  "base": "http://127.0.0.1:18131",
+  "projectId": 2,
+  "folderId": 3,
+  "secondFolderId": 4,
+  "date": "2026-10-30",
+  "documentId": 46,
+  "name": "中文(原件)[A]复核-地下室主体结构混凝土材料进场验收质量证明长文件名.txt",
+  "file": "/api/uploads/20261030/10267f35ff4c4f13992e944b50ab9538.txt",
+  "stableUrl": "http://127.0.0.1:18131/file-reference.html?sourceType=project-documents&sourceId=46&file=%2Fapi%2Fuploads%2F20261030%2F10267f35ff4c4f13992e944b50ab9538.txt",
+  "sources": {
+    "daily-inspections": 3,
+    "sideline-inspections": 3,
+    "supervision-notices": 3,
+    "work-contacts": 3
+  }
+}

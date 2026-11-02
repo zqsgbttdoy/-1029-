@@ -6,6 +6,7 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Data
 @NoArgsConstructor
@@ -34,6 +35,24 @@ public class DailyInspection extends FieldRecord {
 
     @Column(columnDefinition = "TEXT")
     private String issues;
+
+    @Column(name = "start_time")
+    private LocalDateTime startTime;
+
+    @Column(name = "end_time")
+    private LocalDateTime endTime;
+
+    @Column(name = "worker_count")
+    private Integer workerCount;
+
+    @Column(name = "manage_count")
+    private Integer manageCount;
+
+    @Column(columnDefinition = "LONGTEXT")
+    private String checklist;
+
+    @Transient
+    private String authorName;
 
     @Column(length = 20)
     private String status;

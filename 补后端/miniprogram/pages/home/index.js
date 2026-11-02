@@ -1,6 +1,6 @@
 const api = require('../../utils/api');
 const drafts = require('../../utils/drafts');
-const { schemas, today, statuses } = require('../../utils/schema');
+const { schemas, today, statusText } = require('../../utils/schema');
 Page({
   data: { projects: [], projectIndex: 0, types: Object.keys(schemas).map(kind => ({ kind, title: schemas[kind].title })),
     kind: 'supervision-diaries', mode: 'mine', records: [], drafts: [], summary: [], error: '', loading: false, more: false, date: today() },
@@ -27,15 +27,24 @@ Page({
     wx.setStorageSync(this.cacheKey + ':last', this.data.projects[this.data.projectIndex].id);
     this.reload().catch(e => this.fail(e));
   },
-  selectKind(e) { this.setData({ kind: e.currentTarget.dataset.kind }); this.reload().catch(e => this.fail(e)); },
-  mode(e) { this.setData({ mode: e.currentTarget.dataset.mode }); this.reload().catch(e => this.fail(e)); },
+  // 日常巡检不产生审核待办：切到巡检时从“项目待审核”回到我的记录
+  selectKind(e) {
+    const kind = e.currentTarget.dataset.kind;
+    this.setData({ kind, mode: kind === 'daily-inspections' && this.data.mode === 'todo' ? 'mine' : this.data.mode });
+    this.reload().catch(error => this.fail(error));
+  },
+  mode(e) {
+    const mode = e.currentTarget.dataset.mode;
+    if (mode === 'todo' && this.data.kind === 'daily-inspections') return;
+    this.setData({ mode }); this.reload().catch(error => this.fail(error));
+  },
   async reload() {
     const seq = this.sequence = (this.sequence || 0) + 1;
     this.page = 1; this.setData({ records: [], more: false, loading: false, summary: [], canReview: false });
     const project = this.data.projects[this.data.projectIndex]; if (!project) return;
     const summary = await api.request('/field/summary', 'GET', { projectId: project.id, date: this.data.date });
     if (seq !== this.sequence) return;
-    this.setData({ summary: this.data.types.map(t => ({ title: t.title, counts: summary[t.kind] })), canReview: summary.canReview,
+    this.setData({ summary: this.data.types.map(t => ({ kind: t.kind, title: t.title, memo: t.kind === 'daily-inspections', counts: summary[t.kind] })), canReview: summary.canReview,
       mode: !summary.canReview && this.data.mode === 'todo' ? 'mine' : this.data.mode });
     await this.loadRecords(seq);
   },
@@ -43,10 +52,12 @@ Page({
     const project = this.data.projects[this.data.projectIndex]; if (!project || this.data.loading) return;
     this.setData({ loading: true });
     try {
-      const data = await api.request('/' + this.data.kind, 'GET', { projectId: project.id, pageNum: this.page, pageSize: 20,
-        authorId: this.data.mode === 'mine' ? api.userId() : undefined, status: this.data.mode === 'todo' ? 'submitted' : undefined });
+      // 巡检只按“我的记录”读取，不倒查待审核；状态文案按类型区分（巡检为已保存）
+      const kind = this.data.kind, todo = this.data.mode === 'todo' && kind !== 'daily-inspections';
+      const data = await api.request('/' + kind, 'GET', { projectId: project.id, pageNum: this.page, pageSize: 20,
+        authorId: this.data.mode === 'mine' ? api.userId() : undefined, status: todo ? 'submitted' : undefined });
       if (seq !== this.sequence) return;
-      const records = this.data.records.concat(data.list.map(r => Object.assign({}, r, { statusText: statuses[r.status] || r.status })));
+      const records = this.data.records.concat(data.list.map(r => Object.assign({}, r, { statusText: statusText(kind, r.status) })));
       this.setData({ records, more: records.length < data.total, error: '' });
     } finally { if (seq === this.sequence) this.setData({ loading: false }); }
   },

@@ -16,6 +16,13 @@ import org.springframework.web.multipart.MultipartFile;
 public class ProjectDocumentController {
 
     private final ProjectDocumentService projectDocumentService;
+    private final com.supervision.service.DiaryReferenceService diaryReferences;
+
+    @GetMapping("/{id}/diary-references")
+    public ApiResponse<?> references(@PathVariable Long id, @RequestParam(defaultValue = "1") int pageNum,
+                                     @RequestParam(defaultValue = "20") int pageSize) {
+        return ApiResponse.success(diaryReferences.references(id, pageNum, pageSize));
+    }
 
     @GetMapping
     public ApiResponse<PageResult<ProjectDocument>> list(

@@ -1,0 +1,12 @@
+/* 检查项与问题面板只作用于巡视，不改变其他记录页面。 */
+.inspection-record button, .inspection-record .picker { min-height:44px; }
+.inspection-record .inspection-item { border:1rpx solid #D1D5DB; border-radius:16rpx; padding:20rpx; margin:24rpx 0; word-break:break-all; }
+.inspection-record .inspection-item .label { margin-top:20rpx; }
+.inspection-record .inspection-choice { display:flex; align-items:center; gap:12rpx; min-height:44px; }
+.inspection-record textarea { line-height:1.7; }
+.inspection-overlay { position:fixed; top:0; right:0; bottom:0; left:0; z-index:100; background:#fff; display:flex; flex-direction:column; padding-bottom:env(safe-area-inset-bottom); }
+.inspection-panel-head, .inspection-panel-footer { display:flex; flex-shrink:0; align-items:center; justify-content:space-between; gap:20rpx; padding:12rpx 24rpx; background:#F0F5FF; }
+.inspection-panel-head .label { margin:0; }
+.inspection-panel-head button { margin:0; }
+.inspection-panel-body { flex:1; height:0; box-sizing:border-box; padding:24rpx; }
+.inspection-panel-footer button { flex:1; margin:0; }

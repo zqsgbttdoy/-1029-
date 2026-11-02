@@ -8,9 +8,8 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; background: #F0F5FF; color: #1F2937; display: flex; min-height: 100vh; }
         .sidebar { width: 240px; background: linear-gradient(180deg, #1E3A5F 0%, #0F2440 100%); color: #fff; position: fixed; top: 0; left: 0; bottom: 0; z-index: 100; overflow-y: auto; }
-        .sidebar-logo { padding: 20px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
-        .sidebar-logo h2 { font-size: 16px; font-weight: 600; letter-spacing: 1px; }
-        .sidebar-logo p { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 4px; }
+        .sidebar-logo { padding: 22px 16px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .sidebar-logo h2 { font-size: 17px; font-weight: 600; letter-spacing: 2px; }
         .menu-group { padding: 8px 0; }
         .menu-group-title { padding: 10px 20px 6px; font-size: 11px; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 1px; }
         .menu-item { display: flex; align-items: center; padding: 10px 20px; color: rgba(255,255,255,0.7); text-decoration: none; font-size: 13px; transition: all 0.2s; cursor: pointer; }
@@ -94,7 +93,7 @@
 </head>
 <body>
     <div class="sidebar">
-        <div class="sidebar-logo"><h2>监理现场管理系统</h2><p>Supervision Site Management</p></div>
+        <div class="sidebar-logo"><h2>监理现场管理系统</h2></div>
         <div class="menu-group"><a class="menu-item" href="index.html"><span class="icon">📊</span> 仪表盘</a></div>
         <div class="menu-group"><div class="menu-group-title">项目管理</div><a class="menu-item" href="project-ledger.html"><span class="icon">📁</span> 项目台账</a></div>
         <div class="menu-group"><div class="menu-group-title">监理现场工作</div><a class="menu-item" href="daily-inspection.html"><span class="icon">🔍</span> 日常巡检</a><a class="menu-item" href="sideline-inspection.html"><span class="icon">👁️</span> 旁站</a><a class="menu-item" href="supervision-notice.html"><span class="icon">📋</span> 监理通知单</a><a class="menu-item" href="work-contact.html"><span class="icon">✉️</span> 工作联系单</a><a class="menu-item" href="supervision-diary.html"><span class="icon">📝</span> 监理日记</a><a class="menu-item" href="supervision-log.html"><span class="icon">📄</span> 监理日志</a><a class="menu-item" href="safety-log.html"><span class="icon">🛡️</span> 监理安全日志</a><a class="menu-item" href="meeting-minutes.html"><span class="icon">📅</span> 会议纪要</a><a class="menu-item" href="supervision-monthly-report.html"><span class="icon">📊</span> 监理月报</a></div>
@@ -186,20 +185,20 @@
                 </div>
 
                 <div class="flow-card">
-                    <div class="flow-card-header"><h4>🔍 巡检整改审批</h4><span class="flow-status active">已启用</span></div>
+                    <div class="flow-card-header"><h4>🔍 日常巡检（现场备忘录）</h4><span class="flow-status inactive">无审核</span></div>
                     <div class="flow-card-body">
                         <div class="flow-steps">
-                            <div class="flow-step"><div class="step-box start">巡检</div><div class="step-label">监理</div></div><span class="flow-arrow">→</span>
-                            <div class="flow-step"><div class="step-box process">整改</div><div class="step-label">施工方</div></div><span class="flow-arrow">→</span>
-                            <div class="flow-step"><div class="step-box review">验证</div><div class="step-label">监理</div></div><span class="flow-arrow">→</span>
-                            <div class="flow-step"><div class="step-box end">关闭</div><div class="step-label">系统</div></div>
+                            <div class="flow-step"><div class="step-box start">填写巡视</div><div class="step-label">监理</div></div><span class="flow-arrow">→</span>
+                            <div class="flow-step"><div class="step-box process">提交保存</div><div class="step-label">本人</div></div><span class="flow-arrow">→</span>
+                            <div class="flow-step"><div class="step-box end">已保存</div><div class="step-label">项目可见</div></div><span class="flow-arrow">→</span>
+                            <div class="flow-step"><div class="step-box process">再次编辑</div><div class="step-label">本人</div></div>
                         </div>
                         <div class="flow-info">
-                            <div class="flow-info-item"><span class="info-label">审批节点：</span><span class="info-value">4个</span></div>
-                            <div class="flow-info-item"><span class="info-label">超时提醒：</span><span class="info-value">5天</span></div>
+                            <div class="flow-info-item"><span class="info-label">审批节点：</span><span class="info-value">0 个（提交即保存）</span></div>
+                            <div class="flow-info-item"><span class="info-label">可见范围：</span><span class="info-value">同项目获授权人员只读</span></div>
                         </div>
                     </div>
-                    <div class="flow-card-footer"><button class="btn btn-outline btn-sm" onclick="openEditModal(5)">编辑</button><button class="btn btn-outline btn-sm" onclick="toggleFlow(5)">停用</button></div>
+                    <div class="flow-card-footer"><button class="btn btn-outline btn-sm" disabled>无需审批配置</button></div>
                 </div>
 
                 <div class="flow-card">

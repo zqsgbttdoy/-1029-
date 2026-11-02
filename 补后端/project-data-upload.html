@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -8,9 +8,8 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; background: #F0F5FF; color: #1F2937; display: flex; min-height: 100vh; }
         .sidebar { width: 240px; background: linear-gradient(180deg, #1E3A5F 0%, #0F2440 100%); color: #fff; position: fixed; top: 0; left: 0; bottom: 0; z-index: 100; overflow-y: auto; }
-        .sidebar-logo { padding: 20px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
-        .sidebar-logo h2 { font-size: 16px; font-weight: 600; letter-spacing: 1px; }
-        .sidebar-logo p { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 4px; }
+        .sidebar-logo { padding: 22px 16px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .sidebar-logo h2 { font-size: 17px; font-weight: 600; letter-spacing: 2px; }
         .menu-group { padding: 8px 0; }
         .menu-group-title { padding: 10px 20px 6px; font-size: 11px; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 1px; }
         .menu-item { display: flex; align-items: center; padding: 10px 20px; color: rgba(255,255,255,0.7); text-decoration: none; font-size: 13px; transition: all 0.2s; cursor: pointer; }
@@ -134,14 +133,22 @@
             .project-selector { flex-direction: column; align-items: stretch; gap: 8px; }
             .selector-select { max-width: 100%; }
         }
+        .fd-document-pages,.fd-reference-pages{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:12px 0}
+        .fd-document-pages button,.fd-reference-pages button,.fd-references button,.existing-file-item .btn{min-height:44px}
+        .fd-references{padding:12px;background:#f8fafc;overflow-wrap:anywhere}
+        .fd-reference-row{display:block;padding:10px 0;min-height:44px;color:#1d4ed8}
+        .fd-reference-count{display:block;white-space:normal;min-height:44px;margin-top:6px}
+        .main,.layout>*{min-width:0}.node-name,.file-name,.path-value{white-space:normal;overflow-wrap:anywhere}.file-meta{flex-wrap:wrap;overflow-wrap:anywhere}
+        @media(max-width:768px){.layout{grid-template-columns:minmax(0,1fr)}.selector-select{min-width:0;width:100%}.upload-body{padding:12px}.upload-zone{padding:20px 12px}.existing-file-item{flex-wrap:wrap;gap:8px}.existing-file-item .file-info{flex-basis:calc(100% - 52px)}.existing-file-item .file-actions{margin-left:0;flex-wrap:wrap}.current-path{flex-wrap:wrap}.tree-node{min-height:44px}.fd-document-pages{align-items:stretch}.file-list-title{flex-wrap:wrap;gap:8px}}
     </style>
     <script src="assets/app.js"></script>
+    <script src="miniprogram/utils/diary-links.js"></script>
     <link rel="stylesheet" href="assets/style.css">
     <link rel="stylesheet" href="assets/responsive.css">
 </head>
 <body>
     <div class="sidebar">
-        <div class="sidebar-logo"><h2>监理现场管理系统</h2><p>Supervision Site Management</p></div>
+        <div class="sidebar-logo"><h2>监理现场管理系统</h2></div>
         <div class="menu-group"><a class="menu-item" href="index.html"><span class="icon">📊</span> 仪表盘</a></div>
         <div class="menu-group"><div class="menu-group-title">项目管理</div><a class="menu-item" href="project-ledger.html"><span class="icon">📁</span> 项目台账</a></div>
         <div class="menu-group"><div class="menu-group-title">监理现场工作</div><a class="menu-item" href="daily-inspection.html"><span class="icon">🔍</span> 日常巡检</a><a class="menu-item" href="sideline-inspection.html"><span class="icon">👁️</span> 旁站</a><a class="menu-item" href="supervision-notice.html"><span class="icon">📋</span> 监理通知单</a><a class="menu-item" href="work-contact.html"><span class="icon">✉️</span> 工作联系单</a><a class="menu-item" href="supervision-diary.html"><span class="icon">📝</span> 监理日记</a><a class="menu-item" href="supervision-log.html"><span class="icon">📄</span> 监理日志</a><a class="menu-item" href="safety-log.html"><span class="icon">🛡️</span> 监理安全日志</a><a class="menu-item" href="meeting-minutes.html"><span class="icon">📅</span> 会议纪要</a><a class="menu-item" href="supervision-monthly-report.html"><span class="icon">📊</span> 监理月报</a></div>
@@ -245,6 +252,8 @@
 
                         <div class="existing-files">
                             <h5>📂 已上传资料 (<span id="existingCount">0</span>个文件)</h5>
+                            <p>引用篇数按当前可查看日记统计（含服务器草稿）。</p>
+                            <div class="fd-document-pages"><button class="btn btn-outline" onclick="documentPage(-1)" id="documentsPrev">上一页</button><span id="documentsPage"></span><button class="btn btn-outline" onclick="documentPage(1)" id="documentsNext">下一页</button><button class="btn btn-outline" onclick="loadDocuments()">刷新</button></div>
                             <div id="existingFileList" style="border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;">
                             </div>
                         </div>
@@ -259,6 +268,10 @@
         var currentSubItemId = null;
         var pendingFiles = [];
         var nodeMap = {};
+        var documentsPage = 1, documentsTotal = 0, documentsSequence = 0, treeSequence = 0, currentDocuments = [];
+        var pageUser = String(App.getUser().userId), selectionKey = 'diary-documents:' + pageUser;
+        function sameAccount() { return String(App.getUser().userId) === pageUser; }
+        function rememberSelection() { try { sessionStorage.setItem(selectionKey, JSON.stringify({ project: currentProjectId, folder: currentSubItemId, page: documentsPage })); } catch (e) { /* 不影响查询 */ } }
 
         function escapeHtml(t) { var d = document.createElement('div'); d.textContent = t == null ? '' : t; return d.innerHTML; }
 
@@ -316,6 +329,12 @@
             var layout = document.querySelector('.layout');
             currentProjectId = select.value;
             currentSubItemId = null;
+            documentsSequence++; treeSequence++; documentsPage = 1; documentsTotal = 0; currentDocuments = [];
+            document.getElementById('existingFileList').textContent = '请选择项目和目录';
+            document.getElementById('existingCount').textContent = '0';
+            document.getElementById('documentsPage').textContent = '';
+            document.getElementById('documentsPrev').disabled = true; document.getElementById('documentsNext').disabled = true;
+            rememberSelection();
             pendingFiles = [];
             renderFileList();
             if (currentProjectId) {
@@ -333,23 +352,27 @@
             }
         }
 
-        function loadProjects() {
-            return apiGetPage('/projects', { pageNum: 1, pageSize: 500 }).then(function(res) {
+        async function loadProjects() {
+            try {
+                var list = [], page = 1;
+                while (true) { var res = await apiGetPage('/projects', { pageNum: page++, pageSize: 100 }); if (!sameAccount()) return; list.push(...res.list); if (list.length >= res.total || !res.list.length) break; }
                 var sel = document.getElementById('projectSelect');
                 sel.innerHTML = '<option value="">-- 请先选择项目 --</option>';
-                (res.list || []).forEach(function(p) {
-                    var opt = document.createElement('option');
-                    opt.value = p.id;
-                    opt.textContent = p.name;
-                    sel.appendChild(opt);
-                });
-            });
+                list.forEach(function(p) { var opt = document.createElement('option'); opt.value = p.id; opt.textContent = p.name; sel.appendChild(opt); });
+                var saved = {}; try { saved = JSON.parse(sessionStorage.getItem(selectionKey) || '{}'); } catch (e) { }
+                if (list.some(p => String(p.id) === String(saved.project))) {
+                    sel.value = saved.project; onProjectChange();
+                    await loadTree(saved.folder, saved.page);
+                }
+            } catch (e) { if (sameAccount()) App.toast('项目读取失败：' + e.message, 'error'); }
         }
 
-        function loadTree() {
+        function loadTree(restoreFolder, restorePage) {
+            var seq = ++treeSequence, project = currentProjectId;
             var treeBody = document.getElementById('treeBody');
             treeBody.innerHTML = '<div style="padding:16px;color:#9CA3AF;font-size:12px;">加载目录中...</div>';
-            apiFetch('/sub-item-databases/tree?projectId=' + encodeURIComponent(currentProjectId)).then(function(tree) {
+            return apiFetch('/sub-item-databases/tree?projectId=' + encodeURIComponent(project)).then(function(tree) {
+                if (!sameAccount() || seq !== treeSequence || project !== currentProjectId) return;
                 nodeMap = {};
                 treeBody.innerHTML = '';
                 if (!tree || !tree.length) {
@@ -357,8 +380,10 @@
                     return;
                 }
                 renderNodes(tree, treeBody);
+                if (nodeMap[restoreFolder]) { documentsPage = Math.max(1, Number(restorePage) || 1); selectNode(treeBody.querySelector('[data-id="' + Number(restoreFolder) + '"]'), restoreFolder, nodeMap[restoreFolder].name, true); }
             }).catch(function() {
-                treeBody.innerHTML = '<div style="padding:16px;color:#EF4444;font-size:12px;">目录加载失败</div>';
+                if (!sameAccount() || seq !== treeSequence || project !== currentProjectId) return;
+                treeBody.innerHTML = '<div style="padding:16px;color:#EF4444;font-size:12px;">目录加载失败 <button class="btn btn-outline" onclick="loadTree()">重试</button></div>';
             });
         }
 
@@ -400,11 +425,13 @@
             }
         }
 
-        function selectNode(el, id, name) {
+        function selectNode(el, id, name, restoring) {
             if (!currentProjectId) return;
             document.querySelectorAll('.tree-node').forEach(function(n){n.classList.remove('active')});
             el.classList.add('active');
             currentSubItemId = id;
+            if (!restoring) documentsPage = 1;
+            rememberSelection();
             document.getElementById('uploadTitle').textContent = '上传资料 - ' + name;
             var pathParts = [];
             var cur = nodeMap[id];
@@ -413,20 +440,49 @@
             loadDocuments();
         }
 
+        function documentPage(delta) {
+            var next = documentsPage + delta;
+            if (next < 1 || (next - 1) * 20 >= documentsTotal) return;
+            documentsPage = next; rememberSelection(); loadDocuments();
+        }
         function loadDocuments() {
-            if (!currentProjectId || currentSubItemId == null) return;
+            if (!sameAccount() || !currentProjectId || currentSubItemId == null) return;
+            var seq = ++documentsSequence, project = currentProjectId, folder = currentSubItemId;
             var container = document.getElementById('existingFileList');
-            container.innerHTML = '<div class="empty-state"><div class="empty-text">加载中...</div></div>';
-            apiGetPage('/project-documents', { pageNum: 1, pageSize: 200, projectId: currentProjectId, subItemId: currentSubItemId }).then(function(res) {
-                renderExistingFiles(res.list || []);
-            }).catch(function() {
-                container.innerHTML = '<div class="empty-state"><div class="empty-text">加载失败</div></div>';
+            container.textContent = '加载中…'; currentDocuments = [];
+            document.getElementById('existingCount').textContent = '…';
+            document.getElementById('documentsPrev').disabled = true; document.getElementById('documentsNext').disabled = true;
+            return apiGetPage('/project-documents', { pageNum: documentsPage, pageSize: 20, projectId: project, subItemId: folder }).then(function(res) {
+                if (!sameAccount() || seq !== documentsSequence || project !== currentProjectId || folder !== currentSubItemId) return;
+                documentsTotal = res.total;
+                if (documentsPage > 1 && !res.list.length) { documentsPage = Math.max(1, Math.ceil(res.total / 20)); rememberSelection(); return loadDocuments(); }
+                currentDocuments = res.list || []; renderExistingFiles(currentDocuments);
+                document.getElementById('documentsPage').textContent = '第 ' + documentsPage + ' / ' + Math.max(1, Math.ceil(res.total / 20)) + ' 页';
+                document.getElementById('documentsPrev').disabled = documentsPage <= 1; document.getElementById('documentsNext').disabled = documentsPage * 20 >= res.total;
+            }).catch(function(e) {
+                if (!sameAccount() || seq !== documentsSequence) return;
+                document.getElementById('existingCount').textContent = '暂不可用'; document.getElementById('documentsPage').textContent = '';
+                container.innerHTML = '<p>加载失败：' + escapeHtml(e.message) + '</p><button class="btn btn-outline" onclick="loadDocuments()">重试</button>';
             });
+        }
+        async function showDiaryReferences(id, page) {
+            var box = document.getElementById('references-' + id), seq = documentsSequence;
+            if (!box || !sameAccount()) return;
+            var request = box.dataset.request = String(Number(box.dataset.request || 0) + 1);
+            box.hidden = false; box.textContent = '正在读取引用日记…';
+            try {
+                var result = await apiGetPage('/project-documents/' + id + '/diary-references', { pageNum: page, pageSize: 10 });
+                if (!sameAccount() || seq !== documentsSequence || !box.isConnected || box.dataset.request !== request) return;
+                var states = { draft: '草稿', submitted: '待审核', pending: '待审核', approved: '已审核', rejected: '已退回', recorded: '已记录', fixed: '已整改' };
+                box.innerHTML = '<p>共 ' + result.total + ' 篇 · 按当前可查看日记统计</p>' + result.list.map(d => '<a class="fd-reference-row" href="supervision-diary.html?id=' + Number(d.id) + '&readonly=true">' + escapeHtml([d.code || '未编号', d.diaryDate, d.authorName, states[d.status] || d.status].join(' · ')) + '</a>').join('') + '<div class="fd-reference-pages"><button class="btn btn-outline" ' + (page <= 1 ? 'disabled' : '') + ' onclick="showDiaryReferences(' + id + ',' + (page - 1) + ')">上一页</button><span>第 ' + page + ' 页</span><button class="btn btn-outline" ' + (page * 10 >= result.total ? 'disabled' : '') + ' onclick="showDiaryReferences(' + id + ',' + (page + 1) + ')">下一页</button></div>';
+            } catch (e) {
+                if (sameAccount() && seq === documentsSequence && box.isConnected && box.dataset.request === request) box.innerHTML = '<p>读取失败：' + escapeHtml(e.message) + '</p><button class="btn btn-outline" onclick="showDiaryReferences(' + id + ',' + page + ')">重试</button>';
+            }
         }
 
         function renderExistingFiles(files) {
             var container = document.getElementById('existingFileList');
-            document.getElementById('existingCount').textContent = files.length;
+            document.getElementById('existingCount').textContent = documentsTotal;
             if (!files.length) {
                 container.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">该目录下暂无已上传资料</div></div>';
                 return;
@@ -441,15 +497,20 @@
                     '<div class="file-icon ' + iconClass + '">' + iconText + '</div>' +
                     '<div class="file-info">' +
                         '<div class="file-name">' + escapeHtml(f.name) + '</div>' +
-                        '<div class="file-meta"><span>' + size + '</span>' + (date ? '<span>' + date + '</span>' : '') + (f.description ? '<span>' + escapeHtml(f.description) + '</span>' : '') + '</div>' +
+                        '<div class="file-meta"><span>' + escapeHtml(size) + '</span>' + (date ? '<span>' + escapeHtml(date) + '</span>' : '') + (f.description ? '<span>' + escapeHtml(f.description) + '</span>' : '') + '</div>' +
+                        (f.diaryReferenceCount > 0 ? '<button class="btn btn-outline fd-reference-count" onclick="showDiaryReferences(' + Number(f.id) + ',1)">被 ' + Number(f.diaryReferenceCount) + ' 篇监理日记引用</button>' : '') +
                     '</div>' +
                     '<div class="file-actions">' +
-                        (f.filePath ? '<a class="btn btn-outline btn-sm" href="' + f.filePath + '" target="_blank">📥 下载</a>' : '') +
+                        (f.filePath ? '<a class="btn btn-outline btn-sm" href="' + escapeHtml(documentLink(f)) + '" target="_blank" rel="noopener">📥 打开原件</a>' : '') +
                         '<button class="btn btn-danger btn-sm" onclick="deleteDocument(' + f.id + ')">删除</button>' +
                     '</div>' +
-                '</div>';
+                '</div><div class="fd-references" id="references-' + Number(f.id) + '" hidden></div>';
             });
             container.innerHTML = html;
+        }
+        function documentLink(file) {
+            try { return DiaryLinks.stable({ sourceType: 'project-documents', sourceId: file.id, file: file.filePath }); }
+            catch (e) { return 'file-reference.html'; }
         }
 
         function deleteDocument(id) {
@@ -493,7 +554,7 @@
                 else if(['xls','xlsx'].indexOf(ext) >= 0) { iconClass = 'xls'; iconText = 'XLS'; }
                 else if(['jpg','jpeg','png','gif','bmp'].indexOf(ext) >= 0) { iconClass = 'img'; iconText = 'IMG'; }
                 var size = (f.size / 1024 / 1024).toFixed(1) + ' MB';
-                html += '<div class="file-item"><div class="file-icon ' + iconClass + '">' + iconText + '</div><div class="file-info"><div class="file-name">' + f.name + '</div><div class="file-meta"><span>' + size + '</span><span>待上传</span></div></div><div class="file-actions"><button class="btn btn-danger btn-sm" onclick="removeFile(' + i + ')">移除</button></div></div>';
+                html += '<div class="file-item"><div class="file-icon ' + iconClass + '">' + iconText + '</div><div class="file-info"><div class="file-name">' + escapeHtml(f.name) + '</div><div class="file-meta"><span>' + size + '</span><span>待上传</span></div></div><div class="file-actions"><button class="btn btn-danger btn-sm" onclick="removeFile(' + i + ')">移除</button></div></div>';
             }
             container.innerHTML = html;
         }
@@ -505,13 +566,14 @@
             if (!currentProjectId) { if (window.App) App.toast('请先选择项目'); return; }
             if (currentSubItemId == null) { if (window.App) App.toast('请先选择目录'); return; }
             if (pendingFiles.length === 0) { if (window.App) App.toast('请先选择文件'); return; }
-            var total = pendingFiles.length;
-            var tasks = pendingFiles.map(function(f) {
+            var total = pendingFiles.length, project = currentProjectId, folder = currentSubItemId, files = pendingFiles.slice();
+            var tasks = files.map(function(f) {
                 return App.uploadFile(f).then(function(up) {
+                    if (!sameAccount() || project !== currentProjectId || folder !== currentSubItemId) throw new Error('项目或目录已切换，请在原目录重新上传');
                     up = up || {};
                     return apiFetch('/project-documents', { method: 'POST', body: {
-                        projectId: Number(currentProjectId),
-                        subItemId: currentSubItemId,
+                        projectId: Number(project),
+                        subItemId: folder,
                         name: up.name || f.name,
                         filePath: up.url || up.filePath || '',
                         fileSize: (up.size != null ? up.size : f.size)
@@ -519,11 +581,12 @@
                 });
             });
             Promise.all(tasks).then(function() {
+                if (!sameAccount() || project !== currentProjectId || folder !== currentSubItemId) return;
                 if (window.App) App.toast('成功上传 ' + total + ' 个文件', 'success');
-                pendingFiles = [];
+                pendingFiles = pendingFiles.filter(f => !files.includes(f));
                 renderFileList();
                 loadDocuments();
-            }).catch(function() { /* 单个失败已 Toast */ });
+            }).catch(function(e) { if (sameAccount()) App.toast(e.message || '部分文件上传失败，请重试', 'error'); });
         }
 
         function closeModal(id) { document.getElementById(id).classList.remove('show'); }
@@ -533,6 +596,8 @@
             App.initTopbar();
             loadProjects();
         }
+        window.addEventListener('focus', () => { if (!document.hidden) loadDocuments(); });
+        window.addEventListener('pageshow', e => { if (e.persisted) loadDocuments(); });
         document.querySelector('.layout').classList.add('disabled');
         document.getElementById('treeBody').innerHTML = '';
     </script>

@@ -1,0 +1,101 @@
+{
+  "passed": 9,
+  "failed": 0,
+  "results": [
+    {
+      "name": "26 个页面源码均无英文副标题残留",
+      "pass": true,
+      "detail": {
+        "pages": 27
+      }
+    },
+    {
+      "name": "欢迎页顶栏只保留中文品牌名且垂直居中",
+      "pass": true,
+      "detail": {
+        "text": "🏗️\n监理现场管理系统",
+        "spans": 0,
+        "fs": "17px",
+        "offset": 0
+      }
+    },
+    {
+      "name": "登录卡片去掉英文后图标与标题留白均衡",
+      "pass": true,
+      "detail": {
+        "paras": 0,
+        "text": "🏗️ 监理现场管理系统",
+        "gap": 10,
+        "fs": "21px",
+        "mt": "10px",
+        "ls": "1px",
+        "mb": "28px"
+      }
+    },
+    {
+      "name": "仪表盘侧栏单行标题居中且字号/字距已放大",
+      "pass": true,
+      "detail": {
+        "text": "监理现场管理系统",
+        "html": "\n            <h2>监理现场管理系统</h2>\n        ",
+        "paras": 0,
+        "topGap": 22,
+        "bottomGap": 23,
+        "boxHeight": 67,
+        "padding": "22px/22px",
+        "fontSize": "17px",
+        "spacing": "2px",
+        "aligned": "center"
+      }
+    },
+    {
+      "name": "业务页侧栏同步去英文且布局一致",
+      "pass": true,
+      "detail": {
+        "text": "监理现场管理系统",
+        "html": "<h2>监理现场管理系统</h2>",
+        "paras": 0,
+        "topGap": 22,
+        "bottomGap": 23,
+        "boxHeight": 67,
+        "padding": "22px/22px",
+        "fontSize": "17px",
+        "spacing": "2px",
+        "aligned": "center"
+      }
+    },
+    {
+      "name": "375 仪表盘无横向溢出且侧栏标题区未被压塌",
+      "pass": true,
+      "detail": {
+        "sw": 360,
+        "vw": 375,
+        "logoH": 67,
+        "logoW": 245
+      }
+    },
+    {
+      "name": "320 旁站页无横向溢出且无英文残留",
+      "pass": true,
+      "detail": {
+        "sw": 305,
+        "vw": 320
+      }
+    },
+    {
+      "name": "320 登录页无英文且卡片不溢出",
+      "pass": true,
+      "detail": {
+        "sw": 320,
+        "vw": 320,
+        "cardW": 288,
+        "cardL": 16
+      }
+    },
+    {
+      "name": "无浏览器运行异常",
+      "pass": true
+    }
+  ],
+  "errors": []
+}

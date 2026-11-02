@@ -30,6 +30,8 @@ public class ProjectDocumentService {
     private final AttachmentAccessService attachmentAccess;
     private final FileStorageService storage;
     private final com.supervision.repository.SubItemDatabaseRepository subItems;
+    private final DiaryReferenceService diaryReferences;
+    private final DiaryResourceResolver diaryResources;
 
     private void validateSubItem(Long projectId, Long subItemId) {
         if (subItemId == null) throw new BusinessException(400, "请选择资料所属子项");
@@ -57,6 +59,7 @@ public class ProjectDocumentService {
         };
         Page<ProjectDocument> page = projectDocumentRepository.findAll(spec,
                 PageRequest.of(pageNum - 1, pageSize, Sort.by(Sort.Direction.DESC, "createTime")));
+        diaryReferences.fillCounts(page.getContent());
         return new PageResult<>(page.getContent(), page.getTotalElements(), pageNum, pageSize);
     }
 
@@ -83,8 +86,14 @@ public class ProjectDocumentService {
         return projectDocumentRepository.save(projectDocument);
     }
 
+    private ProjectDocument locked(Long id) {
+        ProjectDocument record = (ProjectDocument) diaryResources.load("project-documents", id, true);
+        diaryResources.requireVisible("project-documents", record);
+        return record;
+    }
+
     public ProjectDocument update(Long id, ProjectDocumentDTO dto) {
-        ProjectDocument existing = getById(id);
+        ProjectDocument existing = locked(id);
         access.requireEdit(existing.getProjectId(), existing.getUploaderId());
         if (!java.util.Objects.equals(existing.getProjectId(), dto.getProjectId())) throw new BusinessException(400, "不可更换资料所属项目");
         String url = attachmentAccess.bindDocument(existing.getProjectId(), dto.getFilePath());
@@ -95,13 +104,15 @@ public class ProjectDocumentService {
         existing.setFilePath(url);
         existing.setFileSize(dto.getFileSize());
         existing.setDescription(dto.getDescription());
+        diaryReferences.invalidate("project-documents", existing, false);
         return projectDocumentRepository.save(existing);
     }
 
     @Transactional
     public void delete(Long id) {
-        ProjectDocument existing = getById(id);
+        ProjectDocument existing = locked(id);
         access.requireEdit(existing.getProjectId(), existing.getUploaderId());
+        diaryReferences.invalidate("project-documents", existing, true);
         projectDocumentRepository.delete(existing);
     }
 

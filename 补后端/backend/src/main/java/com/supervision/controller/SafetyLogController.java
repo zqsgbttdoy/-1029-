@@ -74,6 +74,16 @@ public class SafetyLogController {
         return ApiResponse.success(safetyLogService.create(dto));
     }
 
+    @PostMapping("/{id}/new-version")
+    public ApiResponse<SafetyLog> newVersion(@PathVariable Long id) {
+        return ApiResponse.success(safetyLogService.newVersion(id));
+    }
+
+    @GetMapping("/{id}/versions")
+    public ApiResponse<java.util.List<SafetyLog>> versions(@PathVariable Long id) {
+        return ApiResponse.success(safetyLogService.versions(id));
+    }
+
     @PutMapping("/{id}")
     public ApiResponse<SafetyLog> update(@PathVariable Long id, @Valid @RequestBody SafetyLogDTO dto) {
         return ApiResponse.success(safetyLogService.update(id, dto));

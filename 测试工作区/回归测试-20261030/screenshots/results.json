@@ -1,0 +1,259 @@
+{
+  "run": "REGMVUKQB7N",
+  "base": "http://127.0.0.1:18131",
+  "results": [
+    {
+      "name": "真实登录成功且只访问独立环境",
+      "pass": true,
+      "detail": {
+        "run": "REGMVUKQB7N"
+      }
+    },
+    {
+      "name": "项目表单空保存被必填校验拦截",
+      "pass": true,
+      "detail": "请填写以下必填项：项目编号、项目名称、项目状态、建设单位、开始日期、计划结束日期"
+    },
+    {
+      "name": "UI新建项目保存成功",
+      "pass": true,
+      "detail": "保存成功"
+    },
+    {
+      "name": "后端拒绝重复项目编号",
+      "pass": true,
+      "detail": "项目编号已存在"
+    },
+    {
+      "name": "后端拒绝非法项目状态枚举",
+      "pass": true,
+      "detail": "项目状态必须为筹备中、进行中、已暂停或已完成"
+    },
+    {
+      "name": "项目详情弹窗只读回显完整",
+      "pass": true,
+      "detail": {
+        "code": "REG-REGMVUKQB7N",
+        "name": "回归测试工程QB7N",
+        "status": "进行中",
+        "chief": "赵总监",
+        "start": "2026-01-01",
+        "end": "2026-12-31",
+        "addr": "—",
+        "desc": "—",
+        "editable": false
+      }
+    },
+    {
+      "name": "详情弹窗可跳转编辑且字段回填",
+      "pass": true,
+      "detail": {
+        "code": "REG-REGMVUKQB7N",
+        "name": "回归测试工程QB7N",
+        "status": "active"
+      }
+    },
+    {
+      "name": "编辑保存状态字段真实落库",
+      "pass": true,
+      "detail": "改名生效"
+    },
+    {
+      "name": "项目删除走自定义确认弹窗",
+      "pass": true,
+      "detail": "确定要删除项目\"回归测试工程QB7N改名\"吗？"
+    },
+    {
+      "name": "项目台账375窄屏无撑宽元素",
+      "pass": true,
+      "detail": {
+        "width": 375,
+        "docScroll": 360
+      }
+    },
+    {
+      "name": "部门搜索命中保留祖先并可恢复",
+      "pass": true,
+      "detail": {
+        "baseline": 6,
+        "hit": [
+          "🏢 总公司",
+          "👥 监理一部"
+        ]
+      }
+    },
+    {
+      "name": "有子部门的删除被后端拦截并提示",
+      "pass": true,
+      "detail": "该部门下存在子部门，请先删除子部门"
+    },
+    {
+      "name": "UI新建子部门成功",
+      "pass": true,
+      "detail": "回归子部门QB7N"
+    },
+    {
+      "name": "部门名称超100字符被DTO拦截",
+      "pass": true,
+      "detail": {
+        "code": 400,
+        "message": "部门名称不能超过100个字符"
+      }
+    },
+    {
+      "name": "UI保存超长部门名提示后端DTO消息",
+      "pass": true,
+      "detail": "部门名称不能超过100个字符"
+    },
+    {
+      "name": "空部门可删除且删后视为不存在",
+      "pass": true,
+      "detail": {
+        "id": 11
+      }
+    },
+    {
+      "name": "部门在职人员删除拦截文案",
+      "pass": true,
+      "detail": "该部门下还有 1 名在职/休假人员，请先转移或离职后再删除"
+    },
+    {
+      "name": "未认证请求一律401",
+      "pass": true,
+      "detail": "4项"
+    },
+    {
+      "name": "【发现项 F-1】用户接口返回体含密码散列（需发布前处理）",
+      "pass": true,
+      "detail": {
+        "listLeak": true,
+        "detailLeak": true,
+        "prefix": "$2a$10$",
+        "severity": "HIGH"
+      }
+    },
+    {
+      "name": "手机号DTO格式校验",
+      "pass": true,
+      "detail": {
+        "code": 400,
+        "message": "手机号格式不正确"
+      }
+    },
+    {
+      "name": "普通越权写读接口403（departments/权限树/项目授权）",
+      "pass": true,
+      "detail": "4项403"
+    },
+    {
+      "name": "页面交互全程未触发原生alert/confirm/prompt",
+      "pass": true,
+      "detail": {
+        "nativeCalls": 0,
+        "cdpDialogs": 0
+      }
+    },
+    {
+      "name": "375 project-ledger.html 无横向溢出",
+      "pass": true,
+      "detail": {
+        "width": 375,
+        "docScroll": 360
+      }
+    },
+    {
+      "name": "375 department-management.html 无横向溢出",
+      "pass": true,
+      "detail": {
+        "width": 375,
+        "docScroll": 375
+      }
+    },
+    {
+      "name": "375 personnel-management.html 无横向溢出",
+      "pass": true,
+      "detail": {
+        "width": 375,
+        "docScroll": 360
+      }
+    },
+    {
+      "name": "375 permission-settings.html 无横向溢出",
+      "pass": true,
+      "detail": {
+        "width": 375,
+        "docScroll": 360
+      }
+    },
+    {
+      "name": "375 supervision-diary.html 无横向溢出",
+      "pass": true,
+      "detail": {
+        "width": 375,
+        "docScroll": 375
+      }
+    },
+    {
+      "name": "375 index.html 无横向溢出",
+      "pass": true,
+      "detail": {
+        "width": 375,
+        "docScroll": 360
+      }
+    },
+    {
+      "name": "320 project-ledger.html 无横向溢出",
+      "pass": true,
+      "detail": {
+        "width": 320,
+        "docScroll": 305
+      }
+    },
+    {
+      "name": "320 department-management.html 无横向溢出",
+      "pass": true,
+      "detail": {
+        "width": 320,
+        "docScroll": 320
+      }
+    },
+    {
+      "name": "320 personnel-management.html 无横向溢出",
+      "pass": true,
+      "detail": {
+        "width": 320,
+        "docScroll": 305
+      }
+    },
+    {
+      "name": "320 permission-settings.html 无横向溢出",
+      "pass": true,
+      "detail": {
+        "width": 320,
+        "docScroll": 305
+      }
+    },
+    {
+      "name": "320 supervision-diary.html 无横向溢出",
+      "pass": true,
+      "detail": {
+        "width": 320,
+        "docScroll": 305
+      }
+    },
+    {
+      "name": "320 index.html 无横向溢出",
+      "pass": true,
+      "detail": {
+        "width": 320,
+        "docScroll": 305
+      }
+    },
+    {
+      "name": "无浏览器运行异常",
+      "pass": true,
+      "detail": []
+    }
+  ],
+  "errors": []
+}

@@ -1,0 +1,18 @@
+<view class="container fd-documents">
+  <view class="hero"><view class="title">工程资料</view><view>目录与原件 · 日记引用反查</view></view>
+  <view class="card"><view class="label">项目</view><picker range="{{projects}}" range-key="name" value="{{projectIndex}}" bindchange="selectProject"><view class="picker">{{projects[projectIndex].name || '暂无获授权项目'}}</view></picker><view class="label">资料目录</view><picker range="{{folders}}" range-key="name" value="{{folderIndex}}" bindchange="selectFolder"><view class="picker">{{folders[folderIndex].name || '正在读取目录'}}</view></picker><view class="error">{{treeError}}</view><button wx:if="{{treeError}}" bindtap="loadTree">重试目录查询</button></view>
+  <view class="card"><view class="muted">按当前可查看日记统计，包含服务器草稿，不包含本机未保存内容。离线时无法获取最新计数。</view><button bindtap="refresh">刷新</button><view class="error">{{error}}</view><view wx:if="{{loading}}">正在读取资料…</view><view wx:elif="{{total !== null}}">共 {{total}} 个文件 · 第 {{page}} 页</view></view>
+  <view wx:for="{{documents}}" wx:key="id" class="card fd-document">
+    <view class="label">{{item.name}}</view><view class="muted">{{item.uploadDate}} {{item.description}}</view>
+    <button data-id="{{item.id}}" bindtap="open">打开原件</button><button data-id="{{item.id}}" bindtap="copy">复制稳定链接</button>
+    <button wx:if="{{item.diaryReferenceCount > 0}}" class="fd-reference-count" data-id="{{item.id}}" data-page="1" bindtap="showReferences">被 {{item.diaryReferenceCount}} 篇监理日记引用</button>
+    <view wx:if="{{refId === item.id}}" class="fd-reference-list">
+      <view wx:if="{{refLoading}}">正在读取引用日记…</view><view class="error">{{refError}}</view><button wx:if="{{refError}}" data-id="{{refId}}" data-page="{{refPage}}" bindtap="showReferences">重试引用查询</button>
+      <view wx:if="{{refTotal !== null}}" class="muted">共 {{refTotal}} 篇 · 第 {{refPage}} 页 · 按当前可查看日记统计</view>
+      <button wx:for="{{references}}" wx:for-item="diary" wx:key="id" class="fd-reference-row" data-id="{{diary.id}}" bindtap="diary">{{diary.code || '未编号'}} · {{diary.diaryDate}} · {{diary.authorName}} · {{diary.statusText}}</button>
+      <view class="fd-pages"><button disabled="{{refLoading || refError || refPage <= 1}}" data-id="{{refId}}" data-page="{{refPage - 1}}" bindtap="showReferences">上一页</button><button disabled="{{refLoading || refError || refTotal === null || refPage * 10 >= refTotal}}" data-id="{{refId}}" data-page="{{refPage + 1}}" bindtap="showReferences">下一页</button></view>
+    </view>
+  </view>
+  <view wx:if="{{!loading && total === 0}}" class="card muted">当前目录没有资料</view>
+  <view class="fd-pages"><button disabled="{{loading || error || total === null || page <= 1}}" data-delta="-1" bindtap="page">上一页</button><button disabled="{{loading || error || total === null || page * 20 >= total}}" data-delta="1" bindtap="page">下一页</button></view>
+</view>

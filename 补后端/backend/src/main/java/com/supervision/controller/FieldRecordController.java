@@ -66,6 +66,12 @@ public abstract class FieldRecordController {
         return ApiResponse.success(null);
     }
 
+    @PostMapping("/{id}/new-version")
+    public ApiResponse<FieldRecord> newVersion(@PathVariable Long id) { return ApiResponse.success(records.newVersion(kind, id)); }
+
+    @GetMapping("/{id}/versions")
+    public ApiResponse<List<FieldRecord>> versions(@PathVariable Long id) { return ApiResponse.success(records.versions(kind, id)); }
+
     @GetMapping("/{id}/history")
     public ApiResponse<List<FieldRecordEvent>> history(@PathVariable Long id) { return ApiResponse.success(records.history(kind, id)); }
 }

@@ -29,12 +29,17 @@ class WorkContactServiceTest {
 
     @Mock private com.supervision.service.ProjectAccessService access;
     @Mock private com.supervision.service.AttachmentAccessService attachmentAccess;
+    @Mock private com.supervision.service.DiaryReferenceService diaryReferences;
+    @Mock private com.supervision.service.DiaryResourceResolver diaryResources;
 
     @org.junit.jupiter.api.BeforeEach
     void identity() {
         var user = new com.supervision.entity.User();
         user.setId(1L);
         lenient().when(access.currentUser()).thenReturn(user);
+        lenient().when(diaryResources.load(eq("work-contacts"), anyLong(), eq(true)))
+                .thenAnswer(call -> workContactRepository.findById(call.getArgument(1))
+                        .orElseThrow(() -> new BusinessException("工作联系单不存在")));
     }
 
     @InjectMocks
@@ -308,6 +313,8 @@ class WorkContactServiceTest {
         workContactService.delete(1L);
 
         verify(workContactRepository).save(argThat(c -> "inactive".equals(c.getStatus())));
+        verify(diaryResources).load("work-contacts", 1L, true);
+        verify(diaryReferences).invalidate("work-contacts", contact, true);
     }
 
     @Test

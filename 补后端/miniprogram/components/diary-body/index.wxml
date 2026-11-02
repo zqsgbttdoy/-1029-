@@ -1,0 +1,15 @@
+<view class="fd-body">
+  <view wx:for="{{nodes}}" wx:key="index" class="fd-node">
+    <block wx:if="{{item.type === 'text'}}">
+      <textarea wx:if="{{!readonly && active === index}}" value="{{item.text}}" cursor="{{cursor}}" auto-height maxlength="-1" disabled="{{disabled}}" data-index="{{index}}" bindinput="input" bindblur="cursor" bindfocus="cursor" placeholder="在此位置编辑文字或粘贴文件链接" />
+      <view wx:else class="fd-text {{!readonly ? 'fd-editable' : ''}}" data-index="{{index}}" bindtap="edit">{{item.text || (!readonly ? '点击在此位置添加文字或链接' : '')}}</view>
+    </block>
+    <view wx:else class="fd-file">
+      <button class="fd-link" data-index="{{index}}" bindtap="open">{{item.name}}</button>
+      <view class="fd-error" wx:if="{{item.unavailable}}">{{item.unavailable}}</view>
+      <view class="fd-tools"><button data-index="{{index}}" bindtap="copy">复制链接</button><button wx:if="{{!readonly}}" disabled="{{disabled}}" data-index="{{index}}" bindtap="remove">移除链接</button></view>
+    </view>
+  </view>
+  <view wx:if="{{!readonly}}" class="fd-tools"><button disabled="{{disabled}}" bindtap="paste">粘贴链接到编辑位置</button><button disabled="{{disabled || !canUndo}}" bindtap="undo">撤销</button></view>
+  <view class="fd-error" role="alert">{{error}}</view>
+</view>

@@ -123,10 +123,10 @@ class Session {
   })()`);
 
   const pagesToTest = [
-    { file: 'supervision-log.html', kind: '监理日志', newText: '新建监理日志' },
-    { file: 'supervision-diary.html', kind: '监理日记', newText: '新建监理日记' },
-    { file: 'daily-inspection.html', kind: '日常巡检', newText: '新建日常巡检' },
-    { file: 'sideline-inspection.html', kind: '旁站检查', newText: '新建旁站检查' },
+    { file: 'supervision-log.html', kind: '监理日志', newText: '新建' },
+    { file: 'supervision-diary.html', kind: '监理日记', newText: '新建' },
+    { file: 'daily-inspection.html', kind: '日常巡检', newText: '新建' },
+    { file: 'sideline-inspection.html', kind: '旁站检查', newText: '新建' },
   ];
 
   try {

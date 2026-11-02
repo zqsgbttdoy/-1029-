@@ -79,10 +79,11 @@ public class ProjectService {
         project.setEndDate(dto.getEndDate());
         project.setDescription(dto.getDescription());
         project.setManagerId(dto.getManagerId());
-        project.setStatus("active");
+        project.setStatus(dto.getStatus() == null ? "active" : dto.getStatus());
         return projectRepository.save(project);
     }
 
+    @Transactional
     public Project update(Long id, ProjectDTO dto) {
         projectAccess.requireAdmin();
         Project existing = getById(id);
@@ -95,6 +96,8 @@ public class ProjectService {
         existing.setEndDate(dto.getEndDate());
         existing.setDescription(dto.getDescription());
         existing.setManagerId(dto.getManagerId());
+        // 旧客户端未携带状态时保留原值；表单提供的新状态必须随其他字段一起保存。
+        if (dto.getStatus() != null) existing.setStatus(dto.getStatus());
         return projectRepository.save(existing);
     }
 

@@ -1,0 +1,161 @@
+{
+  "projectId": 3,
+  "recordId": 4,
+  "results": [
+    {
+      "name": "独立环境真实登录并建验收项目",
+      "pass": true,
+      "detail": {
+        "projectId": 3
+      }
+    },
+    {
+      "name": "时间字段改为只读整点选择器且标签为“巡视开始/结束时间”",
+      "pass": true,
+      "detail": {
+        "start": "巡视开始时间",
+        "end": "巡视结束时间"
+      }
+    },
+    {
+      "name": "面板含确定/取消与24个整点",
+      "pass": true,
+      "detail": {
+        "ok": "确定",
+        "cancel": "取消",
+        "hours": 24,
+        "dialog": "dialog"
+      }
+    },
+    {
+      "name": "选择15点未确认：输入框与草稿均不落库",
+      "pass": true,
+      "detail": {
+        "preview": "2026-10-30 15:00"
+      }
+    },
+    {
+      "name": "点遮罩关闭不写入",
+      "pass": true
+    },
+    {
+      "name": "取消不写入",
+      "pass": true
+    },
+    {
+      "name": "Esc 关闭不写入",
+      "pass": true
+    },
+    {
+      "name": "确定后写入整点并同步本机草稿与 change",
+      "pass": true,
+      "detail": {
+        "value": "2026-10-30 15:00"
+      }
+    },
+    {
+      "name": "结束早于开始被面板拦截且不关闭",
+      "pass": true,
+      "detail": {
+        "hidden": false,
+        "error": "巡视结束时间必须晚于开始时间"
+      }
+    },
+    {
+      "name": "结束时间确定后写入整点",
+      "pass": true,
+      "detail": {
+        "value": "2026-10-30 18:00"
+      }
+    },
+    {
+      "name": "日期面板同样含确定/取消且无整点区",
+      "pass": true,
+      "detail": {
+        "ok": "确定",
+        "hours": true
+      }
+    },
+    {
+      "name": "日期选择未确认不写入",
+      "pass": true
+    },
+    {
+      "name": "日期取消后保持原值",
+      "pass": true
+    },
+    {
+      "name": "日期确定后写回同一天",
+      "pass": true
+    },
+    {
+      "name": "保存后服务端时间为整点（秒为00）",
+      "pass": true,
+      "detail": {
+        "id": 4,
+        "startTime": "2026-10-30T15:00:00",
+        "endTime": "2026-10-30T18:00:00"
+      }
+    },
+    {
+      "name": "历史 09:30 原样显示",
+      "pass": true
+    },
+    {
+      "name": "未改动直接确定不取整历史值",
+      "pass": true
+    },
+    {
+      "name": "保存后历史分钟值未被改写",
+      "pass": true,
+      "detail": {
+        "startTime": "2026-10-29T09:30:00"
+      }
+    },
+    {
+      "name": "375 面板在视口内且无横向溢出",
+      "pass": true,
+      "detail": {
+        "left": 8,
+        "right": 367,
+        "top": 372,
+        "bottom": 892,
+        "w": 359,
+        "vw": 375,
+        "vh": 900,
+        "scroll": 359,
+        "client": 359
+      }
+    },
+    {
+      "name": "320 面板在视口内且无横向溢出",
+      "pass": true,
+      "detail": {
+        "left": 8,
+        "right": 312,
+        "top": 372,
+        "bottom": 892,
+        "w": 304,
+        "vw": 320,
+        "vh": 900,
+        "scroll": 304,
+        "client": 304
+      }
+    },
+    {
+      "name": "旁站页时间仍为可输入文本框且无选择器",
+      "pass": true,
+      "detail": {
+        "tag": "INPUT",
+        "type": "text",
+        "readonly": false,
+        "picker": null
+      }
+    },
+    {
+      "name": "无浏览器运行异常",
+      "pass": true
+    }
+  ],
+  "errors": []
+}

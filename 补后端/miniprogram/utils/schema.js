@@ -1,3 +1,4 @@
+const inspectionChecklist = typeof module !== 'undefined' ? require('./inspection-checklist') : window.InspectionChecklist;
 const weather = [['weather', '天气'], ['wind', '风力'], ['temperature', '气温']];
 const logLegacy = [['content', '工作内容（日记整编／原有记录）'], ['management', '管理情况（原有栏目）'], ['morningMeeting', '晨会情况（原有栏目）'], ['drawingReview', '图纸审查（原有栏目）']];
 const schemas = {
@@ -71,12 +72,23 @@ const schemas = {
   },
   'daily-inspections': {
     title: '日常巡检', date: 'inspectionDate',
-    fields: [['location', '检查部位'], ['content', '巡视内容'], ['issues', '发现问题']],
+    fields: [['location', '检查部位'], ['startTime', '巡视开始时间'], ['endTime', '巡视结束时间'], ['workerCount', '施工人数'], ['manageCount', '管理人数'], ['content', '巡视内容'], ['issues', '发现问题补充说明']],
+    extraFields: ['checklist'],
+    shortFields: ['startTime', 'endTime', 'workerCount', 'manageCount'],
+    pcSections: [
+      { title: '时间与现场人数', fields: ['startTime', 'endTime', 'workerCount', 'manageCount'] },
+      { title: '巡视内容', fields: ['location', 'content'] },
+      { title: '发现问题补充说明', fields: ['issues'] }
+    ],
     hints: {
       inspectionDate: '新建时默认当天，可按实际巡视日期修改。',
+      startTime: '可选；提交时若填写一个时间，需补齐另一个。草稿可只记录开始时间。',
+      endTime: '可选；结束时间须晚于开始时间。',
+      workerCount: '可选，填写现场施工人数；0 表示无人，留空表示未记录。',
+      manageCount: '可选，填写现场管理人数，须为非负整数。',
       projectId: '从获授权项目中选择本次填报项目。',
       location: '写明楼栋、楼层、轴线或区段，便于复查问题。',
-      content: '按时间顺序记录巡视部位、检查内容与结果；发现问题须写明整改与复查情况。',
+      content: '按时间顺序记录巡视部位、检查内容与结果；具体问题可在检查项中单独记录。',
       issues: '记录问题类别、部位、已采取措施、责任人与复查结果；无问题请填“无”。'
     },
     placeholders: {
@@ -89,13 +101,19 @@ const schemas = {
     title: '旁站检查', date: 'inspectionDate',
     fields: [['location', '旁站部位 *'], ['process', '旁站工序 *'], ['startTime', '开始时间（YYYY-MM-DD HH:mm:ss）*'], ['endTime', '结束时间（YYYY-MM-DD HH:mm:ss）*'], ['manageCount', '施工管理人员数（非负整数）*'], ['workerCount', '施工人员数（非负整数）*'], ['result', '旁站结果 *'], ['docsText', '关联工程资料编号 / 名称（每行一项）*'], ['issuesText', '发现问题及处理情况'], ['content', '其他旁站记录']],
     shortFields: ['startTime', 'endTime', 'manageCount', 'workerCount'],
+    pcSections: [
+      { title: '旁站范围', fields: ['location', 'process'] },
+      { title: '时间与现场人员', fields: ['startTime', 'endTime', 'manageCount', 'workerCount'] },
+      { title: '检查结论与关联资料', fields: ['result', 'docsText'] },
+      { title: '现场情况与问题处理', fields: ['issuesText', 'content'] }
+    ],
     hints: {
       inspectionDate: '新建时默认当天，可按实际旁站日期修改。',
       projectId: '从获授权项目中选择本次填报项目。',
       location: '填写旁站的具体部位，如“2 号楼 3 层顶板梁板钢筋”。',
       process: '填写本次旁站的工序名称，如“梁板钢筋绑扎隐蔽验收”。',
-      startTime: '格式 YYYY-MM-DD HH:mm:ss，须早于结束时间。',
-      endTime: '格式 YYYY-MM-DD HH:mm:ss，须晚于开始时间。',
+      startTime: '点选日期与时间（整点 + 5 分钟一档），须早于结束时间。',
+      endTime: '点选日期与时间（整点 + 5 分钟一档），须晚于开始时间。',
       manageCount: '填写现场施工单位管理人员实际人数，非负整数。',
       workerCount: '填写现场施工人员实际人数，非负整数。',
       result: '写明检查结论，是否同意进入下道工序。',
@@ -119,6 +137,25 @@ const schemas = {
 };
 function today() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 const statuses = { draft: '草稿', submitted: '待审核', pending: '待审核', approved: '审核通过', rejected: '已退回', recorded: '已记录', fixed: '已整改' };
+// 日常巡检作为现场备忘录：历史提交/审核状态统一按“已保存”使用，不再产生审核待办；不修改全局 statuses
+const memoStatuses = ['recorded', 'submitted', 'pending', 'approved', 'rejected', 'fixed', 'active'];
+function isSavedMemo(kind, status) { return kind === 'daily-inspections' && memoStatuses.includes(status); }
+function statusText(kind, status) {
+  status = status || 'draft';
+  if (kind === 'daily-inspections') return status === 'draft' ? statuses.draft : isSavedMemo(kind, status) ? '已保存' : status;
+  return ['submitted', 'pending'].includes(status) ? '已提交（待审核）' : statuses[status] || status;
+}
+// 已保存巡检允许本人继续更新同一条记录；其他记录仅草稿/退回可改
+function canEditStatus(kind, status) {
+  status = status || 'draft';
+  if (kind === 'daily-inspections') return status === 'draft' || isSavedMemo(kind, status);
+  if (['supervision-diaries', 'supervision-logs'].includes(kind)) return status === 'draft';
+  return ['draft', 'rejected'].includes(status);
+}
+function canReviseStatus(kind, status) {
+  return kind !== 'daily-inspections' && (status === 'approved'
+    || ['supervision-diaries', 'supervision-logs'].includes(kind) && status === 'rejected');
+}
 function unpack(kind, input) {
   const body = Object.assign({}, input);
   if (kind === 'sideline-inspections') {
@@ -134,6 +171,7 @@ function unpack(kind, input) {
   return body;
 }
 function pack(kind, input) {
+  if (kind === 'daily-inspections') return inspectionChecklist.pack(input, false);
   const body = Object.assign({}, input);
   if (kind === 'sideline-inspections') {
     body.content = JSON.stringify({ process: body.process || '', result: body.result || '',
@@ -148,7 +186,7 @@ function pack(kind, input) {
 function diaryPeople(record, currentUser) {
   record = record || {}; currentUser = currentUser || {};
   const author = record.authorName || (record.authorId != null ? '用户#' + record.authorId
-    : record.id ? '原记录未记录人员' : currentUser.userName || '当前登录账号');
+    : record.inspectorId != null ? '用户#' + record.inspectorId : record.id ? '原记录未记录人员' : currentUser.userName || '当前登录账号');
   const reviewed = record.reviewerId != null || !!record.reviewedAt;
   const reviewer = reviewed ? (record.reviewerName || (record.reviewerId != null ? '用户#' + record.reviewerId : '未记录姓名'))
     + ' · ' + (record.reviewedAt || '时间未记录')
@@ -166,6 +204,6 @@ function logPrefillPatch(body, source, excluded = []) {
   });
   return patch;
 }
-const fieldSchema = { schemas, today, statuses, pack, unpack, diaryPeople, logPrefillPatch };
+const fieldSchema = { schemas, today, statuses, memoStatuses, isSavedMemo, statusText, canEditStatus, canReviseStatus, pack, unpack, diaryPeople, logPrefillPatch, inspectionChecklist };
 if (typeof module !== 'undefined') module.exports = fieldSchema;
 else window.FieldSchema = fieldSchema;

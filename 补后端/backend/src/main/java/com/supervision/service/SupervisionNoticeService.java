@@ -31,6 +31,14 @@ public class SupervisionNoticeService {
     private final SupervisionNoticeRepository supervisionNoticeRepository;
     private final ProjectAccessService access;
     private final AttachmentAccessService attachmentAccess;
+    private final DiaryReferenceService diaryReferences;
+    private final DiaryResourceResolver diaryResources;
+
+    private SupervisionNotice locked(Long id) {
+        SupervisionNotice record = (SupervisionNotice) diaryResources.load("supervision-notices", id, true);
+        diaryResources.requireVisible("supervision-notices", record);
+        return record;
+    }
 
     public PageResult<SupervisionNotice> list(int pageNum, int pageSize, Long projectId, String code, String status) {
         pageNum = PageUtils.normalizePageNum(pageNum);
@@ -90,7 +98,7 @@ public class SupervisionNoticeService {
     }
 
     public SupervisionNotice update(Long id, SupervisionNoticeDTO dto) {
-        SupervisionNotice existing = getById(id);
+        SupervisionNotice existing = locked(id);
         access.requireEdit(existing.getProjectId(), existing.getAuthorId());
         if (!java.util.Objects.equals(dto.getProjectId(), existing.getProjectId())) throw new BusinessException(400, "不可更换记录所属项目");
         attachmentAccess.bind(existing.getProjectId(), dto.getPhotos(), dto.getAttachments());
@@ -123,19 +131,21 @@ public class SupervisionNoticeService {
             }
             existing.setStatus(dto.getStatus());
         }
+        diaryReferences.invalidate("supervision-notices", existing, false);
         return supervisionNoticeRepository.save(existing);
     }
 
     @Transactional
     public void delete(Long id) {
-        SupervisionNotice existing = getById(id);
+        SupervisionNotice existing = locked(id);
         access.requireEdit(existing.getProjectId(), existing.getAuthorId());
         existing.setStatus("inactive");
+        diaryReferences.invalidate("supervision-notices", existing, true);
         supervisionNoticeRepository.save(existing);
     }
 
     public SupervisionNotice reply(ReplyDTO dto) {
-        SupervisionNotice existing = getById(dto.getId());
+        SupervisionNotice existing = locked(dto.getId());
         if (!"issued".equals(existing.getStatus()) && !"overdue".equals(existing.getStatus())) {
             throw new BusinessException("只有已下发或已逾期状态的通知单才能回复");
         }
@@ -146,6 +156,7 @@ public class SupervisionNoticeService {
         existing.setAttachments(attachmentAccess.bindReply(existing.getProjectId(), existing.getAttachments(), dto.getAttachments()));
         // 整改照片同样合并进 photos，避免前端已上传的照片提交后被丢弃。
         existing.setPhotos(attachmentAccess.mergeAttachments(existing.getProjectId(), existing.getPhotos(), dto.getPhotos(), "reply"));
+        diaryReferences.invalidate("supervision-notices", existing, false);
         return supervisionNoticeRepository.save(existing);
     }
 

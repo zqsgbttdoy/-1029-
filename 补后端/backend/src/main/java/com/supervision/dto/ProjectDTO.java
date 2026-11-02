@@ -1,7 +1,7 @@
 package com.supervision.dto;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -22,6 +22,7 @@ public class ProjectDTO {
 
     private String address;
     private String type;
+    @Pattern(regexp = "planning|active|paused|completed", message = "项目状态必须为筹备中、进行中、已暂停或已完成")
     private String status;
     private LocalDate startDate;
     private LocalDate endDate;

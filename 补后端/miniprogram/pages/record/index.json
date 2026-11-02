@@ -1,0 +1,6 @@
+{
+  "usingComponents": {
+    "diary-body": "/components/diary-body/index",
+    "diary-resources": "/components/diary-resources/index"
+  }
+}

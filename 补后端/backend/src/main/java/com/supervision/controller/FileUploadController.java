@@ -110,11 +110,17 @@ public class FileUploadController {
         return ApiResponse.success(attachmentAccess.link(url));
     }
 
+    @GetMapping("/reference-access")
+    public ApiResponse<Map<String, Object>> referenceAccess(@RequestParam String sourceType, @RequestParam Long sourceId, @RequestParam String file) {
+        return ApiResponse.success(attachmentAccess.referenceLink(sourceType, sourceId, file));
+    }
+
     @org.springframework.web.bind.annotation.GetMapping("/content")
     public org.springframework.http.ResponseEntity<org.springframework.core.io.Resource> content(
             @RequestParam String ticket, @RequestParam String signature) throws java.io.IOException {
         java.nio.file.Path path = attachmentAccess.content(ticket, signature);
         String type = java.nio.file.Files.probeContentType(path);
+        if (type != null && type.startsWith("text/") && isUtf8(path)) type += ";charset=UTF-8";
         // 图片/PDF/纯文本允许浏览器内联预览，其余类型强制下载；文件名来自 UUID 白名单扩展名，无注入风险。
         boolean previewable = type != null
                 && (type.startsWith("image/") || type.startsWith("text/") || "application/pdf".equals(type));
@@ -126,6 +132,17 @@ public class FileUploadController {
                 .header("Content-Disposition", disposition + "; filename=\"" + path.getFileName() + "\"")
                 .contentType(org.springframework.http.MediaType.parseMediaType(type == null ? "application/octet-stream" : type))
                 .body(new org.springframework.core.io.FileSystemResource(path));
+    }
+
+    // 仅给完整通过 UTF-8 校验的文本声明编码，原始字节不转码；其他编码保留浏览器原有处理。
+    private boolean isUtf8(java.nio.file.Path path) throws java.io.IOException {
+        try (var reader = java.nio.file.Files.newBufferedReader(path, java.nio.charset.StandardCharsets.UTF_8)) {
+            char[] buffer = new char[4096];
+            while (reader.read(buffer) != -1) { }
+            return true;
+        } catch (java.nio.charset.CharacterCodingException e) {
+            return false;
+        }
     }
 
     private String extractExtension(String filename) {

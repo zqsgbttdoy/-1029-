@@ -30,6 +30,7 @@ public class SafetyLogService {
     private final SafetyLogRepository safetyLogRepository;
     private final ProjectAccessService access;
     private final AttachmentAccessService attachmentAccess;
+    private final jakarta.persistence.EntityManager em;
 
     public PageResult<SafetyLog> list(int pageNum, int pageSize, Long projectId, String code, String status) {
         pageNum = PageUtils.normalizePageNum(pageNum);
@@ -93,6 +94,7 @@ public class SafetyLogService {
         SafetyLog record = safetyLogRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("安全日志不存在"));
         access.requireRead(record.getProjectId());
+        if ("inactive".equals(record.getStatus())) throw new BusinessException(404, "安全日志不存在");
         return record;
     }
 
@@ -122,11 +124,11 @@ public class SafetyLogService {
     }
 
     public SafetyLog update(Long id, SafetyLogDTO dto) {
-        SafetyLog existing = getById(id);
+        SafetyLog existing = locked(id);
         access.requireEdit(existing.getProjectId(), existing.getAuthorId());
-        if ("approved".equals(existing.getStatus())) {
-            throw new BusinessException(409, "已批准的安全日志正文不可覆盖，如需修正请新建修订版本");
-        }
+        requireDraft(existing);
+        if (existing.getSourceRecordId() != null && !java.util.Objects.equals(dto.getLogDate(), existing.getLogDate()))
+            throw new BusinessException(400, "修订稿不能更换记录日期");
         if (!java.util.Objects.equals(dto.getProjectId(), existing.getProjectId())) throw new BusinessException(400, "不可更换记录所属项目");
         attachmentAccess.bind(existing.getProjectId(), dto.getPhotos(), dto.getAttachments());
         if (dto.getCode() != null && !dto.getCode().equals(existing.getCode())) {
@@ -179,8 +181,9 @@ public class SafetyLogService {
 
     @Transactional
     public void delete(Long id) {
-        SafetyLog existing = getById(id);
+        SafetyLog existing = locked(id);
         access.requireEdit(existing.getProjectId(), existing.getAuthorId());
+        requireDraft(existing);
         existing.setStatus("inactive");
         safetyLogRepository.save(existing);
     }
@@ -190,7 +193,10 @@ public class SafetyLogService {
         if (dto.getStatus() == null) {
             throw new BusinessException("审核状态不能为空");
         }
-        SafetyLog existing = getById(dto.getId());
+        if (!java.util.Set.of("approved", "rejected").contains(dto.getStatus())) throw new BusinessException(400, "审核状态无效");
+        if ("rejected".equals(dto.getStatus()) && (dto.getRejectReason() == null || dto.getRejectReason().isBlank()))
+            throw new BusinessException(400, "请填写驳回原因");
+        SafetyLog existing = locked(dto.getId());
         access.requireReview(existing.getProjectId());
         if (!"submitted".equals(existing.getStatus())) {
             // 草稿未提交不得审批（409）；已批准/已驳回等终态重复审批同样 409。
@@ -216,10 +222,43 @@ public class SafetyLogService {
         return safetyLogRepository.save(existing);
     }
 
+    private SafetyLog locked(Long id) {
+        SafetyLog record = getById(id);
+        // 加锁并重新读取状态，避免保存正文与审批同时发生时覆盖已冻结版本。
+        em.refresh(record, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+        if ("inactive".equals(record.getStatus())) throw new BusinessException(404, "安全日志不存在");
+        return record;
+    }
+
+    private void requireDraft(SafetyLog record) {
+        if (!"draft".equals(record.getStatus()))
+            throw new BusinessException(409, "已提交版本已冻结，不可修改或删除；被驳回后请建立下一版本");
+    }
+
+    public List<SafetyLog> versions(Long id) {
+        List<SafetyLog> result = new ArrayList<>();
+        java.util.Set<Long> seen = new java.util.HashSet<>();
+        while (id != null) {
+            if (!seen.add(id) || seen.size() > 500) throw new BusinessException(409, "版本链异常，请联系管理员核对");
+            SafetyLog record = getById(id);
+            result.add(record);
+            id = record.getSourceRecordId();
+        }
+        java.util.Collections.reverse(result);
+        return result;
+    }
+
     public SafetyLog newVersion(Long id) {
-        SafetyLog existing = getById(id);
+        SafetyLog existing = locked(id);
+        if (!java.util.Objects.equals(existing.getAuthorId(), access.currentUser().getId()))
+            throw new BusinessException(403, "仅填写人可以建立修订版本");
+        if (!java.util.Set.of("approved", "rejected").contains(existing.getStatus()))
+            throw new BusinessException(409, "只能从已审核通过或已驳回的冻结版本建立修订稿");
+        var next = safetyLogRepository.findFirstBySourceRecordIdAndStatusNotOrderByIdAsc(id, "inactive");
+        if (next.isPresent()) return next.get();
         SafetyLog newVer = new SafetyLog();
-        newVer.setCode(existing.getCode());
+        newVer.setCode("AQ-" + java.util.UUID.randomUUID());
+        newVer.setSourceRecordId(id);
         newVer.setProjectId(existing.getProjectId());
         newVer.setLogDate(existing.getLogDate());
         newVer.setAuthorId(access.currentUser().getId());
@@ -233,7 +272,7 @@ public class SafetyLogService {
         newVer.setPhotos(existing.getPhotos());
         newVer.setAttachments(existing.getAttachments());
         newVer.setStatus("draft");
-        newVer.setVersion(existing.getVersion() + 1);
+        newVer.setVersion((existing.getVersion() == null ? 1 : Math.max(1, existing.getVersion())) + 1);
         return safetyLogRepository.save(newVer);
     }
 

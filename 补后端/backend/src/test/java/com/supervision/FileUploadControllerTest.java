@@ -126,6 +126,29 @@ class FileUploadControllerTest {
     }
 
     @Test
+    @DisplayName("UTF-8 中文文本声明字符集且原件字节不变")
+    void utf8TextKeepsOriginalBytesAndDeclaresCharset() throws Exception {
+        byte[] bytes = "中文原件".repeat(2000).getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        Path path = java.nio.file.Files.write(tempDir.resolve("utf8.txt"), bytes);
+        when(attachmentAccess.content("ticket", "signature")).thenReturn(path);
+        var response = controller.content("ticket", "signature");
+        assertEquals(java.nio.charset.StandardCharsets.UTF_8, response.getHeaders().getContentType().getCharset());
+        assertTrue(response.getHeaders().getFirst("Content-Disposition").startsWith("inline"));
+        assertArrayEquals(bytes, response.getBody().getContentAsByteArray());
+    }
+
+    @Test
+    @DisplayName("非 UTF-8 文本不强制错误字符集且保留原件")
+    void legacyTextKeepsOriginalBytesWithoutGuessingCharset() throws Exception {
+        byte[] bytes = "中文原件".getBytes(java.nio.charset.Charset.forName("GB18030"));
+        Path path = java.nio.file.Files.write(tempDir.resolve("legacy.txt"), bytes);
+        when(attachmentAccess.content("ticket", "signature")).thenReturn(path);
+        var response = controller.content("ticket", "signature");
+        assertNull(response.getHeaders().getContentType().getCharset());
+        assertArrayEquals(bytes, response.getBody().getContentAsByteArray());
+    }
+
+    @Test
     @DisplayName("自定义白名单可覆盖默认值：仅允许 png 时拒绝 jpg")
     void testCustomWhitelistOverride() {
         FileUploadController pngOnly = new FileUploadController(tempDir.toString(), "png", attachmentAccess);

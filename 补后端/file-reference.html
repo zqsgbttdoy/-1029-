@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="referrer" content="no-referrer"><title>打开关联文件</title>
+  <script src="assets/app.js"></script><script src="miniprogram/utils/diary-links.js"></script>
+  <style>body{font:16px/1.6 system-ui,sans-serif;background:#f0f5ff;margin:0;padding:24px;color:#1e3a5f}main{max-width:560px;margin:10vh auto;background:white;padding:24px;border-radius:12px;overflow-wrap:anywhere}button,a{display:inline-flex;align-items:center;min-height:44px;margin:8px 8px 0 0}button{padding:8px 18px}#status{white-space:pre-wrap}</style>
+</head>
+<body><main><h1>关联文件</h1><p id="status" role="status">正在核验文件来源与访问权限…</p><button id="retry" type="button">重新打开</button><a href="supervision-diary.html">返回监理日记</a><p>图片、PDF、文本可由浏览器打开，其他格式下载原件。链接不包含登录凭证。</p></main>
+<script>
+(function () {
+  if (!App.requireAuth()) return;
+  const uid = String(App.getUser().userId), status = document.getElementById('status'), retry = document.getElementById('retry');
+  let busy = false;
+  async function open() {
+    if (busy) return; busy = true; retry.disabled = true;
+    try {
+      const item = DiaryLinks.target('file-reference.html' + location.search);
+      const data = await App.apiFetch('/files/reference-access?' + App.buildQuery({ sourceType: item.sourceType, sourceId: item.sourceId, file: item.file }));
+      if (String(App.getUser().userId) !== uid) return;
+      status.textContent = '正在打开：' + data.name;
+      location.assign(data.url);
+    } catch (e) { if (String(App.getUser().userId) === uid) status.textContent = '资料已删除／不可用，或暂时无法联网。\n' + e.message; }
+    finally { busy = false; retry.disabled = false; }
+  }
+  retry.onclick = open; void open();
+})();
+</script></body></html>

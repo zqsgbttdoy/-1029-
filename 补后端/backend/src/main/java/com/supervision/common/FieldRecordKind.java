@@ -13,7 +13,7 @@ public enum FieldRecordKind {
     LOG("supervision-logs", SupervisionLog.class, SupervisionLogDTO.class, "authorId", "logDate",
             "code,projectId,logDate,weekStart,weekEnd,weather,wind,temperature,content,construction,safetyIssues,management,inspection,otherMatters,morningMeeting,drawingReview,photos,attachments"),
     DAILY("daily-inspections", DailyInspection.class, DailyInspectionDTO.class, "inspectorId", "inspectionDate",
-            "code,projectId,inspectionDate,location,content,issues,photos,attachments"),
+            "code,projectId,inspectionDate,location,content,issues,startTime,endTime,workerCount,manageCount,checklist,photos,attachments"),
     SIDELINE("sideline-inspections", SidelineInspection.class, SidelineInspectionDTO.class, "inspectorId", "inspectionDate",
             "code,projectId,inspectionDate,location,content,startTime,endTime,photos,attachments");
 
@@ -40,4 +40,20 @@ public enum FieldRecordKind {
     }
 
     public boolean isInspection() { return this == DAILY || this == SIDELINE; }
+
+    // 历史巡检只在业务判定中兼容为已保存，读取时不改写原状态或历史快照。
+    public static final java.util.Set<String> DAILY_SAVED_STATUSES = java.util.Set.of(
+            "recorded", "submitted", "pending", "approved", "rejected", "fixed", "active");
+
+    public boolean requiresReview() { return this != DAILY; }
+
+    public boolean retainsSubmittedVersions() { return this == DIARY || this == LOG; }
+
+    public boolean isSavedMemo(String status) {
+        return this == DAILY && status != null && DAILY_SAVED_STATUSES.contains(status);
+    }
+
+    public boolean isPublished(String status) {
+        return status != null && (isSavedMemo(status) || java.util.Set.of("approved", "recorded", "fixed").contains(status));
+    }
 }

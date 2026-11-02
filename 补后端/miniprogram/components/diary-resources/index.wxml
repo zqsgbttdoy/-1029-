@@ -1,0 +1,23 @@
+<view class="fd-resources">
+  <view class="fd-title">关联资源 · 复制后粘贴到正文</view><view class="fd-hint">仅展示候选文件；复制或打开不建立引用。默认日记当日，可筛选历史。读取失败不影响正文编辑。</view>
+  <view wx:for="{{groups}}" wx:for-item="group" wx:for-index="gi" wx:key="type" class="fd-group">
+    <view class="fd-title">{{group.name}}</view>
+    <picker mode="date" value="{{group.dateFrom}}" data-group="{{gi}}" data-field="dateFrom" bindchange="filter"><view class="fd-filter">开始日期：{{group.dateFrom}}</view></picker>
+    <picker mode="date" value="{{group.dateTo}}" data-group="{{gi}}" data-field="dateTo" bindchange="filter"><view class="fd-filter">结束日期：{{group.dateTo}}</view></picker>
+    <input value="{{group.keyword}}" maxlength="200" placeholder="编号／标题／工程资料文件名" data-group="{{gi}}" data-field="keyword" bindinput="filter" />
+    <button disabled="{{disabled}}" data-group="{{gi}}" bindtap="search">查询</button>
+    <input value="{{group.fileName}}" placeholder="筛选本页附件名" data-group="{{gi}}" data-field="fileName" bindinput="filter" />
+    <view wx:if="{{group.loading}}" class="fd-hint">正在读取…</view>
+    <view wx:elif="{{group.error}}" class="fd-error">{{group.error}}<button disabled="{{disabled}}" data-group="{{gi}}" bindtap="retry">重试</button></view>
+    <block wx:else>
+      <view wx:if="{{!group.visibleRecords.length}}" class="fd-hint">当前条件下无来源记录</view>
+      <view wx:for="{{group.visibleRecords}}" wx:for-item="record" wx:for-index="ri" wx:key="sourceId" class="fd-record">
+        <view>{{record.code}} {{record.title}} · {{record.date}}</view>
+        <view wx:if="{{!record.files.length}}" class="fd-hint">无可关联文件</view><view wx:elif="{{!record.visibleFiles.length}}" class="fd-hint">无匹配附件名</view>
+        <view wx:for="{{record.visibleFiles}}" wx:for-item="file" wx:for-index="fi" wx:key="file" class="fd-file"><button class="fd-link" data-group="{{gi}}" data-record="{{ri}}" data-file="{{fi}}" bindtap="open">{{file.name}}</button><button disabled="{{disabled}}" data-group="{{gi}}" data-record="{{ri}}" data-file="{{fi}}" bindtap="copy">复制链接</button></view>
+      </view>
+      <view class="fd-hint">共 {{group.total}} 条 · 第 {{group.page}} 页</view>
+    </block>
+    <view class="fd-pages"><button disabled="{{disabled || group.loading || group.error || group.page <= 1}}" data-group="{{gi}}" data-delta="-1" bindtap="page">上一页</button><button disabled="{{disabled || group.loading || group.error || group.page * 20 >= group.total}}" data-group="{{gi}}" data-delta="1" bindtap="page">下一页</button></view>
+  </view>
+</view>

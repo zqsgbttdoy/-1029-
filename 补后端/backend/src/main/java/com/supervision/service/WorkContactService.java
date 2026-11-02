@@ -31,6 +31,14 @@ public class WorkContactService {
     private final WorkContactRepository workContactRepository;
     private final ProjectAccessService access;
     private final AttachmentAccessService attachmentAccess;
+    private final DiaryReferenceService diaryReferences;
+    private final DiaryResourceResolver diaryResources;
+
+    private WorkContact locked(Long id) {
+        WorkContact record = (WorkContact) diaryResources.load("work-contacts", id, true);
+        diaryResources.requireVisible("work-contacts", record);
+        return record;
+    }
 
     public PageResult<WorkContact> list(int pageNum, int pageSize, Long projectId, String code, String status) {
         pageNum = PageUtils.normalizePageNum(pageNum);
@@ -89,7 +97,7 @@ public class WorkContactService {
     }
 
     public WorkContact update(Long id, WorkContactDTO dto) {
-        WorkContact existing = getById(id);
+        WorkContact existing = locked(id);
         access.requireEdit(existing.getProjectId(), existing.getAuthorId());
         if (!java.util.Objects.equals(dto.getProjectId(), existing.getProjectId())) throw new BusinessException(400, "不可更换记录所属项目");
         attachmentAccess.bind(existing.getProjectId(), dto.getPhotos(), dto.getAttachments());
@@ -121,25 +129,28 @@ public class WorkContactService {
             }
             existing.setStatus(dto.getStatus());
         }
+        diaryReferences.invalidate("work-contacts", existing, false);
         return workContactRepository.save(existing);
     }
 
     @Transactional
     public void delete(Long id) {
-        WorkContact existing = getById(id);
+        WorkContact existing = locked(id);
         access.requireEdit(existing.getProjectId(), existing.getAuthorId());
         existing.setStatus("inactive");
+        diaryReferences.invalidate("work-contacts", existing, true);
         workContactRepository.save(existing);
     }
 
     public WorkContact reply(ReplyDTO dto) {
-        WorkContact existing = getById(dto.getId());
+        WorkContact existing = locked(dto.getId());
         if (!"sent".equals(existing.getStatus()) && !"overdue".equals(existing.getStatus())) {
             throw new BusinessException("只有已发送或已逾期状态的联系单才能回复");
         }
         existing.setReplyContent(dto.getReplyContent());
         existing.setReplyDate(LocalDate.now());
         existing.setStatus("replied");
+        diaryReferences.invalidate("work-contacts", existing, false);
         return workContactRepository.save(existing);
     }
 

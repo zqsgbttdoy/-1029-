@@ -60,7 +60,16 @@ desktop.ini
 
 # ---------- 真实浏览器验收产物：Edge 用户配置目录（数百 MB，含本机浏览数据） ----------
 /测试工作区/.edge-visual-profile*/
+/测试工作区/**/edge-*/
+/测试工作区/**/final-surefire/
+/测试工作区/**/surefire/
+/测试工作区/**/runs/
+/测试工作区/**/screenshots-*/
+/测试工作区/**/downloads/
+/测试工作区/**/legacy-shots/
+/测试工作区/**/run-ids.txt
 /test-workspace-backup-*/
+/runs/
 
 # ---------- 验收截图 / 运行输出 / 重置备份 / 导出样例（测试产物，不入库） ----------
 /测试工作区/**/*.png

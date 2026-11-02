@@ -5,10 +5,16 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
 const schema = require('../utils/schema');
+const C = require('../utils/inspection-checklist');
 const source = fs.readFileSync(path.join(__dirname, '../utils/drafts.js'), 'utf8');
 const copy = value => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
 const error = (code, message = '请求失败') => Object.assign(new Error(message), { code });
 function deferred() { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; }
+function revisionOf(record) {
+  return { ...copy(record), id: record.id + 100, code: 'REV-' + record.id, sourceRecordId: record.id,
+    version: (record.version || 1) + 1, lockVersion: 0, status: 'draft',
+    submittedAt: null, submittedBy: null, reviewerId: null, reviewedAt: null, rejectReason: null };
+}
 function setup() {
   const state = { uid: '1', store: new Map(), calls: [], uploads: [], removed: [], foreground: true, quota: false, server: null };
   const wx = {
@@ -26,13 +32,18 @@ function setup() {
       if (url === '/field/diary-prefill') return state.prefill ? state.prefill() : copy(state.prefillSource || {});
       if (url.startsWith('/projects/')) return { id: 2, name: '测试工程' };
       if (url === '/field/summary') return { canReview: true };
-      if (method === 'GET') return copy(state.server);
-      state.server = Object.assign({}, body, { id: 10, lockVersion: state.server ? state.server.lockVersion + 1 : 0, status: url.endsWith('/submit') ? 'submitted' : 'draft' });
+      if (url.endsWith('/new-version') && method === 'POST') return copy(state.revision || (state.revision = revisionOf(state.server)));
+      if (url.endsWith('/versions')) return copy(state.versions || [state.server]);
+      if (url.endsWith('/history')) return copy(state.history || []);
+      if (method === 'GET') return copy(state.revision && url.endsWith('/' + state.revision.id) ? state.revision : state.server);
+      // 写入后回显客户端请求的状态：巡检以 recorded 表示已保存，不再由服务端改写为草稿
+      const requested = !url.endsWith('/submit') && body && body.status;
+      state.server = Object.assign({}, body, { id: 10, lockVersion: state.server ? state.server.lockVersion + 1 : 0, status: url.endsWith('/submit') ? 'submitted' : requested || 'draft' });
       return copy(state.server);
     }
   };
   function load() {
-    const context = { module: { exports: {} }, require: name => name === './api' ? api : schema, wx, getApp: () => ({ globalData: { foreground: state.foreground } }), console };
+    const context = { module: { exports: {} }, require: name => ({ './api': api, './schema': schema, './inspection-checklist': C })[name], wx, getApp: () => ({ globalData: { foreground: state.foreground } }), console };
     vm.runInNewContext(source, context, { filename: 'drafts.js' });
     return context.module.exports;
   }
@@ -223,11 +234,25 @@ test('刷新服务器草稿同步照片说明，不以本机旧说明覆盖', as
   s.drafts.edit(d.localId, { media: [{ id: 'p1', path: '/persistent/a.jpg', description: '旧说明' }] });
   await s.drafts.sync(d.localId);
   const updated = Object.assign(body(), { photos: JSON.stringify([{ url: '/api/uploads/a.jpg', description: 'PC补充' }]) });
-  s.drafts.create(d.kind, updated, { id: 10, status: 'rejected', lockVersion: 1, rejectReason: '补充部位' });
+  s.drafts.create(d.kind, updated, { id: 10, status: 'draft', lockVersion: 1 });
   assert.equal(s.drafts.get(d.localId).media[0].description, 'PC补充');
-  assert.equal(s.drafts.get(d.localId).rejectReason, '补充部位');
   s.drafts.edit(d.localId, { body: updated }); await s.drafts.sync(d.localId);
   assert.equal(JSON.parse(s.server.photos)[0].description, 'PC补充');
+});
+test('日记日志冻结本机副本不上传覆盖，版本元数据保留且不混入正文', async () => {
+  for (const kind of ['supervision-diaries', 'supervision-logs']) {
+    for (const status of ['submitted', 'rejected', 'approved']) {
+      const s = setup(), record = { id: 7, status, authorId: 1, lockVersion: 3, version: 2, sourceRecordId: 6, submittedAt: '2026-10-30T08:00:00' };
+      const d = s.drafts.create(kind, body(), record);
+      s.drafts.edit(d.localId, { body: { ...body(), construction: '旧客户端改写' } });
+      await assert.rejects(s.drafts.sync(d.localId), /不可覆盖/);
+      assert.equal(s.calls.length, 0); assert.equal(s.drafts.get(d.localId).dirty, true);
+      assert.equal(d.recordMeta.version, 2); assert.equal(d.recordMeta.sourceRecordId, 6);
+      assert.equal(d.body.version, undefined); assert.equal(d.body.sourceRecordId, undefined);
+      assert.equal(schema.canEditStatus(kind, status), false);
+      assert.equal(schema.canReviseStatus(kind, status), status !== 'submitted');
+    }
+  }
 });
 test('页面存储失败暂停自动同步，重新落盘后继续', async () => {
   const s = setup(), d = create(s), changed = Object.assign(body(), { construction: '内存新内容' });
@@ -267,25 +292,25 @@ test('提交期间新编辑存储失败不能误报本机内容全部已提交',
 
 // 在隔离 DOM 桩中执行电脑端真实组件；不请求本地业务服务、不写真实浏览器草稿。
 async function setupPc(kind = 'supervision-diaries', search = '', projects = [{ id: 2, name: '测试工程' }], record = null) {
-  const nodes = {}, values = new Map(), state = { calls: [], records: [], uploads: [], projects, record, uid: 1 };
+  const nodes = {}, values = new Map(), state = { calls: [], queries: [], records: [], uploads: [], projects, record, uid: 1 };
   let elementSeq = 0;
   function node(id) {
     return nodes[id] || (nodes[id] = { id, value: '', dataset: {}, style: {}, hidden: false, innerHTML: '', textContent: '', children: [],
       classList: { add() {}, remove() {} }, listeners: {},
-      addEventListener(event, fn) { this.listeners[event] = fn; }, insertAdjacentHTML() {}, focus() { state.focus = id; },
+      addEventListener(event, fn) { this.listeners[event] = fn; }, insertAdjacentHTML() {}, focus() { state.focus = id; }, scrollIntoView() { state.scrolled = id; },
       appendChild(child) { this.children.push(child); }, querySelectorAll() { return []; }, querySelector() { return null; }, click() {} });
   }
   const root = node('fieldWorkspace'); root.dataset.kind = kind;
-  root.querySelector = selector => selector === 'thead th:nth-child(4)' ? node('authorHeading') : null;
+  root.querySelector = selector => selector === 'thead th:nth-child(4)' ? node('authorHeading') : selector === '[data-field="projectId"]' ? node('fwF-projectId') : null;
   state.enableControls = () => {
     let html = '', controls = [];
     const decode = value => value.replace(/&(?:amp|lt|gt|quot|#39);/g, c => ({ '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'" })[c]);
     Object.defineProperty(node('fwForm'), 'innerHTML', { get: () => html, set(value) {
       html = value; controls = [];
-      for (const match of value.matchAll(/<(input|textarea)\b([^>]*data-field="([^"]+)"[^>]*)>([^<]*)/g)) {
-        const field = match[3], control = node('fwF-' + field);
+      for (const match of value.matchAll(/<(input|textarea|select)\b([^>]*data-field="([^"]+)"[^>]*)>([^<]*)/g)) {
+        const tag = match[1], field = match[3], control = node('fwF-' + field);
         control.dataset = { field }; control.listeners = {};
-        control.value = decode(match[1] === 'textarea' ? match[4] : ((match[2].match(/\bvalue="([^"]*)"/) || [])[1] || ''));
+        control.value = tag === 'select' ? '' : decode(tag === 'textarea' ? match[4] : ((match[2].match(/\bvalue="([^"]*)"/) || [])[1] || ''));
         controls.push(control);
       }
     } });
@@ -294,13 +319,21 @@ async function setupPc(kind = 'supervision-diaries', search = '', projects = [{ 
   };
   const App = { escape: value => String(value == null ? '' : value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]),
     requireAuth: () => true, initTopbar() {}, getUser: () => ({ userId: state.uid, userName: '当前账号' }),
-    getToken: () => 'test', confirm: async () => true, buildQuery: p => new URLSearchParams(p).toString(),
+    getToken: () => 'test', confirm: async (...args) => { state.confirms = (state.confirms || []).concat(args); return state.confirmResult !== false; }, buildQuery: p => new URLSearchParams(p).toString(),
     uploadFile: async file => {
       state.uploads.push(file.name);
       if (state.uploadFailure === file.name) throw new Error('附件上传失败');
       return { url: '/api/uploads/' + encodeURIComponent(file.name), name: file.name, size: 10 };
     },
-    apiGetPage: async path => ({ list: path === '/projects' ? state.projects : state.records, total: path === '/projects' ? state.projects.length : state.records.length }),
+    apiGetPage: async (path, params = {}) => {
+      state.queries.push({ path, params: copy(params) });
+      if (path === '/projects') return { list: state.projects, total: state.projects.length };
+      if (state.pageFetch) return state.pageFetch(path, params);
+      if (state.listError) throw new Error(state.listError);
+      const records = state.records.filter(r => !params.status || r.status === params.status);
+      const start = ((params.pageNum || 1) - 1) * (params.pageSize || 20);
+      return { list: records.slice(start, start + (params.pageSize || 20)), total: records.length };
+    },
     apiFetch: async (path, opts) => {
       state.calls.push({ path, opts });
       if (path.startsWith('/field/summary')) {
@@ -311,10 +344,16 @@ async function setupPc(kind = 'supervision-diaries', search = '', projects = [{ 
       if (path.startsWith('/field/diary-prefill')) return state.prefill ? state.prefill(path) : copy(state.prefillSource || {});
       if (path.startsWith('/field/diary-source')) return state.source;
       if (path.startsWith('/files/access')) return { url: 'signed:file' };
-      if (!opts) return state.record;
+      if (path.endsWith('/new-version') && opts && opts.method === 'POST') return state.revision || (state.revision = revisionOf(state.record));
+      if (path.endsWith('/versions')) return copy(state.versions || [state.record]);
+      if (path.endsWith('/history')) return copy(state.history || []);
+      if (!opts) return state.revision && path.endsWith('/' + state.revision.id) ? state.revision : state.record;
+      if (state.writeError) throw state.writeError;
       state.saved = path.endsWith('/submit')
-        ? Object.assign({}, state.saved, { status: 'submitted', lockVersion: state.saved.lockVersion + 1 })
-        : Object.assign({}, opts.body, { id: 10, lockVersion: 1, authorId: 1, authorName: '实际记录人', status: 'draft' });
+        // 服务端对巡检的提交请求同样返回“已保存”，不进入待审核
+        ? Object.assign({}, state.saved, { status: kind === 'daily-inspections' ? 'recorded' : 'submitted', lockVersion: state.saved.lockVersion + 1 })
+        // 巡检“保存修改”落库为已保存，服务端不会再把它改回草稿
+        : Object.assign({}, opts.body, { id: 10, lockVersion: 1, authorId: 1, authorName: '实际记录人', status: kind === 'daily-inspections' && (opts.body || {}).status === 'recorded' ? 'recorded' : 'draft' });
       return state.saved;
     }
   };
@@ -322,14 +361,83 @@ async function setupPc(kind = 'supervision-diaries', search = '', projects = [{ 
     location: { origin: 'https://test.invalid', search }, crypto: require('node:crypto').webcrypto, URLSearchParams,
     sessionStorage: { get length() { return values.size; }, key: i => [...values.keys()][i], getItem: k => values.get(k), setItem: (k, v) => values.set(k, v), removeItem: k => values.delete(k) },
     Blob, URL: { createObjectURL: blob => { state.blob = blob; return 'blob:test'; }, revokeObjectURL() {} },
-    setTimeout: () => 0, console, addEventListener() {}, print() { if (state.onPrint) state.onPrint(); } };
-  context.window = context; context.FieldSchema = schema;
+    setTimeout: () => 0, console, addEventListener(name, fn) { state[name] = fn; }, print() { if (state.onPrint) state.onPrint(); } };
+  context.window = context; context.FieldSchema = schema; context.InspectionChecklist = C;
+  context.DiaryLinks = require('../utils/diary-links');
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../../assets/inspection-checklist.js'), 'utf8'), context);
   const code = fs.readFileSync(path.join(__dirname, '../../assets/field-records.js'), 'utf8')
-    .replace(/\}\)\(\);\s*$/, 'window.testActions = { create, open, show, save, exportRows, prefillLog, closeEditor, getDraft: () => draft };})();');
+    .replace(/\}\)\(\);\s*$/, 'window.testActions = { create, open, show, save, exportRows, prefillLog, closeEditor, load, resumeLocal, getDraft: () => draft };})();');
   vm.runInNewContext(code, context);
   await new Promise(resolve => setImmediate(resolve));
   return Object.assign(state, { nodes, values, actions: context.testActions });
 }
+
+// 执行安全日志页面的真实脚本，验证独立版本链和保存目标，不依赖静态示例数据。
+function setupSafety() {
+  const html = fs.readFileSync(path.join(__dirname, '../../safety-log.html'), 'utf8');
+  const source = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].map(m => m[1]).find(s => s.includes('function mapLog'));
+  const nodes = {}, state = { calls: [], uid: 1 };
+  let elementSeq = 0;
+  function node(id) {
+    return nodes[id] || (nodes[id] = { id, value: '', textContent: '', innerHTML: '', style: {}, dataset: {}, children: [],
+      classList: { add() {}, remove() {}, toggle() {} }, setAttribute(name, value) { this[name] = value; }, getAttribute(name) { return this[name]; },
+      addEventListener() {}, insertAdjacentHTML(where, value) { this.innerHTML += value; }, appendChild(child) { this.children.push(child); return child; },
+      insertBefore(child) { this.children.unshift(child); return child; }, querySelector() { return null; }, querySelectorAll() { return []; }, remove() {}, focus() {} });
+  }
+  const document = { getElementById: node, body: node('body'), createElement: () => node('created-' + ++elementSeq),
+    querySelector(selector) {
+      if (selector.includes('.photo-item:not') || selector === '#createModal .version-tab.active') return null;
+      return node('query:' + selector);
+    }, querySelectorAll() { return []; } };
+  const context = { document, location: { search: '' }, URLSearchParams, console, setTimeout: () => 0 };
+  context.window = context;
+  vm.runInNewContext(source + '\n;window.testSafety = { mapLog, loadSafetyVersions, buildViewVersionPanel, openEditModal, saveLog,' +
+    ' setRecords(value) { tableData = value; filteredData = value; }, setEditing(value) { editingRecord = value; }, getEditing: () => editingRecord };', context, { filename: 'safety-log.html' });
+  const App = { getUser: () => ({ userId: state.uid, userName: '当前账号' }), confirm: async () => true, toast() {}, tableLoading() {},
+    escape: value => String(value == null ? '' : value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]),
+    apiGetPage: async () => ({ list: [], total: 0 }),
+    async apiFetch(path, opts) {
+      state.calls.push({ path, opts: copy(opts) });
+      if (path.endsWith('/new-version')) return copy(state.revision);
+      if (path.endsWith('/versions')) return copy(state.versions);
+      if (opts && opts.method === 'PUT') return copy(opts.body);
+      return {};
+    } };
+  context.App = App; context.loadData = () => Promise.resolve();
+  return Object.assign(state, { nodes, actions: context.testSafety });
+}
+function safetyVersions() {
+  const first = { id: 1, projectId: 2, logDate: '2026-10-30', authorId: 1, authorName: '记录人', status: 'rejected', version: 1,
+    content: 'V1安全正文', photos: '[]', rejectReason: '补充防护记录', submittedBy: '记录人',
+    attachments: JSON.stringify([{ url: '/api/uploads/20261030/v1.pdf', name: 'V1附件.pdf', size: '12 KB', time: '10:00' }]) };
+  const second = { ...first, id: 2, status: 'draft', version: 2, sourceRecordId: 1, content: 'V2安全正文', attachments: '[]',
+    rejectReason: null, submittedBy: null, lockVersion: 0 };
+  return [first, second];
+}
+test('电脑安全日志历史附件可打开，空版本不借用其他版本内容', async () => {
+  const s = setupSafety(); s.versions = safetyVersions();
+  const d = await s.actions.loadSafetyVersions(2);
+  const first = s.actions.buildViewVersionPanel(d, d.versions[0]), second = s.actions.buildViewVersionPanel(d, d.versions[1]);
+  assert.ok(first.includes('<a class="vc-attachment-item" href="/api/uploads/20261030/v1.pdf" title="查看附件">'));
+  assert.ok(first.includes('V1安全正文')); assert.ok(first.includes('补充防护记录'));
+  assert.ok(second.includes('V2安全正文')); assert.ok(second.includes('暂无附件')); assert.ok(!second.includes('v1.pdf'));
+});
+test('电脑安全日志驳回后打开真实V2并只写新ID，冻结原件不能保存', async () => {
+  const s = setupSafety(); s.versions = safetyVersions(); s.revision = s.versions[1];
+  s.actions.setRecords([s.actions.mapLog(s.versions[0])]);
+  await s.actions.openEditModal(1);
+  assert.equal(s.actions.getEditing().id, 2); assert.equal(s.actions.getEditing().status, 'draft');
+  assert.equal(s.calls[0].path, '/safety-logs/1/new-version');
+  await s.actions.saveLog('pending', '已提交');
+  const put = s.calls.find(c => c.opts && c.opts.method === 'PUT');
+  assert.equal(put.path, '/safety-logs/2'); assert.equal(put.opts.body.status, 'submitted');
+  assert.equal(s.calls.some(c => c.path === '/safety-logs/1' && c.opts && c.opts.method === 'PUT'), false);
+  s.calls.length = 0; s.actions.setEditing(s.actions.mapLog(s.versions[0]));
+  await s.actions.saveLog('draft', '不应保存');
+  assert.match(s.nodes.safetyFormError.textContent, /原版本已冻结/); assert.equal(s.calls.length, 0);
+  assert.equal(s.versions[0].content, 'V1安全正文');
+});
+
 test('电脑端日记九项正文直显、项目日期带入、提示不自动成为正文', async () => {
   const s = await setupPc(); await s.actions.create();
   const html = s.nodes.fwForm.innerHTML;
@@ -386,6 +494,45 @@ test('未选项目的新建提示在选择有效项目后清除，未选择时�
   assert.equal(s.actions.getDraft().body.projectId, 3);
   assert.match(s.nodes.fwForm.innerHTML, /另一工程/);
   assert.equal(s.nodes.fwError.textContent, '');
+});
+test('未保存草稿就关闭或取消，列表不留下该条；保存草稿后才生成', async () => {
+  const s = await setupPc('daily-inspections'); s.enableControls(); await s.actions.create();
+  s.input('content', '关闭前填写');
+  await s.nodes.fwClose.onclick();
+  assert.equal(s.nodes.fwEditor.hidden, true, '右上角关闭应直接关闭编辑器');
+  assert.deepEqual(s.confirms || [], [], '关闭不得弹出任何确认');
+  assert.equal(s.calls.filter(c => c.opts && c.opts.method).length, 0, '关闭不得写入服务器草稿');
+  assert.equal(s.values.size, 0, '未点保存草稿就关闭，不应留下本机草稿');
+  await s.actions.load();
+  assert.equal(s.nodes.fwLocalRows.innerHTML, '', '列表不应出现本次未保存的新建');
+  await s.nodes.fwNew.onclick(); s.input('content', '取消前填写');
+  await s.nodes.fwCancel.onclick();
+  assert.equal(s.nodes.fwEditor.hidden, true, '取消应直接关闭编辑器');
+  assert.deepEqual(s.confirms || [], [], '取消不得弹出任何确认');
+  assert.equal(s.values.size, 0, '取消同样不留下本机草稿');
+  await s.nodes.fwNew.onclick(); s.input('content', '确认保存'); await s.nodes.fwSave.onclick();
+  assert.ok(s.calls.some(c => c.opts && c.opts.method === 'POST'), '保存草稿按钮仍应按显式操作写入服务器草稿');
+});
+test('日常巡检未选工具栏项目也能新建，在表单内选择项目后才能保存', async () => {
+  const s = await setupPc('daily-inspections', '', [{ id: 2, name: '测试工程' }, { id: 3, name: '另一工程' }]);
+  s.enableControls();
+  assert.equal(s.nodes.fwProject.value, '');
+  await s.actions.create();
+  assert.equal(s.nodes.fwEditor.hidden, false, '未选工具栏项目也应直接打开新建');
+  assert.equal(s.nodes.fwError.textContent, '', '新建不应提示先选项目');
+  assert.match(s.nodes.fwForm.innerHTML, /id="fwF-projectId"/);
+  assert.match(s.nodes.fwForm.innerHTML, /请选择项目名称/);
+  assert.equal(s.nodes['fwF-projectId'].value, '');
+  assert.equal(s.actions.getDraft().body.projectId, 0);
+  assert.ok(!s.calls.some(c => c.path.startsWith('/field/summary')), '项目未选不请求统计');
+  await assert.rejects(s.actions.save(false), /请选择项目名称/);
+  assert.equal(s.nodes['fwF-projectId'].value, '');
+  s.input('projectId', '3');
+  assert.equal(s.actions.getDraft().body.projectId, 3);
+  await s.actions.save(false);
+  assert.doesNotMatch(s.nodes.fwForm.innerHTML, /请选择项目名称/);
+  const write = s.calls.find(c => c.opts && c.opts.method === 'POST' && c.opts.body);
+  assert.equal(write.opts.body.projectId, 3);
 });
 test('新建成功前清除旧项目提示，不依赖下拉框变更事件', async () => {
   const s = await setupPc('supervision-diaries', '', [{ id: 2, name: '测试工程' }, { id: 3, name: '另一工程' }]);
@@ -465,8 +612,12 @@ test('日志项目选择清除残留提示，新旧草稿、只读与修订均�
   await s.actions.open(9); await s.nodes.fwRevise.onclick();
   assert.equal(s.actions.getDraft().body.logDate, '2020-01-01');
   assert.equal(s.actions.getDraft().body.safetyIssues, '原处理结果');
-  assert.equal(s.actions.getDraft().body.sourceRecordId, 9);
+  assert.equal(s.actions.getDraft().record.sourceRecordId, 9);
+  assert.equal(s.actions.getDraft().record.version, 2);
+  assert.equal(s.actions.getDraft().record.id, 109);
   assert.equal(s.actions.getDraft().body.content, '原工作正文');
+  assert.equal(s.calls.filter(c => c.path === '/supervision-logs/9/new-version' && c.opts.method === 'POST').length, 1);
+  assert.equal(record.status, 'approved');
 });
 test('日志日记整编仅补空白栏，来源保留且不生成安全结论', async () => {
   const s = await setupPc('supervision-logs'); await s.actions.create();
@@ -488,22 +639,157 @@ test('日志导出含新旧正文、真实人员、附件与来源，公式和�
   for (const text of ['填写人', '测试工程', '原填写人', '实际审核人', '施工进度', "'=安全问题", '验收""合格""\n原文', '停工记录', '旧综合内容', '验收单.pdf', '引用日记']) assert.ok(csv.includes(text), text);
 });
 test('日志表单收集及恢复本机草稿保留新旧字段和原日期', async () => {
-  const s = await setupPc('supervision-logs'); await s.actions.create();
+  const s = await setupPc('supervision-logs'); s.enableControls(); await s.actions.create();
   const body = { logDate: '2020-01-01', construction: '施工部位原文', safetyIssues: '已处理安全问题', inspection: '资料核查完成', content: '旧整编内容' };
-  const controls = Object.entries(body).map(([field, value]) => ({ dataset: { field }, value, addEventListener() {} }));
-  s.nodes.fieldWorkspace.querySelectorAll = selector => selector === '[data-field]' ? controls : [];
-  await s.nodes.fwCancel.onclick();
+  // 关闭不再代提交草稿：本机暂存由输入事件完成，关闭只是关编辑器
+  for (const [field, value] of Object.entries(body)) s.input(field, value);
   const localId = s.actions.getDraft().localId;
   const cached = JSON.parse([...s.values.values()][0]);
   for (const [key, value] of Object.entries(body)) assert.equal(cached.body[key], value, key);
   s.nodes.fieldWorkspace.querySelectorAll = () => [];
-  await s.nodes.fwResume.onclick();
-  await s.nodes.fwDraftList.children[0].onclick();
+  s.nodes.fwStatus.value = 'draft'; await s.nodes.fwStatus.onchange();
+  await s.nodes.fwLocalRows.onclick({ target: { closest: () => ({ dataset: { local: [...s.values.keys()][0] } }) } });
   assert.equal(s.actions.getDraft().localId, localId);
   for (const [key, value] of Object.entries(body)) assert.equal(s.actions.getDraft().body[key], value, key);
   await s.actions.save(false);
   for (const [key, value] of Object.entries(body)) assert.equal(s.saved[key], value, key);
 });
+test('四类记录删除恢复按钮，草稿筛选请求服务器并可从行继续编辑', async () => {
+  for (const kind of Object.keys(schema.schemas)) {
+    const s = await setupPc(kind), date = schema.schemas[kind].date;
+    assert.doesNotMatch(s.nodes.fieldWorkspace.innerHTML, /fwResume|恢复本机草稿|fwDraftPanel/);
+    assert.match(s.nodes.fieldWorkspace.innerHTML, /value="draft">草稿/);
+    s.record = { id: 9, projectId: 2, [date]: '2026-10-29', authorId: 1, status: 'draft', construction: '服务器正文', content: '服务器正文' };
+    s.records = [s.record, { ...s.record, id: 10, status: 'submitted' }];
+    s.nodes.fwStatus.value = 'draft'; await s.nodes.fwStatus.onchange();
+    const query = s.queries.at(-1);
+    assert.equal(query.path, '/records/' + kind); assert.equal(query.params.status, 'draft');
+    assert.match(s.nodes.fwRows.innerHTML, /fw-chip draft/); assert.match(s.nodes.fwRows.innerHTML, /继续编辑/);
+    assert.doesNotMatch(s.nodes.fwRows.innerHTML, /data-id="10"/);
+    await s.nodes.fwRows.onclick({ target: { closest: () => ({ dataset: { id: '9' } }) } });
+    assert.match(s.nodes.fwForm.innerHTML, /服务器正文/); assert.equal(s.nodes.fwSave.hidden, false);
+    s.nodes.fwStatus.value = kind === 'daily-inspections' ? 'recorded' : 'submitted';
+    if (kind === 'daily-inspections') s.records = s.records.concat([{ ...s.record, id: 11, status: 'recorded' }]);
+    await s.nodes.fwStatus.onchange();
+    if (kind === 'daily-inspections') {
+      // 巡检提交即保存：列表显示已保存，本人仍可继续编辑同一条
+      assert.match(s.nodes.fwRows.innerHTML, /已保存/); assert.match(s.nodes.fwRows.innerHTML, /data-id="11"/);
+    } else {
+      assert.match(s.nodes.fwRows.innerHTML, /已提交（待审核）/); assert.doesNotMatch(s.nodes.fwRows.innerHTML, /继续编辑/);
+    }
+  }
+});
+test('本机草稿按账号项目日期编号筛选，与服务器分页总数分开且不导出', async () => {
+  const s = await setupPc('daily-inspections'); s.enableControls(); await s.actions.create();
+  s.input('code', 'LOCAL-ONLY'); s.input('inspectionDate', '2026-10-29'); s.input('content', '本机原文');
+  const name = [...s.values.keys()][0], cached = s.values.get(name);
+  let warned = false;
+  s.beforeunload({ preventDefault() { warned = true; } }); assert.equal(warned, true, '关闭编辑器后仍提醒未同步内容');
+  s.values.set(name.replace(':1:', ':2:'), cached);
+  s.values.set(name + '-denied', JSON.stringify({ record: {}, body: { projectId: 99, content: '无权项目' } }));
+  await s.actions.load();
+  assert.match(s.nodes.fwLocalRows.innerHTML, /LOCAL-ONLY/); assert.match(s.nodes.fwLocalRows.innerHTML, /本机未同步/);
+  assert.equal((s.nodes.fwLocalRows.innerHTML.match(/data-local=/g) || []).length, 1);
+  assert.match(s.nodes.fwPage.textContent, /服务器共 0 条/);
+  for (const [id, value] of [['fwProject', '3'], ['fwFrom', '2026-10-30'], ['fwTo', '2026-10-28'], ['fwCode', 'OTHER'], ['fwStatus', 'submitted']]) {
+    s.nodes[id].value = value; await s.actions.load(); assert.equal(s.nodes.fwLocalRows.innerHTML, '', id); s.nodes[id].value = '';
+  }
+  s.records = Array.from({ length: 21 }, (_, i) => ({ id: i + 1, status: 'draft', projectId: 2 }));
+  await s.nodes.fwNext.onclick(); assert.equal(s.nodes.fwLocalRows.innerHTML, '');
+  s.nodes.fwStatus.value = 'draft'; await s.nodes.fwStatus.onchange();
+  assert.equal(s.queries.at(-1).params.pageNum, 1); assert.match(s.nodes.fwLocalRows.innerHTML, /LOCAL-ONLY/);
+  await s.actions.exportRows(); assert.doesNotMatch(await s.blob.text(), /LOCAL-ONLY/);
+  assert.equal(s.values.get(name), cached);
+});
+test('断网仍可打开本机内容，旧版存储迁移不丢字段且不自动写服务器', async () => {
+  const s = await setupPc('daily-inspections');
+  const name = 'field-pc:https://test.invalid:1:daily-inspections';
+  s.values.set(name, JSON.stringify({ record: { status: 'draft' }, body: { projectId: 2, inspectionDate: '2020-01-01', content: '离线原文' }, requestId: 'old-request' }));
+  s.listError = '模拟断网'; s.nodes.fwStatus.value = 'draft'; await s.nodes.fwStatus.onchange();
+  assert.match(s.nodes.fwRows.innerHTML, /加载失败/); assert.match(s.nodes.fwLocalRows.innerHTML, /继续编辑本机内容/);
+  await s.actions.resumeLocal(name);
+  assert.equal(s.actions.getDraft().body.content, '离线原文'); assert.equal(s.actions.getDraft().requestId, 'old-request');
+  assert.equal(s.values.has(name), false); assert.ok([...s.values.keys()].some(k => k.startsWith(name + ':draft:')));
+  assert.ok(!s.calls.some(c => c.opts));
+});
+test('状态连续切换时迟到响应不覆盖新结果', async () => {
+  const s = await setupPc('daily-inspections'), gate = deferred();
+  s.pageFetch = (path, params) => params.status === 'draft' ? gate.promise : { list: [{ id: 2, status: 'submitted' }], total: 1 };
+  s.nodes.fwStatus.value = 'draft'; const old = s.nodes.fwStatus.onchange(); await tick();
+  s.nodes.fwStatus.value = 'submitted'; await s.nodes.fwStatus.onchange();
+  gate.resolve({ list: [{ id: 1, status: 'draft' }], total: 1 }); await old;
+  assert.match(s.nodes.fwRows.innerHTML, /data-id="2"/); assert.doesNotMatch(s.nodes.fwRows.innerHTML, /data-id="1"/);
+});
+test('服务端校验失败定位错误且保留正文，纠正后保存并从列表回显', async () => {
+  const s = await setupPc('daily-inspections'); s.enableControls(); await s.actions.create();
+  s.input('content', '需保留的现场正文'); s.writeError = error(400, '检查部位不能为空');
+  await s.nodes.fwSave.onclick();
+  assert.equal(s.nodes.fwError.textContent, '检查部位不能为空'); assert.equal(s.focus, 'fwError'); assert.equal(s.scrolled, 'fwError');
+  assert.equal(s.actions.getDraft().body.content, '需保留的现场正文'); assert.equal(s.actions.getDraft().pending, null);
+  s.writeError = null; s.input('location', 'A区'); await s.nodes.fwSave.onclick();
+  assert.equal(s.values.size, 0); s.record = s.saved; s.records = [s.saved];
+  s.beforeunload({ preventDefault() { assert.fail('服务器保存后不应提示尚未同步'); } });
+  await s.nodes.fwCancel.onclick(); s.nodes.fwStatus.value = 'draft'; await s.nodes.fwStatus.onchange();
+  await s.actions.open(10); assert.equal(s.nodes['fwF-content'].value, '需保留的现场正文');
+  await s.nodes.fwSubmit.onclick();
+  // 巡检提交即保存：服务器返回已保存，弹窗关闭回到列表，本人可再次编辑
+  assert.equal(s.saved.status, 'recorded'); assert.equal(s.nodes.fwEditor.hidden, true);
+});
+test('电脑端已保存巡检保存修改后关闭编辑器并留在已保存', async () => {
+  const s = await setupPc('daily-inspections'); s.enableControls();
+  s.record = { id: 10, projectId: 2, inspectionDate: '2026-10-29', authorId: 1, authorName: '当前账号', status: 'recorded', lockVersion: 3, content: '现场原文' };
+  s.records = [s.record];
+  await s.actions.open(10);
+  assert.equal(s.nodes.fwSave.hidden, true, '已保存巡检不再提供保存草稿');
+  assert.equal(s.nodes.fwSubmit.textContent, '保存修改');
+  s.input('content', '现场原文及补充');
+  await s.nodes.fwSubmit.onclick();
+  const put = s.calls.filter(c => c.opts && c.opts.method === 'PUT').at(-1);
+  assert.equal(put.opts.body.status, 'recorded', '保存修改按已保存写入，不传草稿态');
+  assert.equal(s.calls.some(c => c.opts && String(c.path).endsWith('/submit')), false, '已保存巡检不调用审核提交接口');
+  assert.equal(s.nodes.fwEditor.hidden, true, '保存成功后关闭编辑器回到列表');
+  assert.match(s.nodes.fwError.textContent, /巡检修改已保存/);
+  assert.equal(s.saved.status, 'recorded'); assert.equal(s.values.size, 0, '保存成功后不再保留本机草稿');
+  assert.match(s.nodes.fwRows.innerHTML, /data-id="10"/); assert.match(s.nodes.fwRows.innerHTML, /已保存/);
+});
+test('巡视旁站分组覆盖全部字段一次，短字段成对且必填星号不重复', async () => {
+  for (const kind of ['daily-inspections', 'sideline-inspections']) {
+    const spec = schema.schemas[kind], s = await setupPc(kind); await s.actions.create();
+    assert.deepEqual(spec.pcSections.flatMap(g => g.fields).sort(), spec.fields.map(f => f[0]).sort());
+    for (const [field] of spec.fields) assert.equal((s.nodes.fwForm.innerHTML.match(new RegExp('data-field="' + field + '"', 'g')) || []).length, 1);
+    assert.match(s.nodes.fwForm.innerHTML, /aria-required="true"/);
+    assert.doesNotMatch(s.nodes.fwForm.innerHTML, /\*\s*<span class="fd-req">/);
+    assert.match(s.nodes.fwGuide.innerHTML, /正文未完成可先保存草稿/);
+  }
+  const s = await setupPc('sideline-inspections'); await s.actions.create();
+  assert.match(s.nodes.fwForm.innerHTML, /<input[^>]+data-field="startTime"/);
+  assert.match(s.nodes.fwForm.innerHTML, /<textarea[^>]+data-field="result"/);
+});
+test('旁站起止时间与日期改用确认式选择面板，历史秒值原样回显', async () => {
+  const s = await setupPc('sideline-inspections'); await s.actions.create();
+  const html = s.nodes.fwForm.innerHTML;
+  // 输入框只读：只能点开面板选择，点“确定”才写回并触发本机草稿保存
+  for (const field of ['startTime', 'endTime']) {
+    const tag = html.match(new RegExp('<input[^>]*data-field="' + field + '"[^>]*>'))[0];
+    assert.match(tag, /data-picker="minute"/, field + ' 用分钟档选择面板');
+    assert.match(tag, /readonly/, field + ' 只读，避免手输格式错');
+    assert.match(tag, /aria-haspopup="dialog"/, field);
+  }
+  assert.match(html, /data-field="startTime"[^>]*data-picker-before="fwF-endTime"[^>]*data-picker-before-msg="旁站开始时间必须先于结束时间"/);
+  assert.match(html, /data-field="endTime"[^>]*data-picker-after="fwF-startTime"[^>]*data-picker-after-msg="旁站结束时间必须晚于开始时间"/);
+  assert.match(html, /data-field="inspectionDate"[^>]*data-picker="date"[^>]*readonly/);
+  // 日常巡检保持整点面板，旁站改造不能放宽巡视的精度要求
+  const daily = await setupPc('daily-inspections'); await daily.actions.create();
+  assert.match(daily.nodes.fwForm.innerHTML, /data-field="startTime"[^>]*data-picker="hour"/);
+  assert.doesNotMatch(daily.nodes.fwForm.innerHTML, /data-picker="minute"/);
+  // 历史值带秒时原样展示，未重新选择则不被取整
+  const history = await setupPc('sideline-inspections');
+  await history.actions.show({ record: { id: 12, status: 'draft', authorId: 1 },
+    body: { projectId: 2, inspectionDate: '2026-10-29', startTime: '2026-10-29T08:30:00', endTime: '2026-10-29T11:30:00' } });
+  assert.match(history.nodes.fwForm.innerHTML, /data-field="startTime"[^>]*value="2026-10-29 08:30:00"/);
+  assert.match(history.nodes.fwForm.innerHTML, /data-field="endTime"[^>]*value="2026-10-29 11:30:00"/);
+});
+
 test('日志附件失败时拦截提交，重试仅上传失败文件并保留正文', async () => {
   const s = await setupPc('supervision-logs'); await s.actions.create();
   s.actions.getDraft().body.safetyIssues = '安全问题整改复查';
@@ -537,10 +823,10 @@ test('日志只读链接初始化加载原记录，非法编号不请求详情',
 test('日志打印临时展开兼容栏目并恢复，不改变表单值', async () => {
   const s = await setupPc('supervision-logs'); await s.actions.create();
   const details = { open: false };
-  const field = { value: '施工进度与安全问题原文', hidden: false, tagName: 'TEXTAREA', after(node) { this.printed = node.textContent; } };
+  const field = { value: '施工进度与安全问题原文', hidden: false, tagName: 'TEXTAREA', closest() { return null; }, after(node) { this.printed = node.textContent; } };
   s.nodes.fwForm.querySelectorAll = selector => selector.startsWith('details') ? [details] : [field];
   s.onPrint = () => { assert.equal(details.open, true); assert.equal(field.hidden, true); assert.equal(field.printed, field.value); };
-  s.nodes.fwPrint.onclick();
+  await s.nodes.fwPrint.onclick();
   assert.equal(details.open, false); assert.equal(field.hidden, false);
 });
 
@@ -575,7 +861,7 @@ test('电脑端新建日志自动预填到控件与草稿，仅复制对应字�
 });
 test('电脑端编辑历史日志按原日期取数并保护手写、附件及既有来源', async () => {
   const s = await setupPc('supervision-logs'); s.enableControls();
-  s.record = { id: 7, projectId: 2, logDate: '2020-01-01', status: 'rejected', authorId: 1, lockVersion: 3,
+  s.record = { id: 7, projectId: 2, logDate: '2020-01-01', status: 'draft', authorId: 1, lockVersion: 3,
     construction: '领导手写施工', content: '旧整编正文', attachments: '[{"url":"old.pdf"}]', diarySources: '[{"id":8}]' };
   s.prefillSource = { construction: '不覆盖', inspection: '日记巡视', safetyIssues: '日记新问题' };
   await s.actions.open(7); await tick();
@@ -584,6 +870,26 @@ test('电脑端编辑历史日志按原日期取数并保护手写、附件及�
   assert.equal(d.body.construction, '领导手写施工'); assert.equal(d.body.inspection, '日记巡视');
   assert.equal(d.body.content, '旧整编正文'); assert.equal(d.body.diarySources, '[{"id":8}]');
   assert.deepEqual(JSON.parse(d.body.attachments), [{ url: 'old.pdf' }]); assert.equal(d.record.lockVersion, 3);
+});
+test('电脑端驳回原件只读、不预填、不写原ID，修订打开真实V2并回看V1', async () => {
+  for (const kind of ['supervision-diaries', 'supervision-logs']) {
+    const s = await setupPc(kind);
+    s.record = { ...body(), id: 7, logDate: '2026-09-23', authorId: 1, status: 'rejected', version: 1, lockVersion: 3,
+      rejectReason: '补充现场位置', submittedAt: '2026-10-30T08:00:00', photos: '[{"url":"/api/uploads/v1.jpg","name":"V1照片"}]' };
+    const before = copy(s.record);
+    await s.actions.open(7); await tick();
+    for (const id of ['fwSave', 'fwSubmit', 'fwDelete', 'fwUploadField', 'fwFork']) assert.equal(s.nodes[id].hidden, true, id);
+    assert.equal(s.nodes.fwRevise.hidden, false); assert.equal(prefillCalls(s).length, 0);
+    await assert.rejects(s.actions.save(false), /冻结/);
+    assert.equal(s.calls.some(c => c.opts && c.opts.method === 'PUT'), false);
+    await s.nodes.fwRevise.onclick();
+    assert.equal(s.actions.getDraft().record.id, 107); assert.equal(s.actions.getDraft().record.version, 2);
+    assert.equal(s.actions.getDraft().record.sourceRecordId, 7); assert.equal(s.nodes.fwSave.hidden, false);
+    s.versions = [s.record, s.revision]; await s.nodes.fwHistory.onclick();
+    assert.match(s.nodes.fwHistoryContent.innerHTML, /V1/); assert.match(s.nodes.fwHistoryContent.innerHTML, /V2/);
+    assert.match(s.nodes.fwHistoryContent.innerHTML, /补充现场位置/); assert.match(s.nodes.fwHistoryContent.innerHTML, /V1照片/);
+    assert.deepEqual(s.record, before);
+  }
 });
 test('电脑端预填请求期间输入或主动清空不被覆盖，手动重试仍保护在途编辑', async () => {
   const s = await setupPc('supervision-logs'); s.enableControls(); const gate = deferred();
@@ -630,9 +936,11 @@ test('电脑端恢复本机草稿自动补空白，失败独立提示且可重�
   s.prefill = async () => { throw new Error('模拟断网'); };
   await s.actions.create(); await tick();
   assert.match(s.nodes.fwPrefillState.textContent, /模拟断网/); assert.equal(s.nodes.fwError.textContent, '');
-  s.input('construction', '离线手写'); await s.nodes.fwCancel.onclick();
+  s.input('construction', '离线手写');
+  // 关闭会丢弃未保存的暂存，故直接在编辑器内恢复本机草稿验证补空白
+  const localName = [...s.values.keys()][0];
   s.prefill = null; s.prefillSource = { construction: '不覆盖', safetyIssues: '日记问题' };
-  await s.nodes.fwResume.onclick(); await s.nodes.fwDraftList.children[0].onclick(); await tick();
+  await s.actions.resumeLocal(localName); await tick();
   assert.equal(s.nodes['fwF-construction'].value, '离线手写'); assert.equal(s.nodes['fwF-safetyIssues'].value, '日记问题');
   assert.equal(prefillCalls(s).length, 2);
 });
@@ -706,13 +1014,63 @@ function setupPage(s) {
   s.api.fileUrl = async url => 'signed:' + url;
   s.wx.showModal = options => { s.modal = options; };
   s.wx.redirectTo = options => { s.redirect = options.url; };
+  s.wx.navigateTo = options => { s.navigation = options.url; };
   s.wx.setNavigationBarTitle = () => {}; s.wx.showToast = options => { s.toast = options.title; };
+  const editorContext = { module: { exports: {} }, wx: s.wx, require: name => ({ './inspection-checklist': C, './api': s.api, './drafts': s.drafts })[name] };
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../utils/inspection-editor.js'), 'utf8'), editorContext);
   vm.runInNewContext(pageSource, { Page: value => { page = value; }, wx: s.wx,
-    require: name => ({ '../../utils/api': s.api, '../../utils/drafts': s.drafts, '../../utils/voice': voice, '../../utils/schema': schema })[name] });
+    setTimeout: fn => { s.timeouts = (s.timeouts || []).concat(fn); return 1; },
+    getCurrentPages: () => s.pageStack || [{}, {}],
+    require: name => ({ '../../utils/api': s.api, '../../utils/drafts': s.drafts, '../../utils/voice': voice, '../../utils/schema': schema,
+      '../../utils/inspection-checklist': C, '../../utils/inspection-editor': editorContext.module.exports,
+      '../../utils/diary-links': require('../utils/diary-links') })[name] });
   page.data = copy(page.data); page.uid = s.uid; page.kind = 'supervision-diaries'; page.visible = true;
   page.setData = values => Object.assign(page.data, copy(values));
   return page;
 }
+const diaryLink = require('../utils/diary-links').format({ sourceType: 'project-documents', sourceId: 5, file: '/api/uploads/a.jpg', name: '中文(复核).jpg' });
+test('电脑端链接正文CSV保留文件名稳定地址及公式防护，不导出临时凭据', async () => {
+  const s = await setupPc();
+  s.records.push({ projectId: 2, construction: '=公式' + diaryLink, status: 'draft', authorName: '实际填写人' });
+  await s.actions.exportRows();
+  const csv = await s.blob.text();
+  assert.ok(csv.includes("'=公式"));
+  assert.ok(csv.includes('中文(复核).jpg（file-reference.html?sourceType=project-documents&sourceId=5&file=%2Fapi%2Fuploads%2Fa.jpg）'));
+  assert.doesNotMatch(csv, /ticket=|token=|signature=/);
+});
+test('带链接正文离线重启、pending重放与后续移除均保留最终正文', async () => {
+  const s = setup(), request = s.api.request;
+  const d = s.drafts.create('supervision-diaries', Object.assign(body(), { construction: '前' + diaryLink + diaryLink + '后' }));
+  s.reload(); assert.equal(s.drafts.get(d.localId).body.construction, '前' + diaryLink + diaryLink + '后');
+  let lost = true; s.api.request = async (...args) => { const result = await request(...args); if (lost) { lost = false; throw error(undefined, '响应丢失'); } return result; };
+  await assert.rejects(s.drafts.sync(d.localId)); const pending = copy(s.drafts.get(d.localId).pending);
+  s.drafts.edit(d.localId, { body: Object.assign(body(), { construction: '前' + diaryLink + '后' }) });
+  await s.drafts.sync(d.localId); assert.deepEqual(s.calls[1].body, pending.body);
+  assert.equal(s.drafts.get(d.localId).body.construction, '前' + diaryLink + '后');
+  await s.drafts.sync(d.localId); assert.equal(s.calls[2].body.construction, '前' + diaryLink + '后');
+});
+test('小程序反查只读本人服务器草稿不创建本机副本、不暴露写动作', async () => {
+  const s = setup(), p = setupPage(s); s.server = Object.assign(body(), { id: 8, authorId: 1, status: 'draft', construction: diaryLink });
+  await p.onLoad({ kind: 'supervision-diaries', id: 8, readonly: 'true' }); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(s.drafts.list().length, 0); assert.equal(p.data.editable, false); assert.equal(p.data.canReview, false); assert.equal(p.data.canRevise, false);
+  assert.equal(p.data.fields.filter(f => f.link).length, 9);
+  await p.review({}); await p.revise(); await p.fork(); assert.equal(s.modal, undefined); assert.equal(p.persist(), false);
+  assert.equal(p.data.body.construction, diaryLink);
+});
+test('小程序保存前收集正在编辑的链接正文，语音仅追加不覆盖', async () => {
+  const s = setup(), p = setupPage(s), d = create(s); p.localId = d.localId; p.showDraft(d);
+  let collected = 0; p.selectAllComponents = () => [{ dataset: { field: 'construction' }, guard() {}, collect() { collected++; return '现场' + diaryLink; } }];
+  await p.action({ currentTarget: { dataset: { action: 'save' } } }); assert.equal(s.calls[0].body.construction, '现场' + diaryLink);
+  p.recordVoice({ currentTarget: { dataset: { field: 'construction' } } }); const work = s.onText('语音追加');
+  s.modal.success({ confirm: true, content: '核对追加' }); await work;
+  assert.equal(p.data.body.construction, '现场' + diaryLink + '核对追加'); assert.ok(collected >= 3);
+});
+test('小程序链接正文超长保存被拒绝，输入不截断且不写服务器', async () => {
+  const s = setup(), p = setupPage(s), d = create(s); p.localId = d.localId; p.showDraft(d);
+  const text = '中'.repeat(60001) + diaryLink; p.input({ currentTarget: { dataset: { field: 'construction' } }, detail: { value: text } });
+  p.selectAllComponents = () => [{ guard() { throw new Error('单个正文栏目不能超过 60000 字符'); } }];
+  await p.action({ currentTarget: { dataset: { action: 'save' } } }); assert.equal(s.calls.length, 0); assert.equal(p.data.body.construction, text); assert.match(p.data.error, /60000/);
+});
 test('小程序日记气象短输入、正文提示、日期保留与详情人员', () => {
   const s = setup(), p = setupPage(s), d = create(s);
   p.localId = d.localId; p.showDraft(d);
@@ -725,7 +1083,27 @@ test('小程序日记气象短输入、正文提示、日期保留与详情人�
   p.showRecord(Object.assign(body(), { id: 20, authorId: 2, authorName: '其他记录人', status: 'approved', reviewerId: 3, reviewerName: '审核负责人', reviewedAt: '2026-09-23T18:00:00' }));
   assert.equal(p.data.people.author, '其他记录人'); assert.match(p.data.people.reviewer, /审核负责人/);
   assert.equal(p.data.editable, false);
-  p.kind = 'daily-inspections'; assert.equal(p.fields({}).some(f => f.short), false);
+  p.kind = 'daily-inspections';
+  assert.deepEqual(copy(p.fields({}).filter(f => f.short).map(f => f.key)), ['startTime', 'endTime', 'workerCount', 'manageCount']);
+  assert.equal(p.fields({}).filter(f => f.time).length, 2); assert.equal(p.fields({}).filter(f => f.number).length, 2);
+});
+test('小程序旁站时间改用日期时间选择器，写入秒位且只读时拒绝修改', () => {
+  const s = setup(), p = setupPage(s); p.kind = 'sideline-inspections';
+  const d = s.drafts.create(p.kind, { projectId: 2, inspectionDate: '2026-10-29' }, { id: 10, status: 'draft', authorId: 1, lockVersion: 1 });
+  p.localId = d.localId; p.showDraft(d);
+  assert.deepEqual(p.fields(p.data.body).filter(f => f.time).map(f => f.key), ['startTime', 'endTime']);
+  assert.equal(p.fields(p.data.body).find(f => f.key === 'startTime').hint, schema.schemas[p.kind].hints.startTime);
+  p.inspectionTime({ currentTarget: { dataset: { field: 'startTime', part: 'time' } }, detail: { value: '08:30' } });
+  assert.equal(p.data.body.startTime, '2026-10-29T08:30:00');
+  p.inspectionTime({ currentTarget: { dataset: { field: 'endTime', part: 'time' } }, detail: { value: '11:30' } });
+  assert.equal(p.data.body.endTime, '2026-10-29T11:30:00');
+  p.inspectionTime({ currentTarget: { dataset: { field: 'startTime', part: 'date' } }, detail: { value: '2026-10-28' } });
+  assert.equal(p.data.body.startTime, '2026-10-28T08:30:00');
+  p.inspectionTime({ currentTarget: { dataset: { field: 'startTime', part: 'clear' } }, detail: {} });
+  assert.equal(p.data.body.startTime, ''); assert.equal(s.drafts.get(d.localId).body.startTime, '');
+  p.data.editable = false;
+  p.inspectionTime({ currentTarget: { dataset: { field: 'endTime', part: 'time' } }, detail: { value: '12:00' } });
+  assert.equal(p.data.body.endTime, '2026-10-29T11:30:00');
 });
 test('小程序日志规范提示、自动项保护、旧记录及新字段离线同步', async () => {
   const s = setup(), p = setupPage(s); p.kind = 'supervision-logs';
@@ -868,8 +1246,263 @@ test('本机已通过稿修订从服务器取原件，不依赖失效页面对�
   const d = s.drafts.create(p.kind, body(), record); p.localId = d.localId; p.showDraft(d); s.server = record;
   assert.equal(p.data.canRevise, true); assert.equal(p.server, undefined);
   const work = p.revise(); s.modal.success({ confirm: true }); await work;
-  assert.ok(s.redirect); assert.equal(s.drafts.list().find(x => x.localId !== d.localId).body.sourceRecordId, 10);
+  assert.equal(s.redirect, '/pages/record/index?kind=supervision-diaries&id=110');
+  assert.equal(s.drafts.list().length, 1);
+  assert.equal(s.revision.sourceRecordId, 10); assert.equal(s.revision.version, 2);
+  assert.equal(s.revision.construction, record.construction);
+  assert.equal(s.server.status, 'approved');
+  assert.equal(s.calls.filter(c => c.url === '/supervision-diaries/10/new-version' && c.method === 'POST').length, 1);
 });
+test('小程序驳回修订请求真实V2，历史卡跳转只读且原稿保留', async () => {
+  for (const kind of ['supervision-diaries', 'supervision-logs']) {
+    const s = setup(), p = setupPage(s); p.kind = kind;
+    s.server = { ...body(), id: 15, authorId: 1, logDate: '2026-09-23', status: 'rejected', version: 1, rejectReason: '原驳回原因' };
+    const before = copy(s.server); p.showRecord(s.server);
+    assert.equal(p.data.editable, false); assert.equal(p.data.canRevise, true);
+    const work = p.revise(); s.modal.success({ confirm: true }); await work;
+    assert.equal(s.redirect, '/pages/record/index?kind=' + kind + '&id=115');
+    assert.equal(s.revision.sourceRecordId, 15); assert.equal(s.revision.version, 2);
+    assert.equal(s.calls.some(c => c.method === 'PUT'), false); assert.deepEqual(s.server, before);
+    p.showRecord(s.revision); s.versions = [s.server, s.revision]; await p.history();
+    assert.equal(p.data.versions.length, 2); assert.equal(p.data.versions[0].rejectReason, '原驳回原因');
+    p.openVersion({ currentTarget: { dataset: { id: 15 } } });
+    assert.equal(s.navigation, '/pages/record/index?kind=' + kind + '&id=15&readonly=true');
+    p.readonly = true; p.showRecord(s.server); assert.equal(p.data.canRevise, false);
+  }
+});
+const dailyBody = () => ({ projectId: 2, inspectionDate: '2026-10-29', location: '三层临边', content: '巡视原文', issues: '历史补充原文', photos: '[]', attachments: '[]' });
+function checklistData(problem = true) {
+  const item = C.newItem(); item.content = '临边防护'; item.result = 'noncompliant';
+  if (problem) item.problems.push(C.newProblem(item));
+  return { version: 1, items: [item] };
+}
+const editEvent = (id, field, value) => ({ currentTarget: { dataset: { id, field } }, detail: { value } });
+function setupDailyPage() {
+  const s = setup(), p = setupPage(s); p.kind = 'daily-inspections';
+  const d = s.drafts.create(p.kind, dailyBody()); p.localId = d.localId; p.showDraft(d);
+  return { s, p, d };
+}
+test('巡视模型空态、默认值、必检提交及结果切换保留问题', () => {
+  assert.equal(C.summary(null), '未录入检查项'); assert.deepEqual(C.parse(''), C.empty());
+  const data = { version: 1, items: [C.newItem()] };
+  assert.equal(data.items[0].required, true); assert.equal(data.items[0].result, 'unchecked');
+  assert.equal(C.stats(data).problems, 0); assert.doesNotThrow(() => C.validate(data, false));
+  assert.throws(() => C.validate(data, true), /检查内容/); data.items[0].content = '检查安全网';
+  assert.throws(() => C.validate(data, true), /检查结果/); data.items[0].required = false;
+  assert.doesNotThrow(() => C.validate(data, true));
+  data.items[0].problems.push(C.newProblem(data.items[0])); data.items[0].result = 'compliant';
+  assert.equal(C.stats(data).problems, 1); assert.equal(C.stats(data).compliant, 1);
+  assert.throws(() => C.parse('{broken'), /原始草稿/); assert.throws(() => C.parse('{"version":2,"items":[]}'), /版本/);
+  assert.throws(() => C.parse(' '.repeat(60000) + '{"version":1,"items":[]}'), /60000/);
+  data.items.push(C.clone(data.items[0])); assert.throws(() => C.stringify(data), /重复/);
+});
+test('巡视模型数量、枚举、文本及附件安全整数边界', () => {
+  const data = { version: 1, items: Array.from({ length: 100 }, () => C.newItem()) };
+  data.items.slice(0, 10).forEach(i => { i.problems = Array.from({ length: 20 }, () => C.newProblem(i)); });
+  assert.equal(C.stats(data).problems, 200); data.items.push(C.newItem()); assert.throws(() => C.stringify(data), /100/); data.items.pop();
+  data.items[10].problems.push(C.newProblem(data.items[10])); assert.throws(() => C.stringify(data), /200/);
+  const one = checklistData(), p = one.items[0].problems[0];
+  p.attachments = Array.from({ length: 50 }, (_, n) => ({ url: '/api/uploads/' + n + '.jpg', name: '照片', size: 1 }));
+  assert.doesNotThrow(() => C.stringify(one)); p.attachments.push({ url: '/api/uploads/51.jpg' }); assert.throws(() => C.stringify(one), /50/); p.attachments.pop();
+  p.attachments[0].size = Number.MAX_SAFE_INTEGER + 1; assert.throws(() => C.stringify(one), /附件/); p.attachments = [];
+  p.type = '未知'; assert.throws(() => C.stringify(one), /类型/); p.type = C.types[0];
+  one.items[0].content = null; assert.throws(() => C.stringify(one), /文本/);
+  one.items[0].content = '字'.repeat(10001); assert.throws(() => C.stringify(one), /10000/);
+  one.items[0].content = '字'.repeat(10000); one.items[0].method = '字'.repeat(10000); one.items[0].standard = '字'.repeat(10000);
+  p.name = '字'.repeat(10000); p.description = '字'.repeat(10000); one.items[0].category = '字'.repeat(10000);
+  assert.throws(() => C.stringify(one), /60000/);
+});
+test('巡视时间人数兼容空值、真实日期及提交成对校验', () => {
+  assert.deepEqual(C.pack({ workerCount: '', manageCount: 0, startTime: '' }, false), { workerCount: null, manageCount: 0, startTime: null });
+  const b = { startTime: '2026-10-29T08:30', endTime: '2026-10-29 09:30', workerCount: '12' };
+  assert.equal(C.pack(b, true).startTime, '2026-10-29T08:30:00'); assert.equal(C.pack(b, true).workerCount, 12);
+  for (const value of ['-1', '1.5', '2147483648', 'abc']) assert.throws(() => C.pack({ workerCount: value }), /非负整数/);
+  for (const value of ['2026-02-30T10:00', '2026-10-29T25:00', 'bad']) assert.throws(() => C.pack({ startTime: value }));
+  assert.doesNotThrow(() => C.pack({ startTime: b.startTime }, false)); assert.throws(() => C.pack({ startTime: b.startTime }, true), /补齐/);
+  assert.throws(() => C.pack({ startTime: b.startTime, endTime: b.startTime }), /晚于/);
+});
+test('巡视发现人回写只合并元数据，重试比较全部可写内容', () => {
+  const local = checklistData(), remote = C.clone(local), p = remote.items[0].problems[0]; p.foundById = 1; p.foundByName = '服务端发现人';
+  assert.equal(C.sameBody('daily-inspections', { checklist: C.stringify(remote) }, { checklist: C.stringify(local) }), true);
+  local.items[0].problems[0].description = '后续本机修改'; local.items[0].id = 'changed-item-id';
+  const merged = C.parse(C.mergeFoundBy(local, remote)); assert.equal(merged.items[0].problems[0].description, '后续本机修改'); assert.equal(merged.items[0].problems[0].foundByName, '服务端发现人');
+  assert.equal(C.sameBody('daily-inspections', { checklist: C.stringify(remote) }, { checklist: C.stringify(local) }), false);
+});
+test('小程序问题打开不新建，副本恢复，确认与取消不混入父稿', async () => {
+  const { s, p, d } = setupDailyPage(); p.addCheckItem(); const id = p.data.checkItems[0].id;
+  p.checkInput(editEvent(id, 'content', '临边防护')); p.openProblems(editEvent(id));
+  assert.equal(p.data.problemPanel.problems.length, 0); assert.equal(C.stats(p.data.body.checklist).problems, 0);
+  p.addProblem(); const pid = p.problemEdit.problems[0].id; p.problemInput(editEvent(pid, 'description', '仅副本说明'));
+  await assert.rejects(s.drafts.sync(d.localId), /确认或取消/);
+  s.reload(); const restored = setupPage(s); restored.kind = p.kind; restored.localId = d.localId; restored.showDraft(s.drafts.get(d.localId));
+  assert.equal(restored.problemEdit.problems[0].description, '仅副本说明'); assert.equal(C.stats(restored.data.body.checklist).problems, 0);
+  let cancel = restored.cancelProblems(); s.modal.success({ confirm: true }); await cancel;
+  assert.equal(C.stats(restored.data.body.checklist).problems, 0);
+  restored.openProblems(editEvent(id)); restored.addProblem(); restored.confirmProblems();
+  assert.equal(restored.problemEdit, null); assert.equal(C.stats(restored.data.body.checklist).problems, 1);
+  assert.equal(s.drafts.get(d.localId).problemEdit, null);
+  restored.checkInput(editEvent(id, 'result', 'compliant')); assert.equal(C.stats(restored.data.body.checklist).problems, 1);
+  assert.equal(restored.data.body.issues, '历史补充原文');
+});
+test('小程序方法输入保持展开和勾选，批量删除显示准确问题数量', async () => {
+  const { s, p } = setupDailyPage(); const data = checklistData(); p.applyChecklist(data); const id = data.items[0].id;
+  p.toggleCheckDetails(editEvent(id)); p.selectCheckItems({ detail: { value: [id] } }); p.checkInput(editEvent(id, 'method', '尺量'));
+  assert.equal(p.data.checkItems[0].expanded, true); assert.equal(p.data.checkItems[0].selected, true);
+  assert.equal(C.parse(p.data.body.checklist).items[0].expanded, undefined);
+  let work = p.deleteCheckItems(editEvent()); assert.match(s.modal.content, /1 个问题/); s.modal.success({ confirm: false }); await work;
+  assert.equal(C.stats(p.data.body.checklist).total, 1);
+  work = p.deleteCheckItems(editEvent()); s.modal.success({ confirm: true }); await work; assert.equal(C.stats(p.data.body.checklist).total, 0);
+});
+test('小程序问题暂存与确认失败可取消重试，不掩盖父正文存储失败', async () => {
+  for (const mode of ['panel', 'confirm', 'parent']) {
+    const { s, p, d } = setupDailyPage(); p.applyChecklist(checklistData()); const id = p.data.checkItems[0].id;
+    if (mode === 'parent') { s.quota = true; pageInput(p, 'content', '未落盘父正文'); s.quota = false; }
+    p.openProblems(editEvent(id)); s.quota = true;
+    if (mode === 'confirm') p.confirmProblems(); else { p.addProblem(); assert.match(p.data.panelError, /存储/); }
+    s.quota = false; const dirty = p.problemEdit.dirty, cancel = p.cancelProblems(); if (dirty) s.modal.success({ confirm: true }); await cancel;
+    if (mode === 'parent') { await assert.rejects(s.drafts.sync(d.localId), /未保存修改/); assert.equal(p.persist(), true); }
+    await s.drafts.sync(d.localId); assert.equal(s.drafts.get(d.localId).state, '已同步草稿');
+  }
+});
+test('小程序问题图片选择迟到不写入取消的面板或另一记录', async () => {
+  const { s, p, d } = setupDailyPage(); p.applyChecklist(checklistData()); p.openProblems(editEvent(p.data.checkItems[0].id));
+  let choice; s.wx.chooseMedia = options => { choice = options; };
+  const work = p.chooseProblemPhoto({ currentTarget: { dataset: { id: p.problemEdit.problems[0].id, source: 'album' } } });
+  await p.cancelProblems(); choice.success({ tempFiles: [{ tempFilePath: '/temp/a.jpg' }] }); await work;
+  assert.equal(s.drafts.get(d.localId).media.length, 0); assert.equal(p.problemEdit, null);
+});
+test('小程序问题图片只在确认后入上传队列，失败可重试且不混入顶层照片', async () => {
+  const { s, p, d } = setupDailyPage(); p.applyChecklist(checklistData()); p.openProblems(editEvent(p.data.checkItems[0].id));
+  s.wx.chooseMedia = options => options.success({ tempFiles: [{ tempFilePath: '/temp/a.jpg' }] });
+  s.wx.compressImage = options => options.success({ tempFilePath: '/temp/compressed.jpg' });
+  await p.chooseProblemPhoto({ currentTarget: { dataset: { id: p.problemEdit.problems[0].id, source: 'camera' } } });
+  assert.equal(s.drafts.get(d.localId).media.length, 0); assert.equal(s.uploads.length, 0);
+  p.confirmProblems(); assert.equal(s.drafts.get(d.localId).media.length, 1);
+  const upload = s.api.upload; s.api.upload = async () => { throw new Error('上传断网'); };
+  await assert.rejects(s.drafts.sync(d.localId), /上传断网/); assert.equal(s.drafts.get(d.localId).media.length, 1);
+  s.api.upload = upload; await s.drafts.sync(d.localId);
+  assert.deepEqual(JSON.parse(s.server.photos), []); assert.equal(C.parse(s.server.checklist).items[0].problems[0].attachments.length, 1);
+  assert.equal(s.server.checklist.includes('/persistent'), false);
+});
+test('小程序问题删除后迟到上传不能恢复附件引用', async () => {
+  const s = setup(), data = checklistData(), gate = deferred(), entered = deferred();
+  const d = s.drafts.create('daily-inspections', { ...dailyBody(), checklist: C.stringify(data) });
+  s.drafts.edit(d.localId, { media: [{ id: 'media1', path: '/persistent/a.jpg', itemId: data.items[0].id, problemId: data.items[0].problems[0].id }] });
+  s.api.upload = async () => { entered.resolve(); return gate.promise; }; const work = s.drafts.sync(d.localId); await entered.promise;
+  data.items[0].problems = []; s.drafts.edit(d.localId, { body: { ...dailyBody(), checklist: C.stringify(data) }, media: [] });
+  gate.resolve({ url: '/api/uploads/late.jpg', name: '迟到照片' }); await work;
+  assert.equal(C.stats(s.server.checklist).problems, 0); assert.equal(s.server.checklist.includes('late.jpg'), false);
+});
+test('小程序更新响应丢失后忽略发现人元数据接纳原请求，保留后续本机修改', async () => {
+  const s = setup(), data = checklistData(), values = { ...dailyBody(), checklist: C.stringify(data) };
+  s.server = { ...values, id: 10, status: 'draft', lockVersion: 1 };
+  const d = s.drafts.create('daily-inspections', values, s.server); s.drafts.edit(d.localId, { body: values });
+  let writes = 0; const request = s.api.request;
+  s.api.request = async (...args) => {
+    if (args[1] === 'PUT') {
+      if (++writes === 1) { await request(...args); const remote = C.parse(s.server.checklist); Object.assign(remote.items[0].problems[0], { foundById: 1, foundByName: '真实发现人' }); s.server.checklist = C.stringify(remote); throw error(undefined, '响应丢失'); }
+      throw error(409, '版本变化');
+    }
+    return request(...args);
+  };
+  await assert.rejects(s.drafts.sync(d.localId), /响应丢失/);
+  data.items[0].problems[0].description = '本机新说明'; s.drafts.edit(d.localId, { body: { ...values, checklist: C.stringify(data) } });
+  await s.drafts.sync(d.localId); const latest = s.drafts.get(d.localId), p = C.parse(latest.body.checklist).items[0].problems[0];
+  assert.equal(latest.dirty, true); assert.equal(p.description, '本机新说明'); assert.equal(p.foundByName, '真实发现人');
+});
+test('小程序巡检不进入修订审核链，复制完整保留字段且发现人重新待同步', async () => {
+  const { s, p } = setupDailyPage(), data = checklistData(); data.items[0].problems[0].foundByName = '原发现人'; data.items[0].problems[0].foundById = 1;
+  const values = { ...dailyBody(), startTime: '2026-10-29T08:00:00', endTime: '2026-10-29T09:00:00', workerCount: 0, manageCount: 2, checklist: C.stringify(data) };
+  const record = { ...values, id: 20, inspectorId: 1, status: 'approved', lockVersion: 1 }; s.server = record;
+  p.showRecord(record); assert.equal(p.data.body.checklist, values.checklist); assert.equal(p.data.people.author, '用户#1');
+  const work = p.revise(); s.modal.success({ confirm: true }); await work;
+  assert.equal(p.data.canRevise, false); assert.equal(s.calls.some(c => c.url.endsWith('/new-version')), false);
+  const original = s.drafts.create(p.kind, values, record), fork = s.drafts.fork(original.localId);
+  assert.equal(fork.body.workerCount, 0); assert.equal(fork.body.startTime, values.startTime);
+  assert.equal(C.stats(fork.body.checklist).problems, 1); assert.equal(fork.body.sourceRecordId, undefined);
+  assert.equal(C.parse(fork.body.checklist).items[0].problems[0].foundByName, undefined);
+});
+test('电脑巡检CSV仅服务器结果，含时间人数问题附件名且无访问链接', async () => {
+  const s = await setupPc('daily-inspections'), data = checklistData(); data.items[0].problems[0].attachments.push({ url: '/api/uploads/x.jpg?token=secret', name: '问题照片.jpg' });
+  await s.actions.create(); s.actions.getDraft().body.content = '不应导出的本机正文';
+  s.records.push({ ...dailyBody(), code: '=公式', startTime: '2026-10-29T08:00:00', workerCount: 0, checklist: C.stringify(data), photos: '[{"url":"/api/uploads/a.jpg","name":"现场.jpg"}]' });
+  await s.actions.exportRows(); const csv = await s.blob.text();
+  for (const text of ['巡视开始时间', '施工人数', '检查统计', '问题照片.jpg', '现场.jpg', '2026-10-29 08:00:00', "'=公式"]) assert.ok(csv.includes(text), text);
+  assert.doesNotMatch(csv, /token=secret|\/api\/uploads|不应导出的本机正文/);
+});
+function setupChecklistView(data = C.empty(), options = {}) {
+  const s = { raw: C.stringify(data), errors: [], confirms: [], uploads: [], busy: !!options.busy, confirm: true };
+  const simple = () => ({ dataset: {}, textContent: '', focus() {}, click() {} });
+  const stats = simple(), errorBox = simple(), print = simple(), box = { innerHTML: '', inputs: [], querySelector: () => simple(),
+    querySelectorAll(selector) {
+      if (selector === '[data-problem-upload]') { this.inputs = [...this.innerHTML.matchAll(/data-problem-upload="([^"]+)"/g)].map(m => ({ dataset: { problemUpload: m[1] } })); return this.inputs; }
+      return [];
+    }
+  };
+  const host = { innerHTML: '', contains: () => true,
+    querySelector: selector => selector === '[data-ic-panel]' ? box : selector === '[data-ic-summary]' ? stats : selector === '.ic-print' ? print : errorBox,
+    querySelectorAll: () => [simple()] };
+  const context = { window: null, document: {}, App: { escape: v => String(v == null ? '' : v).replace(/</g, '&lt;'), getUser: () => ({ userName: '填写人' }),
+    confirm: async text => { s.confirms.push(text); return s.confirm; } }, InspectionChecklist: C };
+  context.window = context;
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../../assets/inspection-checklist.js'), 'utf8'), context);
+  s.view = context.InspectionChecklistView(host, { raw: () => s.raw, readOnly: !!options.readOnly, busy: () => s.busy,
+    change: raw => { s.raw = raw; }, error: e => s.errors.push(e.message), openFile: url => { s.opened = url; },
+    upload: async file => { s.uploads.push(file.name); return s.upload ? s.upload(file) : { url: '/api/uploads/' + file.name, name: file.name, size: 1 }; } });
+  s.click = (action, itemId, problemId) => {
+    const el = { dataset: { icAction: action }, closest: selector => selector === '[data-ic-action]' ? el : { dataset: { icId: itemId, problemId } } };
+    return host.onclick({ target: el });
+  };
+  s.input = (id, field, value, problem) => host.oninput({ target: { dataset: { [problem ? 'problemField' : 'icField']: field }, value,
+    closest: () => ({ dataset: { icId: id, problemId: id } }) } });
+  s.files = files => box.inputs[0].onchange({ target: { files } });
+  return Object.assign(s, { host, box, stats, print });
+}
+test('电脑检查项空表新增、问题独立确认取消、结果不删问题与删除确认', async () => {
+  const s = setupChecklistView(); assert.match(s.host.innerHTML, /未录入检查项/);
+  await s.click('add'); const id = C.parse(s.raw).items[0].id; await s.input(id, 'content', '检查脚手架');
+  await s.click('problems', id); assert.match(s.box.innerHTML, /尚无问题/); assert.equal(C.stats(s.raw).problems, 0);
+  await s.click('add-problem'); assert.throws(s.view.guard, /确认或取消/); assert.equal(s.view.hasUnsaved(), true);
+  await s.click('cancel-problems'); assert.equal(C.stats(s.raw).problems, 0);
+  await s.click('problems', id); await s.click('add-problem'); await s.click('confirm-problems'); assert.equal(C.stats(s.raw).problems, 1);
+  await s.input(id, 'result', 'compliant'); assert.equal(C.stats(s.raw).problems, 1);
+  s.confirm = false; await s.click('delete', id); assert.equal(C.stats(s.raw).total, 1); assert.match(s.confirms.at(-1), /1 个问题/);
+  s.confirm = true; await s.click('delete', id); assert.equal(C.stats(s.raw).total, 0);
+});
+test('电脑问题名称验证不关闭面板，保存忙状态恢复后仍可编辑，只读不允许写入', async () => {
+  const data = checklistData(false), id = data.items[0].id, s = setupChecklistView(data, { busy: true });
+  assert.match(s.host.innerHTML, /添加检查项/); await s.click('add'); assert.equal(C.stats(s.raw).total, 1); s.busy = false;
+  await s.click('problems', id); await s.click('add-problem');
+  const pid = s.box.innerHTML.match(/data-problem-id="([^"]+)"/)[1]; await s.input(pid, 'name', '', true); await s.click('confirm-problems');
+  assert.match(s.errors.at(-1), /问题名称/); assert.throws(s.view.guard); assert.equal(C.stats(s.raw).problems, 0);
+  await s.input(pid, 'name', '有效问题', true); await s.click('confirm-problems'); assert.doesNotThrow(s.view.guard);
+  const read = setupChecklistView(C.parse(s.raw), { readOnly: true }); assert.doesNotMatch(read.host.innerHTML, /data-ic-action="add"/);
+  await read.click('problems', id); assert.doesNotMatch(read.box.innerHTML, /data-ic-action="add-problem"/);
+  await read.input(pid, 'name', '不应修改', true); await read.click('cancel-problems'); assert.equal(read.raw, s.raw);
+});
+test('电脑问题附件失败保留重试入口，确认与打印只含名称和已选结果', async () => {
+  const data = checklistData(), s = setupChecklistView(data); await s.click('problems', data.items[0].id);
+  s.upload = async () => { throw new Error('模拟断网'); }; await s.files([{ name: '检查照片.jpg' }]);
+  assert.match(s.box.innerHTML, /重试问题附件/); await s.click('confirm-problems'); assert.match(s.errors.at(-1), /上传未完成/);
+  s.upload = null; await s.click('retry'); await s.click('confirm-problems');
+  assert.equal(C.parse(s.raw).items[0].problems[0].attachments.length, 1); s.view.print();
+  assert.match(s.print.textContent, /检查照片.jpg/); assert.match(s.print.textContent, /结果：不符合/); assert.doesNotMatch(s.print.textContent, /\/api\/uploads|结果：未检查|结果：符合/);
+});
+test('电脑问题上传取消后不再上传剩余文件，迟到响应不写入另一面板', async () => {
+  const data = checklistData(), s = setupChecklistView(data), gate = deferred(); await s.click('problems', data.items[0].id);
+  s.upload = async () => { await gate.promise; throw new Error('迟到失败'); };
+  const work = s.files([{ name: 'a.jpg' }, { name: 'b.jpg' }]); await s.click('cancel-problems'); await s.click('problems', data.items[0].id);
+  gate.resolve(); await work; assert.deepEqual(s.uploads, ['a.jpg']); await s.click('confirm-problems');
+  assert.equal(C.parse(s.raw).items[0].problems[0].attachments.length, 0);
+});
+test('电脑巡检恢复旧pending后新增明细仍留在本机，不提交旧版本', async () => {
+  const s = await setupPc('daily-inspections'); await s.actions.create(); const d = s.actions.getDraft();
+  Object.assign(d.body, dailyBody()); s.writeError = error(undefined, '响应丢失'); await assert.rejects(s.actions.save(false));
+  d.body.checklist = C.stringify(checklistData()); s.writeError = null; await s.actions.save(true);
+  assert.equal(s.calls.some(c => c.path.endsWith('/submit')), false); assert.match(s.nodes.fwError.textContent, /本机新修改仍保留/);
+  assert.equal(C.stats(s.actions.getDraft().body.checklist).problems, 1);
+});
+
 test('语音核对弹窗期间换账号或隐藏页面，不能写入旧稿', async () => {
   for (const transition of ['account', 'hide']) {
     const s = setup(), p = setupPage(s), d = create(s); p.localId = d.localId; p.showDraft(d);
@@ -880,4 +1513,62 @@ test('语音核对弹窗期间换账号或隐藏页面，不能写入旧稿', as
     assert.equal(p.data.body.construction, '现场原文');
     if (transition === 'hide') assert.equal(s.voiceCancelled, true);
   }
+});
+
+const homeSource = fs.readFileSync(path.join(__dirname, '../pages/home/index.js'), 'utf8');
+function setupHome(s) {
+  let page;
+  s.api.request = async (url, method, params) => {
+    s.homeCalls = (s.homeCalls || []).concat([{ url, params: copy(params) }]);
+    if (url === '/field/summary') return { canReview: true, date: '2026-10-29',
+      'daily-inspections': { draft: 1, submitted: 0, approved: 0, rejected: 0, recorded: 2 },
+      'supervision-diaries': { draft: 0, submitted: 3, approved: 1, rejected: 0, recorded: 0 },
+      'supervision-logs': { draft: 0, submitted: 0, approved: 0, rejected: 0, recorded: 0 },
+      'sideline-inspections': { draft: 0, submitted: 0, approved: 0, rejected: 0, recorded: 0 } };
+    if (method === 'GET') return { list: [{ id: 5, status: url === '/daily-inspections' ? 'recorded' : 'submitted' }], total: 1 };
+    return {};
+  };
+  vm.runInNewContext(homeSource, { Page: value => { page = value; }, wx: s.wx,
+    require: name => ({ '../../utils/api': s.api, '../../utils/drafts': s.drafts, '../../utils/schema': schema })[name] });
+  page.data = copy(page.data); page.setData = values => Object.assign(page.data, copy(values));
+  return page;
+}
+test('小程序巡检提交即保存并回列表，无审核确认，已保存可再次编辑', async () => {
+  const s = setup(), p = setupPage(s); p.kind = 'daily-inspections';
+  s.wx.navigateBack = () => { s.backed = true; };
+  const d = s.drafts.create(p.kind, dailyBody(), { id: 10, status: 'recorded', lockVersion: 3, authorId: 1 });
+  p.localId = d.localId; p.showDraft(d);
+  assert.equal(p.data.editable, true, '本人已保存巡检仍可编辑');
+  assert.equal(p.data.memo, true); assert.equal(p.data.submitLabel, '保存修改');
+  assert.equal(p.data.canRevise, false); assert.equal(p.data.state, '已保存');
+  await p.action({ currentTarget: { dataset: { action: 'submit' } } });
+  assert.equal(s.modal, undefined, '巡检提交不再弹审核或正文锁定确认');
+  assert.equal(s.toast, '巡检已保存');
+  assert.equal(s.drafts.get(d.localId).serverStatus, 'recorded');
+  assert.equal(s.calls.some(c => c.url.endsWith('/submit')), false, '已保存巡检不调用审核提交接口');
+  s.timeouts.forEach(fn => fn()); assert.equal(s.backed, true, '保存成功后回到列表');
+  const s2 = setup(), p2 = setupPage(s2); p2.kind = 'daily-inspections';
+  s2.wx.navigateBack = () => { s2.backed = true; };
+  const d2 = s2.drafts.create('daily-inspections', dailyBody()); p2.localId = d2.localId; p2.showDraft(d2);
+  assert.equal(p2.data.submitLabel, '提交');
+  await p2.action({ currentTarget: { dataset: { action: 'submit' } } });
+  assert.equal(s2.drafts.get(d2.localId).serverStatus, 'recorded', '新草稿提交直接成为已保存');
+  assert.equal(s2.calls.some(c => c.url.endsWith('/submit')), false);
+  assert.equal(s2.modal, undefined); s2.timeouts.forEach(fn => fn()); assert.equal(s2.backed, true);
+});
+test('小程序首页巡检不展示待审核，切到巡检回到我的记录且摘要只给草稿与已保存', async () => {
+  const s = setup(), p = setupHome(s);
+  p.data.projects = [{ id: 2, name: '测试工程' }]; p.data.projectIndex = 0;
+  p.data.kind = 'supervision-diaries'; p.data.mode = 'todo';
+  await p.reload();
+  assert.equal(p.data.mode, 'todo');
+  assert.equal(p.data.summary.find(x => x.kind === 'daily-inspections').memo, true);
+  p.selectKind({ currentTarget: { dataset: { kind: 'daily-inspections' } } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(p.data.mode, 'mine', '切到巡检应从待审核回到我的记录');
+  assert.equal(s.homeCalls.filter(c => c.url === '/daily-inspections').at(-1).params.status, undefined, '巡检不按待审核筛选');
+  assert.equal(p.data.records[0].statusText, '已保存');
+  p.mode({ currentTarget: { dataset: { mode: 'todo' } } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(p.data.mode, 'mine', '巡检不提供项目待审核模式');
 });

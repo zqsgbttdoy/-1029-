@@ -75,12 +75,33 @@
         return /login\.html$/i.test(location.pathname);
     }
 
+    // 仅允许两类应用深链接；重建查询串，不传播令牌或任意返回地址。
+    function safeReturnTarget(raw) {
+        try {
+            if (typeof raw !== 'string' || raw.length > 2500 || /[\\\s#]/.test(raw)) return '';
+            var match = /^(file-reference\.html|supervision-diary\.html)\?(.+)$/.exec(raw);
+            if (!match) return '';
+            var params = new URLSearchParams(match[2]);
+            var keys = Array.from(params.keys());
+            if (new Set(keys).size !== keys.length) return '';
+            if (match[1] === 'supervision-diary.html') {
+                if (keys.some(k => !['id', 'readonly'].includes(k)) || !/^[1-9][0-9]{0,18}$/.test(params.get('id') || '') || params.get('readonly') !== 'true') return '';
+                return 'supervision-diary.html?id=' + params.get('id') + '&readonly=true';
+            }
+            if (keys.length !== 3 || keys.some(k => !['sourceType', 'sourceId', 'file'].includes(k))) return '';
+            if (!['daily-inspections', 'sideline-inspections', 'supervision-notices', 'work-contacts', 'project-documents'].includes(params.get('sourceType'))) return '';
+            if (!/^[1-9][0-9]{0,18}$/.test(params.get('sourceId') || '') || !/^\/api\/uploads\/(?:[0-9]{8}\/)?[a-zA-Z0-9_-]+\.[a-zA-Z0-9]+$/.test(params.get('file') || '')) return '';
+            return 'file-reference.html?' + buildQuery({ sourceType: params.get('sourceType'), sourceId: params.get('sourceId'), file: params.get('file') });
+        } catch (e) { return ''; }
+    }
+    function loginTarget() { return safeReturnTarget(new URLSearchParams(location.search).get('returnTo')) || 'index.html'; }
     function redirectToLogin() {
+        var target = safeReturnTarget(location.pathname.split('/').pop() + location.search);
         clearSession();
         if (!isLoginPage()) {
             document.documentElement.style.visibility = 'hidden';
             if (document.body) document.body.replaceChildren();
-            location.replace(LOGIN_PAGE);
+            location.replace(LOGIN_PAGE + (target ? '?returnTo=' + encodeURIComponent(target) : ''));
         }
     }
 
@@ -882,6 +903,8 @@
         saveSession: saveSession,
         clearSession: clearSession,
         requireAuth: requireAuth,
+        safeReturnTarget: safeReturnTarget,
+        loginTarget: loginTarget,
         redirectToLogin: redirectToLogin,
         logout: logout,
         toast: toast,
