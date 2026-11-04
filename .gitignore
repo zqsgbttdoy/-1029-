@@ -23,6 +23,8 @@ dist/
 
 # ---------- Node 依赖（可用 npm install 还原） ----------
 **/node_modules/
+# ---------- Python 依赖缓存（pip --target 安装，可重新下载） ----------
+/测试工作区/_pylibs/
 
 # ---------- 日志 ----------
 logs/

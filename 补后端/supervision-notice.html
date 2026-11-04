@@ -244,7 +244,17 @@
                 </div>
                 <div class="form-group"><label>通知内容</label><textarea class="form-control" id="noticeContent" placeholder="请详细描述通知内容，包括问题、整改要求等" style="height:120px;"></textarea></div>
                 <div class="form-group"><label>整改要求</label><textarea class="form-control" id="noticeRequirement" placeholder="请明确整改要求和期限"></textarea></div>
-                <div class="form-group"><label>关联巡检记录</label><select class="form-control" id="relatedInspection"><option value="">不关联</option></select></div>
+                <div class="form-group">
+                    <label>关联监理日记 <span style="font-weight:400;font-size:11px;color:#9CA3AF;">（仅可关联同项目、已审核通过的日记）</span></label>
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1.4fr auto;gap:8px;align-items:end;margin-bottom:8px;">
+                        <input type="date" class="form-control" id="diaryFrom" title="日记开始日期">
+                        <input type="date" class="form-control" id="diaryTo" title="日记结束日期">
+                        <input type="text" class="form-control" id="diaryKeyword" placeholder="按日记编号搜索">
+                        <button type="button" class="btn btn-outline btn-sm" onclick="loadDiaryOptions()" style="height:36px;">查询日记</button>
+                    </div>
+                    <select class="form-control" id="relatedDiary"><option value="">不关联</option></select>
+                    <div id="diaryHint" style="font-size:11px;color:#9CA3AF;margin-top:6px;">请先选择所属项目</div>
+                </div>
 
                 <div class="doc-section">
                     <h5>
@@ -253,7 +263,7 @@
                     </h5>
                     <div class="doc-desc">根据工程资料目录设置绑定，一个通知单可对应多个目录</div>
                     <div class="doc-tree" id="docTree">
-                        <div class="demo-placeholder" style="padding:20px;text-align:center;color:#9CA3AF;font-size:13px;">暂无工程资料目录，请先在项目台账维护项目与分部分项</div>
+                        <div class="demo-placeholder" style="padding:20px;text-align:center;color:#9CA3AF;font-size:13px;">请先选择所属项目</div>
                     </div>
                     <div class="selected-docs" id="selectedDocs">
                         <span class="selected-doc-empty">未选择工程资料目录</span>
@@ -358,6 +368,19 @@
                     <h4 style="font-size:14px;font-weight:600;color:#1E3A5F;margin-bottom:8px;">通知内容</h4>
                     <div id="viewContent" class="detail-text">—</div>
                 </div>
+                <div id="viewDiarySection" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid #F3F4F6;">
+                    <h4 style="font-size:14px;font-weight:600;color:#1E3A5F;margin-bottom:8px;">关联监理日记</h4>
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+                        <div><span style="font-size:12px;color:#9CA3AF;">日记编号</span><div id="viewDiaryCode" style="font-size:14px;margin-top:4px;color:#2563EB;">—</div></div>
+                        <div><span style="font-size:12px;color:#9CA3AF;">日记日期</span><div id="viewDiaryDate" style="font-size:14px;margin-top:4px;">—</div></div>
+                        <div><span style="font-size:12px;color:#9CA3AF;">作者</span><div id="viewDiaryAuthor" style="font-size:14px;margin-top:4px;">—</div></div>
+                    </div>
+                    <div style="margin-top:12px;"><span style="font-size:12px;color:#9CA3AF;">施工内容（摘要）</span><div id="viewDiaryConstruction" class="detail-text" style="margin-top:4px;">—</div></div>
+                </div>
+                <div id="viewDocumentDirectorySection" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid #F3F4F6;">
+                    <h4 style="font-size:14px;font-weight:600;color:#1E3A5F;margin-bottom:8px;">所属工程资料目录</h4>
+                    <div class="selected-docs" id="viewDocumentDirectories"></div>
+                </div>
                 <div id="viewReplySection" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid #F3F4F6;">
                     <h4 style="font-size:14px;font-weight:600;color:#1E3A5F;margin-bottom:8px;">整改回复</h4>
                     <div id="viewReplyContent" class="detail-text" style="background:#FFF7ED;"></div>
@@ -416,6 +439,8 @@
         var respondTargetId = null, verifyTargetId = null, deleteTargetId = null;
         var createAttachments = [], respondAttachments = [], verifyAttachments = [];
         var respondPhotos = [], verifyPhotos = [];
+        var diaryLoadSeq = 0;
+        var docTreeLoadSeq = 0;
 
         // ========== 通用工具 ==========
         function val(id) { var el = document.getElementById(id); return el ? String(el.value || '') : ''; }
@@ -780,6 +805,69 @@
             }).catch(function () { });
         }
 
+        // ========== 关联监理日记 ==========
+        function diaryOptionText(diary) {
+            var construction = String(diary.construction || '').replace(/\s+/g, ' ').trim();
+            if (construction.length > 30) construction = construction.slice(0, 30) + '…';
+            return [
+                diary.code || ('日记#' + diary.id),
+                (diary.diaryDate || '').slice(0, 10) || '无日期',
+                diary.authorName || '未知作者',
+                construction || '无施工内容'
+            ].join(' ｜ ');
+        }
+        function renderDiaryOptions(list, selectedId, selectedSummary) {
+            var select = document.getElementById('relatedDiary');
+            if (!select) return;
+            list = (list || []).slice();
+            var selected = selectedId == null ? '' : String(selectedId);
+            var found = false;
+            for (var i = 0; i < list.length; i++) {
+                if (String(list[i].id) === selected) { found = true; break; }
+            }
+            // 编辑时即使当前日记不在本页结果中，也保留原关联，避免打开表单后被意外清空。
+            if (selected && !found) list.unshift(selectedSummary || { id: selected });
+            select.innerHTML = '';
+            var empty = document.createElement('option');
+            empty.value = ''; empty.textContent = '不关联';
+            select.appendChild(empty);
+            for (var j = 0; j < list.length; j++) {
+                var option = document.createElement('option');
+                option.value = String(list[j].id);
+                option.textContent = diaryOptionText(list[j]);
+                select.appendChild(option);
+            }
+            select.value = selected;
+        }
+        function loadDiaryOptions(selectedId, selectedSummary) {
+            var projectId = val('projectSelect');
+            var seq = ++diaryLoadSeq;
+            if (!projectId) {
+                renderDiaryOptions([], '', null);
+                setText('diaryHint', '请先选择所属项目');
+                return Promise.resolve();
+            }
+            setText('diaryHint', '正在查询已审核监理日记…');
+            return App.apiGetPage('/supervision-diaries', {
+                pageNum: 1,
+                pageSize: 50,
+                projectId: projectId,
+                status: 'approved',
+                dateFrom: val('diaryFrom') || undefined,
+                dateTo: val('diaryTo') || undefined,
+                code: val('diaryKeyword').trim() || undefined
+            }).then(function (page) {
+                if (seq !== diaryLoadSeq) return;
+                var list = page.list || [];
+                renderDiaryOptions(list, selectedId, selectedSummary);
+                setText('diaryHint', list.length ? '仅显示同项目、已审核通过的监理日记' : '未查询到符合条件的已审核日记');
+            }).catch(function () {
+                if (seq !== diaryLoadSeq) return;
+                renderDiaryOptions([], selectedId, selectedSummary);
+                setText('diaryHint', '日记查询失败，请稍后重试');
+            });
+        }
+
         // ========== 加载列表 ==========
         function mapRow(r) {
             var deadline = r.deadline || '';
@@ -887,9 +975,12 @@
             setValue('issueDate', today());
             setValue('issuerInput', currentUser);
             setValue('projectSelect', '');
+            ['diaryFrom', 'diaryTo', 'diaryKeyword'].forEach(function (id) { setValue(id, ''); });
+            loadDiaryOptions();
             createAttachments = [];
             renderCreateAttachments();
             clearDocSelection();
+            loadDocumentDirectories();
         }
         function renderCreateAttachments() { renderStaged(createAttachments, 'createAttachmentList', renderCreateAttachments); }
         function handleCreateFile(input) { handleFiles(input, createAttachments, renderCreateAttachments); }
@@ -912,6 +1003,8 @@
                 setValue('noticeContent', rec.content || '');
                 createAttachments = normalizeAttachments(rec.attachments);
                 renderCreateAttachments();
+                loadDiaryOptions(rec.relatedDiaryId, rec.relatedDiary);
+                loadDocumentDirectories(parseArr(rec.documentDirectoryIds));
                 document.getElementById('modalTitle').textContent = '编辑通知单';
                 document.getElementById('createModal').classList.add('show');
             }).catch(function () { });
@@ -937,6 +1030,8 @@
                 content: composeContent(),
                 deadline: val('deadlineDate') || null,
                 status: status,
+                relatedDiaryId: Number(val('relatedDiary')) || null,
+                documentDirectoryIds: getSelectedDocumentDirectoryIds(),
                 attachments: attachmentsJson(createAttachments)
             };
             if (editingRecord && editingRecord.photos) payload.photos = editingRecord.photos;
@@ -995,6 +1090,9 @@
             var st = document.getElementById('viewStatus'); if (st) st.innerHTML = '';
             var rs = document.getElementById('viewReplySection'); if (rs) rs.style.display = 'none';
             var phs = document.getElementById('viewPhotoSection'); if (phs) phs.style.display = 'none';
+            var ds = document.getElementById('viewDiarySection'); if (ds) ds.style.display = 'none';
+            ['viewDiaryCode', 'viewDiaryDate', 'viewDiaryAuthor', 'viewDiaryConstruction'].forEach(function (id) { setText(id, ''); });
+            renderDetailDocumentDirectories(null);
             renderDetailAttachments([]);
             App.apiFetch(API_BASE + '/' + id).then(renderDetail).catch(function () { closeModal('viewModal'); });
         }
@@ -1013,11 +1111,40 @@
             if (st) st.innerHTML = '<span class="status-tag ' + meta.cls + '">' + esc(meta.text) + '</span>';
             setText('viewTitle', rec.title);
             setText('viewContent', rec.content);
+            var diary = rec.relatedDiary || (rec.relatedDiaryId ? { id: rec.relatedDiaryId } : null);
+            var diarySection = document.getElementById('viewDiarySection');
+            if (diarySection) diarySection.style.display = diary ? '' : 'none';
+            if (diary) {
+                setText('viewDiaryCode', diary.code || ('日记#' + diary.id));
+                setText('viewDiaryDate', (diary.diaryDate || '').slice(0, 10));
+                setText('viewDiaryAuthor', diary.authorName);
+                setText('viewDiaryConstruction', diary.construction);
+            }
+            renderDetailDocumentDirectories(rec);
             var replySection = document.getElementById('viewReplySection');
             if (replySection) replySection.style.display = rec.replyContent ? '' : 'none';
             if (rec.replyContent) setText('viewReplyContent', rec.replyContent);
             renderDetailPhotos(normalizeAttachments(rec.photos));
             renderDetailAttachments(normalizeAttachments(rec.attachments));
+        }
+        function renderDetailDocumentDirectories(rec) {
+            var section = document.getElementById('viewDocumentDirectorySection');
+            var container = document.getElementById('viewDocumentDirectories');
+            if (!section || !container) return;
+            container.innerHTML = '';
+            var directories = rec && Array.isArray(rec.documentDirectories) ? rec.documentDirectories : [];
+            if (!directories.length && rec) {
+                directories = parseArr(rec.documentDirectoryIds).map(function (id) { return { id: id, path: '目录#' + id }; });
+            }
+            if (!directories.length) { section.style.display = 'none'; return; }
+            section.style.display = '';
+            directories.forEach(function (directory) {
+                var tag = document.createElement('span');
+                tag.className = 'selected-doc-tag';
+                tag.setAttribute('data-id', String(directory.id));
+                tag.textContent = directory.path || directory.name || ('目录#' + directory.id);
+                container.appendChild(tag);
+            });
         }
         function renderDetailPhotos(list) {
             var section = document.getElementById('viewPhotoSection');
@@ -1119,6 +1246,8 @@
                     priority: rec.priority || null,
                     photos: mergedPhotos.length ? JSON.stringify(mergedPhotos) : null,
                     attachments: JSON.stringify(merged),
+                    relatedDiaryId: rec.relatedDiaryId || null,
+                    documentDirectoryIds: rec.documentDirectoryIds || [],
                     status: 'verified'
                 };
                 return App.apiFetch(API_BASE + '/' + verifyTargetId, { method: 'PUT', body: payload });
@@ -1172,6 +1301,114 @@
             }
         }
 
+        function setDocTreePlaceholder(text) {
+            var tree = document.getElementById('docTree');
+            if (!tree) return;
+            tree.innerHTML = '';
+            var placeholder = document.createElement('div');
+            placeholder.className = 'demo-placeholder';
+            placeholder.style.cssText = 'padding:20px;text-align:center;color:#9CA3AF;font-size:13px;';
+            placeholder.textContent = text;
+            tree.appendChild(placeholder);
+        }
+
+        function appendDocTreeNodes(nodes, container, parentPath) {
+            var leafCount = 0;
+            (nodes || []).forEach(function (node) {
+                if (!node || node.status === 'inactive') return;
+                var path = parentPath ? parentPath + ' / ' + node.name : String(node.name || '');
+                var children = (node.children || []).filter(function (child) { return child && child.status !== 'inactive'; });
+                var row = document.createElement('div');
+                row.className = 'doc-tree-node' + (children.length ? ' doc-parent-node' : ' doc-leaf-node');
+                row.setAttribute('data-project-id', String(node.projectId || ''));
+
+                var checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.disabled = children.length > 0;
+                if (!children.length) {
+                    checkbox.setAttribute('data-id', String(node.id));
+                    checkbox.setAttribute('data-label', path);
+                    checkbox.addEventListener('change', function () { updateSelectedDocs(); });
+                }
+                checkbox.addEventListener('click', function (event) { event.stopPropagation(); });
+                row.appendChild(checkbox);
+
+                var expand = document.createElement('span');
+                expand.className = 'expand-icon';
+                expand.textContent = children.length ? '▼' : '';
+                if (!children.length) expand.style.visibility = 'hidden';
+                row.appendChild(expand);
+                var icon = document.createElement('span');
+                icon.className = 'node-icon';
+                icon.textContent = children.length ? '📁' : '📄';
+                row.appendChild(icon);
+                var label = document.createElement('span');
+                label.className = 'node-label';
+                label.textContent = node.name || '';
+                label.title = path;
+                row.appendChild(label);
+                row.addEventListener('click', function () {
+                    if (children.length) { toggleDocTreeNode(row); return; }
+                    checkbox.checked = !checkbox.checked;
+                    updateSelectedDocs();
+                });
+                container.appendChild(row);
+
+                if (children.length) {
+                    var childContainer = document.createElement('div');
+                    childContainer.className = 'doc-tree-children';
+                    container.appendChild(childContainer);
+                    leafCount += appendDocTreeNodes(children, childContainer, path);
+                } else {
+                    leafCount++;
+                }
+            });
+            return leafCount;
+        }
+
+        function loadDocumentDirectories(selectedIds) {
+            var projectId = val('projectSelect');
+            var selected = (selectedIds || []).map(function (id) { return String(id); });
+            var seq = ++docTreeLoadSeq;
+            if (!window.App || !App.apiFetch) {
+                setDocTreePlaceholder('目录加载失败，请刷新页面重试');
+                return Promise.resolve();
+            }
+            if (!projectId) {
+                setDocTreePlaceholder('请先选择所属项目');
+                updateSelectedDocs();
+                return Promise.resolve();
+            }
+            setDocTreePlaceholder('正在加载工程资料目录…');
+            return App.apiFetch('/sub-item-databases/tree?projectId=' + encodeURIComponent(projectId)).then(function (tree) {
+                if (seq !== docTreeLoadSeq || projectId !== val('projectSelect')) return;
+                var container = document.getElementById('docTree');
+                container.innerHTML = '';
+                var leafCount = appendDocTreeNodes(Array.isArray(tree) ? tree : [], container, '');
+                if (!leafCount) {
+                    setDocTreePlaceholder('暂无工程资料目录，请先在“工程资料目录设置”中创建');
+                    updateSelectedDocs();
+                    return;
+                }
+                var checkboxes = container.querySelectorAll('input[type="checkbox"][data-id]');
+                for (var i = 0; i < checkboxes.length; i++) {
+                    checkboxes[i].checked = selected.indexOf(checkboxes[i].getAttribute('data-id')) > -1;
+                }
+                updateSelectedDocs();
+            }).catch(function () {
+                if (seq !== docTreeLoadSeq || projectId !== val('projectSelect')) return;
+                setDocTreePlaceholder('工程资料目录加载失败，请稍后重试');
+                updateSelectedDocs();
+            });
+        }
+
+        function getSelectedDocumentDirectoryIds() {
+            var checkboxes = document.querySelectorAll('#docTree input[type="checkbox"][data-id]:checked');
+            var ids = [];
+            for (var i = 0; i < checkboxes.length; i++) ids.push(Number(checkboxes[i].getAttribute('data-id')));
+            return ids;
+        }
+
         function toggleDocTreeNode(nodeEl) {
             var children = nodeEl.nextElementSibling;
             if (children && children.classList.contains('doc-tree-children')) {
@@ -1214,17 +1451,27 @@
             var countLabel = document.getElementById('selectedDocCount');
             countLabel.textContent = '已选 ' + selected.length + ' 项';
 
+            container.innerHTML = '';
             if (selected.length === 0) {
-                container.innerHTML = '<span class="selected-doc-empty">未选择工程资料目录</span>';
+                var empty = document.createElement('span');
+                empty.className = 'selected-doc-empty';
+                empty.textContent = '未选择工程资料目录';
+                container.appendChild(empty);
             } else {
-                var html = '';
                 for (var j = 0; j < selected.length; j++) {
-                    html += '<span class="selected-doc-tag" data-id="' + selected[j].id + '">' +
-                        selected[j].label +
-                        '<span class="remove-tag" onclick="removeDocTag(\'' + selected[j].id + '\')">✕</span>' +
-                    '</span>';
+                    (function (item) {
+                        var tag = document.createElement('span');
+                        tag.className = 'selected-doc-tag';
+                        tag.setAttribute('data-id', item.id);
+                        tag.appendChild(document.createTextNode(item.label));
+                        var remove = document.createElement('span');
+                        remove.className = 'remove-tag';
+                        remove.textContent = '✕';
+                        remove.addEventListener('click', function () { removeDocTag(item.id); });
+                        tag.appendChild(remove);
+                        container.appendChild(tag);
+                    })(selected[j]);
                 }
-                container.innerHTML = html;
             }
 
             syncParentCheckboxes();
@@ -1274,6 +1521,8 @@
 
         function onProjectChange() {
             clearDocSelection();
+            loadDocumentDirectories();
+            loadDiaryOptions();
         }
 
         (function() {

@@ -73,6 +73,8 @@
   }
   const own = record => String(record.authorId || record.inspectorId || uid) === uid;
   const editable = record => !(draft && draft.readOnly) && own(record) && (!record.id || canEditStatus(kind, record.status));
+  // 列表删除入口的开放范围：本人草稿与已保存（recorded 及从未被审核过的遗留 submitted/pending）；已审核通过/退回的历史记录不可删
+  const canDeleteRow = record => isDaily && own(record) && ['draft', 'recorded', 'submitted', 'pending'].includes(record.status || '');
   function options(list) { return list.map(p => '<option value="' + p.id + '">' + esc(p.name) + '</option>').join(''); }
 
   /* ---------------- 编辑器骨架：标题 + 独立滚动正文 + 固定底部操作栏 ---------------- */
@@ -305,7 +307,7 @@
     if (seq !== querySeq) return;
     total = data.total; serverRows = data.list;
     $('fwRows').innerHTML = data.list.map(r => '<tr data-status="' + esc(r.status) + '"><td data-label="编号">' + esc(r.code) + (isDaily ? '<small class="ic-list-summary">' + esc(C.summary(r.checklist)) + '</small>' : '') + '</td><td data-label="项目">' + esc((projects.find(p => String(p.id) === String(r.projectId)) || {}).name || r.projectId) + '</td><td data-label="日期">' + esc(r[schema.date])
-      + '</td><td data-label="填写人">' + esc(hasTemplate ? diaryPeople(r).author : r.authorName || r.authorId || r.inspectorId) + '</td><td data-label="状态"><span class="fw-chip ' + esc(chipClass(r.status)) + '">' + esc(statusText(kind, r.status)) + '</span></td>' + (isDaily ? '' : '<td data-label="业务版本">V' + esc(r.version || 1) + '</td>') + '<td data-label="操作"><button type="button" data-id="' + esc(r.id) + '">' + (own(r) && canEditStatus(kind, r.status) ? '继续编辑' : '查看 / 办理') + '</button>' + (isDaily && own(r) && r.status === 'recorded' ? '<button type="button" data-del="' + esc(r.id) + '">删除</button>' : '') + '</td></tr>').join('') || '<tr data-app-placeholder="1"><td colspan="' + (isDaily ? 6 : 7) + '" style="text-align:center;color:#9CA3AF;padding:24px;">当前筛选下暂无服务器记录</td></tr>';
+      + '</td><td data-label="填写人">' + esc(hasTemplate ? diaryPeople(r).author : r.authorName || r.authorId || r.inspectorId) + '</td><td data-label="状态"><span class="fw-chip ' + esc(chipClass(r.status)) + '">' + esc(statusText(kind, r.status)) + '</span></td>' + (isDaily ? '' : '<td data-label="业务版本">V' + esc(r.version || 1) + '</td>') + '<td data-label="操作"><button type="button" data-id="' + esc(r.id) + '">' + (own(r) && canEditStatus(kind, r.status) ? '继续编辑' : '查看 / 办理') + '</button>' + (isDaily && canDeleteRow(r) ? '<button type="button" data-del="' + esc(r.id) + '">删除</button>' : '') + '</td></tr>').join('') || '<tr data-app-placeholder="1"><td colspan="' + (isDaily ? 6 : 7) + '" style="text-align:center;color:#9CA3AF;padding:24px;">当前筛选下暂无服务器记录</td></tr>';
     $('fwPage').textContent = '服务器共 ' + total + ' 条，第 ' + page + ' / ' + Math.max(1, Math.ceil(total / 20)) + ' 页';
     $('fwPrev').disabled = page <= 1; $('fwNext').disabled = page * 20 >= total;
     if ($('fwProject').value) {
@@ -317,11 +319,14 @@
         : '今日可见记录：草稿 ' + counts.draft + ' · 待审核 ' + counts.submitted + ' · 通过 ' + counts.approved + ' · 退回 ' + counts.rejected + '（不把草稿计为已提交）';
     } else $('fwSummary').textContent = '按服务器项目权限筛选；日期未选择时查询全部日期。';
   }
-  // 日常巡检已保存记录本人可删除：软删除保留历史留痕，日记侧关联链接由服务端标记失效
+  // 日常巡检本人草稿与已保存记录均可删除：软删除保留历史留痕，已保存记录删除后日记侧关联链接由服务端标记失效
   async function deleteRow(id) {
     const row = serverRows.find(r => String(r.id) === String(id));
-    if (!row || !isDaily || !own(row) || row.status !== 'recorded') return;
-    if (!await App.confirm('删除本人已保存的巡检记录？历史留痕保留，监理日记中的关联链接将标记为失效。')) return;
+    if (!row || !canDeleteRow(row)) return;
+    const message = row.status === 'draft'
+      ? '删除本人草稿巡检记录？删除后列表不再显示该草稿。'
+      : '删除本人已保存的巡检记录？历史留痕保留，监理日记中的关联链接将标记为失效。';
+    if (!await App.confirm(message)) return;
     if (row.lockVersion == null) { notice('缺少记录版本，请重新查询后再删除'); return; }
     await locked(async () => {
       await api('/' + kind + '/' + id, { method: 'DELETE', headers: { 'X-Record-Version': row.lockVersion } });
@@ -420,6 +425,7 @@
     }));
     // 项目或日期变化后刷新“今日填写指引”，取数失败不影响填写
     root.querySelectorAll('[data-field="' + schema.date + '"], [data-field="projectId"]').forEach(el => el.addEventListener('change', () => {
+      if (el.dataset.field === 'projectId') { attachments.forEach(a => { a.dirs = []; }); dirTreeInvalidate(); renderMedia(); }
       try { localSave(); } catch (e) { notice('本机保存失败，请勿关闭页面：' + e.message); }
       if (!draft.body.projectId || !draft.body[schema.date]) return;
       run(async () => { summaryCache = await api('/field/summary?' + App.buildQuery({ projectId: draft.body.projectId, date: draft.body[schema.date] })); renderGuide(); })();
@@ -581,12 +587,22 @@
       field.innerHTML = '<div class="fd-label">附件材料（' + attachments.length + '）</div>';
       const list = document.createElement('div'); list.className = 'fd-files';
       attachments.forEach(item => {
+        const dirs = (item.dirs || []).filter(Boolean);
         const row = document.createElement('div'); row.className = 'fd-file-row';
-        const name = document.createElement('span'); name.className = 'fd-file-name'; name.textContent = item.name || '已上传文件';
-        row.appendChild(name);
+        const info = document.createElement('div'); info.style.cssText = 'flex:1;min-width:0;';
+        const name = document.createElement('div'); name.className = 'fd-file-name'; name.textContent = item.name || '已上传文件';
+        info.appendChild(name);
+        const dirBox = document.createElement('div'); dirBox.className = 'fwd-file-dirs';
+        dirBox.innerHTML = dirs.length
+          ? dirs.map(d => '<span class="fwd-tag" title="' + esc(d) + '">' + esc(String(d).split(' / ').pop()) + '</span>').join('')
+          : '<span class="fwd-empty">未选择目录</span>';
+        info.appendChild(dirBox);
+        row.appendChild(info);
         const view = document.createElement('button'); view.type = 'button'; view.textContent = '查看'; view.onclick = () => openFile(item.url);
         row.appendChild(view);
         if (editableNow) {
+          const pick = document.createElement('button'); pick.type = 'button'; pick.textContent = dirs.length ? '更改目录' : '选择目录'; pick.onclick = () => openDirPicker(item);
+          row.appendChild(pick);
           const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'fd-danger'; remove.textContent = '移除';
           remove.onclick = run(async () => { attachments.splice(attachments.indexOf(item), 1); localSave(); renderMedia(); renderGuide(); });
           row.appendChild(remove);
@@ -601,6 +617,128 @@
       source.textContent = '引用日记：' + parse(draft.body.diarySources).map(s => s.code + ' / ' + s.date + ' / v' + s.lockVersion).join('；');
       $('fwMedia').appendChild(source);
     }
+  }
+
+  /* ---------------- 附件“所属工程资料目录”选择器（仅 PC，目录随附件 JSON 落库，不改小程序/schema） ---------------- */
+  const DIR_CSS = ''
+    + '.fwd-overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;align-items:center;justify-content:center;z-index:3000;padding:16px;}'
+    + '.fwd-overlay.show{display:flex;}'
+    + '.fwd-modal{width:560px;max-width:100%;max-height:88vh;background:#fff;border-radius:10px;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,.2);}'
+    + '.fwd-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #E5E7EB;}'
+    + '.fwd-head h3{font-size:15px;color:#1E3A5F;margin:0;}'
+    + '.fwd-x{border:none;background:none;font-size:18px;color:#9CA3AF;cursor:pointer;}'
+    + '.fwd-body{padding:14px 18px;overflow-y:auto;}'
+    + '.fwd-tip{font-size:12px;color:#6B7280;margin-bottom:10px;}'
+    + '.fwd-sel{margin-bottom:10px;padding:8px 10px;background:#F0F5FF;border:1px solid #BFDBFE;border-radius:6px;}'
+    + '.fwd-sel .t{font-size:12px;font-weight:600;color:#1E3A5F;display:flex;justify-content:space-between;margin-bottom:6px;}'
+    + '.fwd-tags{display:flex;flex-wrap:wrap;gap:6px;}'
+    + '.fwd-tag{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:12px;font-size:11px;background:#DBEAFE;color:#1D4ED8;max-width:100%;overflow:hidden;}'
+    + '.fwd-tag i{cursor:pointer;font-style:normal;color:#6B7280;flex-shrink:0;}'
+    + '.fwd-empty{font-size:12px;color:#9CA3AF;}'
+    + '.fwd-tree{max-height:300px;overflow-y:auto;border:1px solid #E5E7EB;border-radius:8px;padding:8px;background:#FAFBFC;}'
+    + '.fwd-node{padding:6px 10px;border-radius:5px;font-size:13px;display:flex;align-items:center;gap:6px;user-select:none;}'
+    + '.fwd-node.parent{color:#6B7280;}'
+    + '.fwd-node.parent::before{content:\'\ud83d\udcc1\';font-size:12px;}'
+    + '.fwd-node.leaf{cursor:pointer;}'
+    + '.fwd-node.leaf:hover{background:#EFF6FF;}'
+    + '.fwd-node.leaf::before{content:\'\';width:15px;height:15px;border:2px solid #D1D5DB;border-radius:3px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;color:#fff;margin-right:4px;flex-shrink:0;}'
+    + '.fwd-node.leaf.on{background:#DBEAFE;color:#1D4ED8;}'
+    + '.fwd-node.leaf.on::before{border-color:#2563EB;background:#2563EB;content:\'\u2713\';}'
+    + '.fwd-node .exp{font-size:10px;color:#9CA3AF;width:14px;cursor:pointer;flex-shrink:0;}'
+    + '.fwd-children{padding-left:20px;}'
+    + '.fwd-children.collapsed{display:none;}'
+    + '.fwd-foot{display:flex;justify-content:flex-end;gap:8px;padding:12px 18px;border-top:1px solid #E5E7EB;}'
+    + '.fwd-btn{height:34px;padding:0 16px;border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit;border:1px solid #E5E7EB;background:#fff;color:#374151;}'
+    + '.fwd-btn.primary{background:#1D4ED8;color:#fff;border-color:#1D4ED8;}'
+    + '.fwd-ph{padding:20px;text-align:center;color:#9CA3AF;font-size:13px;}'
+    + '.fwd-file-dirs{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;}'
+    + '.fwd-file-dirs .fwd-tag{font-size:10px;}';
+  const DIR_HTML = '<div class="fwd-overlay" id="fwDirModal"><div class="fwd-modal">'
+    + '<div class="fwd-head"><h3>选择所属工程资料目录（可多选）</h3><button type="button" class="fwd-x" id="fwDirCancel">✕</button></div>'
+    + '<div class="fwd-body"><div class="fwd-tip">请为附件 <strong id="fwDirFile" style="color:#1E3A5F;"></strong> 选择存储位置（仅可选择最低一级目录，可多选）</div>'
+    + '<div class="fwd-sel"><div class="t"><span>已选目录</span><span id="fwDirCount">0 项</span></div><div class="fwd-tags" id="fwDirTags"><span class="fwd-empty">未选择任何目录</span></div></div>'
+    + '<div class="fwd-tree" id="fwDirTree"><div class="fwd-ph">正在加载工程资料目录...</div></div></div>'
+    + '<div class="fwd-foot"><button type="button" class="fwd-btn" id="fwDirCancelBtn">取消</button><button type="button" class="fwd-btn primary" id="fwDirOk">确认选择</button></div>'
+    + '</div></div>';
+  let dirPickerItem = null, dirPickerPaths = [], dirPickerSeq = 0, dirPickerProjectId = null, dirPickerReady = false;
+  function ensureDirPickerDom() {
+    if (document.getElementById('fwDirModal')) return;
+    const style = document.createElement('style'); style.textContent = DIR_CSS; document.head.appendChild(style);
+    const wrap = document.createElement('div'); wrap.innerHTML = DIR_HTML; document.body.appendChild(wrap.firstChild);
+    $('fwDirCancel').onclick = closeDirPicker; $('fwDirCancelBtn').onclick = closeDirPicker; $('fwDirOk').onclick = confirmDirPicker;
+    $('fwDirModal').addEventListener('click', function (e) { if (e.target === this) closeDirPicker(); });
+  }
+  function dirTreeInvalidate() { dirPickerReady = false; dirPickerProjectId = null; }
+  function setDirPh(text) { const t = $('fwDirTree'); if (t) t.innerHTML = '<div class="fwd-ph">' + esc(text) + '</div>'; }
+  function buildDirNodes(nodes, container, parentPath) {
+    let leaf = 0;
+    (nodes || []).forEach(node => {
+      if (!node || node.status === 'inactive') return;
+      const path = parentPath ? parentPath + ' / ' + node.name : node.name;
+      const children = (node.children || []).filter(c => c && c.status !== 'inactive');
+      const row = document.createElement('div'); row.className = 'fwd-node ' + (children.length ? 'parent' : 'leaf'); row.setAttribute('data-path', path);
+      if (children.length) {
+        const exp = document.createElement('span'); exp.className = 'exp'; exp.textContent = '▼';
+        exp.onclick = e => { e.stopPropagation(); const box = row.nextElementSibling; if (box && box.classList.contains('fwd-children')) { box.classList.toggle('collapsed'); exp.textContent = box.classList.contains('collapsed') ? '▶' : '▼'; } };
+        row.appendChild(exp);
+      }
+      row.appendChild(document.createTextNode(node.name));
+      if (!children.length) row.onclick = () => { row.classList.toggle('on'); syncDirPathsFromTree(); };
+      container.appendChild(row);
+      if (children.length) { const box = document.createElement('div'); box.className = 'fwd-children'; container.appendChild(box); leaf += buildDirNodes(children, box, path); }
+      else leaf++;
+    });
+    return leaf;
+  }
+  function loadDirTree(projectId) {
+    if (!App.apiFetch) { setDirPh('目录加载失败：缺少请求组件'); return Promise.resolve(); }
+    if (!projectId) { setDirPh('请先选择所属项目'); dirPickerReady = false; return Promise.resolve(); }
+    dirPickerProjectId = String(projectId); dirPickerReady = false;
+    const seq = ++dirPickerSeq; setDirPh('正在加载工程资料目录...');
+    return App.apiFetch('/sub-item-databases/tree?projectId=' + encodeURIComponent(projectId)).then(tree => {
+      if (seq !== dirPickerSeq || String((draft && draft.body && draft.body.projectId) || '') !== dirPickerProjectId) return;
+      const nodes = (tree || []).filter(n => n && n.status !== 'inactive');
+      const t = $('fwDirTree'); t.innerHTML = '';
+      const leaf = buildDirNodes(nodes, t, '');
+      if (!leaf) { setDirPh('暂无工程资料目录，请先在“工程资料目录设置”中创建'); return; }
+      dirPickerReady = true;
+    }).catch(() => { if (seq === dirPickerSeq) setDirPh('目录加载失败，请稍后重试'); });
+  }
+  function syncDirPathsFromTree() {
+    dirPickerPaths = [];
+    $('fwDirTree').querySelectorAll('.fwd-node.leaf.on').forEach(el => { const p = el.getAttribute('data-path'); if (p) dirPickerPaths.push(p); });
+    renderDirSelected();
+  }
+  function paintTreeSelection() {
+    $('fwDirTree').querySelectorAll('.fwd-node.leaf').forEach(el => {
+      if (dirPickerPaths.indexOf(el.getAttribute('data-path')) > -1) el.classList.add('on'); else el.classList.remove('on');
+    });
+  }
+  function renderDirSelected() {
+    const tagsEl = $('fwDirTags'), countEl = $('fwDirCount');
+    countEl.textContent = dirPickerPaths.length + ' 项';
+    if (!dirPickerPaths.length) { tagsEl.innerHTML = '<span class="fwd-empty">未选择任何目录</span>'; return; }
+    tagsEl.innerHTML = dirPickerPaths.map(p => '<span class="fwd-tag">' + esc(p) + '<i data-rm="' + esc(p) + '">✕</i></span>').join('');
+    tagsEl.querySelectorAll('[data-rm]').forEach(x => { x.onclick = () => { const path = x.getAttribute('data-rm'); dirPickerPaths = dirPickerPaths.filter(v => v !== path); paintTreeSelection(); renderDirSelected(); }; });
+  }
+  function openDirPicker(item) {
+    ensureDirPickerDom();
+    dirPickerItem = item;
+    dirPickerPaths = (item.dirs || []).filter(Boolean).slice();
+    $('fwDirFile').textContent = item.name || '已上传文件';
+    $('fwDirModal').classList.add('show');
+    const pid = (draft && draft.body && draft.body.projectId) || '';
+    if (dirPickerReady && dirPickerProjectId === String(pid)) { paintTreeSelection(); renderDirSelected(); }
+    else loadDirTree(pid).then(() => { paintTreeSelection(); renderDirSelected(); });
+  }
+  function closeDirPicker() { const m = $('fwDirModal'); if (m) m.classList.remove('show'); dirPickerItem = null; }
+  function confirmDirPicker() {
+    if (dirPickerItem) {
+      dirPickerItem.dirs = dirPickerPaths.slice();
+      try { localSave(); } catch (e) { notice(e.message); }
+      renderMedia();
+    }
+    closeDirPicker();
   }
   async function locked(action) {
     if (busy) return;

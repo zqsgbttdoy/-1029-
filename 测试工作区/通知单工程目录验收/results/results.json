@@ -1,0 +1,63 @@
+{
+  "run": "52e266c9",
+  "projectId": 5,
+  "leafId": 7,
+  "noticeCode": "NOTICE-DIRECTORY-52e266c9",
+  "results": [
+    {
+      "name": "目录接口非空且页面候选与接口有效叶子一致",
+      "pass": true,
+      "detail": {
+        "treeRoots": 2,
+        "candidates": [
+          {
+            "id": 7,
+            "label": "主楼单位工程 / 钢筋分项工程",
+            "disabled": false,
+            "projectId": "5"
+          }
+        ]
+      }
+    },
+    {
+      "name": "当前项目没有目录时才显示暂无工程资料目录",
+      "pass": true
+    },
+    {
+      "name": "已禁用目录及其子树不会成为候选",
+      "pass": true
+    },
+    {
+      "name": "项目切换后按新项目刷新且跨项目目录不混入",
+      "pass": true
+    },
+    {
+      "name": "草稿保存后目录ID真实持久化",
+      "pass": true,
+      "detail": {
+        "noticeId": 2,
+        "documentDirectoryIds": [
+          7
+        ]
+      }
+    },
+    {
+      "name": "编辑页正确回显已选目录及完整路径",
+      "pass": true
+    },
+    {
+      "name": "下发及详情页目录完整回显",
+      "pass": true
+    },
+    {
+      "name": "回复与验证全量更新不会清空目录",
+      "pass": true
+    },
+    {
+      "name": "页面无JavaScript异常且业务接口无4xx或5xx",
+      "pass": true
+    }
+  ],
+  "errors": [],
+  "httpErrors": []
+}

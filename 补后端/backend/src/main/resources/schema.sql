@@ -257,6 +257,8 @@ CREATE TABLE IF NOT EXISTS biz_supervision_notice (
     priority      VARCHAR(20)                         COMMENT '优先级',
     photos        TEXT                                COMMENT '照片',
     attachments   TEXT                                COMMENT '附件',
+    related_diary_id BIGINT                           COMMENT '关联监理日记ID',
+    document_directory_ids TEXT                       COMMENT '所属工程资料目录ID集合(JSON)',
     create_time   DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time   DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (id),
@@ -264,7 +266,8 @@ CREATE TABLE IF NOT EXISTS biz_supervision_notice (
     INDEX idx_biz_supervision_notice_project_id (project_id),
     INDEX idx_biz_supervision_notice_notice_date (notice_date),
     INDEX idx_biz_supervision_notice_status (status),
-    INDEX idx_biz_supervision_notice_author_id (author_id)
+    INDEX idx_biz_supervision_notice_author_id (author_id),
+    INDEX idx_biz_supervision_notice_related_diary_id (related_diary_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='监理通知表';
 
 CREATE TABLE IF NOT EXISTS biz_work_contact (

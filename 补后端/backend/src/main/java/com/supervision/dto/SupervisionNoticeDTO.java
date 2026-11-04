@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @Data
 public class SupervisionNoticeDTO {
@@ -29,4 +30,6 @@ public class SupervisionNoticeDTO {
     private String priority;
     private String photos;
     private String attachments;
+    private Long relatedDiaryId;
+    private List<Long> documentDirectoryIds;
 }

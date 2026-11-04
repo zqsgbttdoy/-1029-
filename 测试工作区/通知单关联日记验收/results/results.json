@@ -1,0 +1,29 @@
+{
+  "run": "86f0a887",
+  "projectId": 2,
+  "diaryId": 1,
+  "noticeCode": "NOTICE-86f0a887",
+  "results": [
+    {
+      "name": "候选仅含同项目已审核日记且展示编号日期作者施工摘要",
+      "pass": true
+    },
+    {
+      "name": "项目日期关键词及approved条件传到supervision-diaries",
+      "pass": true
+    },
+    {
+      "name": "编辑界面保留原关联日记",
+      "pass": true
+    },
+    {
+      "name": "保存跳转及详情日记信息准确",
+      "pass": true
+    },
+    {
+      "name": "无浏览器JavaScript异常",
+      "pass": true
+    }
+  ],
+  "errors": []
+}

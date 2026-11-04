@@ -339,20 +339,42 @@
             if (!atts.length) return;
             var list = document.getElementById('createAttachmentList');
             var tip = document.getElementById('emptyAttTip'); if (tip) tip.remove();
-            atts.forEach(function (a) {
+            atts.forEach(function (a, i) {
                 if (!a || !a.url) return;
+                var dirs = (a.dirs || []).filter(Boolean);
+                var itemId = 'att-edit-' + Date.now() + '-' + i;
                 var item = document.createElement('div');
                 item.className = 'attachment-item';
+                item.id = itemId;
                 item.setAttribute('data-url', a.url);
                 item.setAttribute('data-fname', a.name || '');
                 item.setAttribute('data-fsize', a.size || '');
-                item.innerHTML = '<div class="file-icon doc">FILE</div><div style="flex:1;min-width:0;"><div class="file-name">' + App.escape(a.name || '附件') + '</div></div><span class="remove-att" onclick="this.parentElement.remove()">✕</span>';
+                item._dirs = dirs.slice();
+                item.innerHTML = '<div class="file-icon doc">FILE</div>' +
+                    '<div style="flex:1;min-width:0;">' +
+                        '<div class="file-name">' + App.escape(a.name || '附件') + '</div>' +
+                        '<div class="dir-path">存储位置：<span class="dir-label' + (dirs.length ? ' set' : '') + '">' + (dirs.length ? (dirs.length === 1 ? '' : (dirs.length + '个目录')) : '未选择') + '</span>' +
+                        '<span class="change-dir" onclick="openDirSelector(\'' + itemId + '\')">选择目录</span></div>' +
+                        '<div class="att-dir-tags"></div>' +
+                    '</div>' +
+                    '<span class="remove-att" onclick="this.parentElement.remove()">✕</span>';
                 list.appendChild(item);
+                if (dirs.length === 1) { item.querySelector('.dir-label').textContent = dirs[0]; }
+                var tagsDiv = item.querySelector('.att-dir-tags');
+                dirs.forEach(function (p) {
+                    var tag = document.createElement('span');
+                    tag.className = 'att-dir-tag';
+                    tag.setAttribute('data-path', p);
+                    tag.textContent = p.split(' / ').pop();
+                    tag.title = p;
+                    tagsDiv.appendChild(tag);
+                });
             });
         }
         function openCreateModal() {
             editingId = null;
             resetAttList();
+            dirTreeReady = false; dirTreeProjectId = null;
             document.getElementById('modalTitle').textContent = '新建会议纪要';
             ['minutesNo', 'meetingTopic', 'meetingTime', 'meetingPlace', 'meetingContent', 'meetingResolution'].forEach(function (fid) { var el = document.getElementById(fid); if (el) el.value = ''; });
             var ps = document.getElementById('projectSelect'); if (ps) ps.value = '';
@@ -375,7 +397,40 @@
             populateAttList(rec ? rec.attachments : []);
             document.getElementById('createModal').classList.add('show');
         }
-        function viewDetail(id) { document.getElementById('viewModal').classList.add('show'); }
+        function viewDetail(id) {
+            var rec = recById(id);
+            var body = document.querySelector('#viewModal .modal-body');
+            if (!rec || !body) { document.getElementById('viewModal').classList.add('show'); return; }
+            var st = rec.status === 'submitted' ? '已提交' : '草稿';
+            var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">' +
+                '<div><span style="font-size:12px;color:#9CA3AF;">纪要编号</span><div style="font-size:14px;margin-top:4px;color:#2563EB;font-weight:500;">' + App.escape(rec.no) + '</div></div>' +
+                '<div><span style="font-size:12px;color:#9CA3AF;">所属项目</span><div style="font-size:14px;margin-top:4px;">' + App.escape(rec.project) + '</div></div>' +
+                '<div><span style="font-size:12px;color:#9CA3AF;">会议主题</span><div style="font-size:14px;margin-top:4px;">' + App.escape(rec.topic) + '</div></div>' +
+                '<div><span style="font-size:12px;color:#9CA3AF;">会议时间</span><div style="font-size:14px;margin-top:4px;">' + App.escape(rec.time) + '</div></div>' +
+                '<div><span style="font-size:12px;color:#9CA3AF;">会议地点</span><div style="font-size:14px;margin-top:4px;">' + App.escape(rec.location) + '</div></div>' +
+                '<div><span style="font-size:12px;color:#9CA3AF;">状态</span><div style="margin-top:4px;"><span class="status-tag status-' + (rec.status === 'submitted' ? 'submitted' : 'draft') + '">' + st + '</span></div></div>' +
+                '</div>' +
+                '<div style="margin-top:20px;padding-top:16px;border-top:1px solid #F3F4F6;"><h4 style="font-size:14px;font-weight:600;color:#1E3A5F;margin-bottom:8px;">会议内容</h4><div style="font-size:13px;color:#374151;line-height:1.8;background:#F8FAFC;padding:12px;border-radius:6px;white-space:pre-wrap;">' + (rec.content ? App.escape(rec.content) : '（未填写）') + '</div></div>' +
+                '<div style="margin-top:16px;padding-top:16px;border-top:1px solid #F3F4F6;"><h4 style="font-size:14px;font-weight:600;color:#1E3A5F;margin-bottom:8px;">附件</h4>';
+            var atts = rec.attachments || [];
+            if (!atts.length) {
+                html += '<div style="font-size:12px;color:#9CA3AF;">无附件</div>';
+            } else {
+                html += '<div style="display:flex;flex-direction:column;gap:6px;">';
+                atts.forEach(function (a) {
+                    var dirs = ((a && a.dirs) || []).filter(Boolean);
+                    var dirHtml = dirs.length ? '<div style="font-size:11px;color:#2563EB;margin-top:2px;">目录：' + dirs.map(function (d) { return App.escape(d); }).join('；') + '</div>' : '';
+                    html += '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#F8FAFC;border-radius:6px;">' +
+                        '<div style="width:28px;height:28px;border-radius:4px;background:#FEE2E2;color:#DC2626;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;">FILE</div>' +
+                        '<div style="flex:1;min-width:0;"><div style="font-size:12px;color:#374151;word-break:break-all;">' + App.escape((a && a.name) || '附件') + '</div>' + dirHtml + '</div>' +
+                        '</div>';
+                });
+                html += '</div>';
+            }
+            html += '</div>';
+            body.innerHTML = html;
+            document.getElementById('viewModal').classList.add('show');
+        }
         function confirmDelete(id) { pendingDeleteId = id; document.getElementById('deleteModal').classList.add('show'); }
         function executeDelete() {
             closeModal('deleteModal');
@@ -387,7 +442,7 @@
             var val = function (fid) { var el = document.getElementById(fid); return el ? el.value : ''; };
             var t = val('meetingTime');
             var atts = [];
-            document.querySelectorAll('#createAttachmentList .attachment-item[data-url]').forEach(function (el) { var u = el.getAttribute('data-url'); if (u) atts.push({ url: u, name: el.getAttribute('data-fname') || '', size: el.getAttribute('data-fsize') || '' }); });
+            document.querySelectorAll('#createAttachmentList .attachment-item[data-url]').forEach(function (el) { var u = el.getAttribute('data-url'); if (u) atts.push({ url: u, name: el.getAttribute('data-fname') || '', size: el.getAttribute('data-fsize') || '', dirs: (el._dirs || []).slice() }); });
             return {
                 code: val('minutesNo').trim(),
                 projectId: Number(val('projectSelect')),
@@ -547,15 +602,85 @@
             }
             input.value = '';
             if (pendingAttIds.length > 0) {
-                pendingAttId = pendingAttIds[0].id;
-                pendingFileName = pendingAttIds[0].name;
                 pendingAttIndex = 0;
-                document.getElementById('currentFileName').textContent = pendingFileName;
-                document.querySelectorAll('.dir-tree-node').forEach(function(n) { n.classList.remove('selected'); });
-                selectedDirPaths = [];
-                updateSelectedDirList();
-                document.getElementById('dirTreeModal').classList.add('show');
+                openDirSelector(pendingAttIds[0].id, pendingAttIds[0].name);
             }
+        }
+
+        var dirTreeProjectId = null;
+        var dirTreeReady = false;
+        var dirTreeLoadSeq = 0;
+
+        function setDirTreePlaceholder(text) {
+            var container = document.getElementById('dirTreeContainer');
+            if (!container) return;
+            container.innerHTML = '<div class="demo-placeholder" style="padding:24px;text-align:center;color:#9CA3AF;font-size:13px;">' + App.escape(text) + '</div>';
+        }
+
+        function appendDirTreeNodes(nodes, container, parentPath) {
+            var leafCount = 0;
+            (nodes || []).forEach(function (node) {
+                if (!node || node.status === 'inactive') return;
+                var path = parentPath ? parentPath + ' / ' + node.name : node.name;
+                var children = (node.children || []).filter(function (c) { return c && c.status !== 'inactive'; });
+                var row = document.createElement('div');
+                row.className = 'dir-tree-node ' + (children.length ? 'parent-node' : 'leaf-node');
+                row.setAttribute('data-path', path);
+                if (children.length) {
+                    var expand = document.createElement('span');
+                    expand.className = 'expand';
+                    expand.textContent = '▼';
+                    expand.onclick = function (e) { e.stopPropagation(); toggleDirExpand(expand); };
+                    row.appendChild(expand);
+                }
+                row.appendChild(document.createTextNode(node.name));
+                row.onclick = function () { selectDirNode(row, path); };
+                container.appendChild(row);
+                if (children.length) {
+                    var childBox = document.createElement('div');
+                    childBox.className = 'dir-tree-children';
+                    container.appendChild(childBox);
+                    leafCount += appendDirTreeNodes(children, childBox, path);
+                } else {
+                    leafCount++;
+                }
+            });
+            return leafCount;
+        }
+
+        function ensureDirTree() {
+            if (!window.App || !App.apiFetch) { setDirTreePlaceholder('目录加载失败：当前页面缺少请求组件'); return Promise.resolve(); }
+            var pidEl = document.getElementById('projectSelect');
+            var pid = pidEl ? pidEl.value : '';
+            if (!pid) { setDirTreePlaceholder('请先选择所属项目'); dirTreeReady = false; return Promise.resolve(); }
+            if (dirTreeReady && dirTreeProjectId === pid) return Promise.resolve();
+            dirTreeProjectId = pid;
+            dirTreeReady = false;
+            var seq = ++dirTreeLoadSeq;
+            setDirTreePlaceholder('正在加载工程资料目录...');
+            return App.apiFetch('/sub-item-databases/tree?projectId=' + encodeURIComponent(pid)).then(function (tree) {
+                if (seq !== dirTreeLoadSeq || (document.getElementById('projectSelect') || {}).value !== pid) return;
+                var nodes = (tree || []).filter(function (n) { return n && n.status !== 'inactive'; });
+                var container = document.getElementById('dirTreeContainer');
+                container.innerHTML = '';
+                var leafCount = appendDirTreeNodes(nodes, container, '');
+                if (!leafCount) { setDirTreePlaceholder('暂无工程资料目录，请先在“工程资料目录设置”中创建'); return; }
+                dirTreeReady = true;
+            }).catch(function () {
+                if (seq !== dirTreeLoadSeq) return;
+                setDirTreePlaceholder('目录加载失败，请稍后重试');
+            });
+        }
+
+        function applyDirSelection(paths) {
+            var container = document.getElementById('dirTreeContainer');
+            var leafNodes = container.querySelectorAll('.leaf-node');
+            for (var i = 0; i < leafNodes.length; i++) {
+                var p = leafNodes[i].getAttribute('data-path');
+                if (paths.indexOf(p) > -1) { leafNodes[i].classList.add('selected'); }
+                else { leafNodes[i].classList.remove('selected'); }
+            }
+            updateSelectedDirList();
         }
 
         function toggleDirExpand(el) {
@@ -615,7 +740,7 @@
 
         function openDirSelector(attId, fileName) {
             pendingAttId = attId;
-            pendingFileName = fileName;
+            pendingFileName = (fileName != null) ? fileName : ((document.getElementById(attId) || {}).getAttribute ? (document.getElementById(attId).getAttribute('data-fname') || '') : '');
             var attItem = document.getElementById(pendingAttId);
             var existingTags = attItem ? attItem.querySelectorAll('.att-dir-tag') : [];
             var existingPaths = [];
@@ -632,9 +757,9 @@
                 }
             }
             selectedDirPaths = existingPaths.slice();
-            document.getElementById('currentFileName').textContent = fileName;
-            updateSelectedDirList();
+            document.getElementById('currentFileName').textContent = pendingFileName;
             document.getElementById('dirTreeModal').classList.add('show');
+            ensureDirTree().then(function () { applyDirSelection(existingPaths); });
         }
 
         function confirmDirSelection() {
@@ -665,6 +790,7 @@
                 dirPathEl.parentNode.insertBefore(tagsDiv, dirPathEl.nextSibling);
                 var badge = attItem.querySelector('.pending-badge');
                 if (badge) badge.remove();
+                attItem._dirs = selectedDirPaths.slice();
             }
             pendingAttIndex++;
             if (pendingAttIndex < pendingAttIds.length) {

@@ -1,0 +1,105 @@
+{
+  "passed": 12,
+  "failed": 0,
+  "ids": {
+    "a": "1",
+    "b": "2"
+  },
+  "results": [
+    {
+      "name": "准备本人巡检数据（recorded + draft）",
+      "pass": true,
+      "detail": {
+        "a": 1,
+        "b": 2,
+        "projectId": 1,
+        "status": "recorded",
+        "lv": 1
+      }
+    },
+    {
+      "name": "本人已保存行与草稿行都有删除按钮",
+      "pass": true,
+      "detail": {
+        "delA": true,
+        "delB": true,
+        "delText": "删除",
+        "draftRowText": "DAILY-19065836-3101-44a9-92bc-0dccf2488017检查项 1 · 未检查 0 · 符合 1 · 不符合 0 · 问题 0验收草稿删除项目2026-11-02admin草稿继续编辑删除",
+        "draftEdit": true
+      }
+    },
+    {
+      "name": "草稿删除确认文案区分草稿",
+      "pass": true,
+      "detail": {
+        "dialog": "操作确认⚠️删除本人草稿巡检记录？删除后列表不再显示该草稿。取消确认"
+      }
+    },
+    {
+      "name": "取消后草稿行保留",
+      "pass": true,
+      "detail": {
+        "kept": true,
+        "err": ""
+      }
+    },
+    {
+      "name": "确认后草稿行消失且已保存行保留",
+      "pass": true,
+      "detail": {
+        "gone": true,
+        "savedKept": true,
+        "err": ""
+      }
+    },
+    {
+      "name": "服务器验证：已删草稿 404，已保存仍在",
+      "pass": true,
+      "detail": {
+        "b": 404,
+        "a": 200
+      }
+    },
+    {
+      "name": "已保存行删除确认文案保持原文案",
+      "pass": true,
+      "detail": {
+        "dialog": "操作确认⚠️删除本人已保存的巡检记录？历史留痕保留，监理日记中的关联链接将标记为失效。取消确认"
+      }
+    },
+    {
+      "name": "已保存行删除成功",
+      "pass": true,
+      "detail": {
+        "status": 404
+      }
+    },
+    {
+      "name": "旁站检查列表无删除按钮",
+      "pass": true,
+      "detail": {
+        "count": 0
+      }
+    },
+    {
+      "name": "监理日记列表无删除按钮",
+      "pass": true,
+      "detail": {
+        "count": 0
+      }
+    },
+    {
+      "name": "375 日常巡检无横向溢出",
+      "pass": true,
+      "detail": {
+        "sw": 360,
+        "vw": 375
+      }
+    },
+    {
+      "name": "无浏览器运行异常",
+      "pass": true
+    }
+  ],
+  "errors": []
+}

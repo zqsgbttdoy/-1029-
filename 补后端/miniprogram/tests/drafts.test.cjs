@@ -693,20 +693,40 @@ test('日常巡检本机草稿行也不含业务版本列', async () => {
   assert.match(s.nodes.fwLocalRows.innerHTML, /继续编辑本机内容/);
   assert.doesNotMatch(s.nodes.fwLocalRows.innerHTML, /业务版本/);
 });
-test('日常巡检仅本人已保存行提供删除按钮，草稿与他人记录不提供', async () => {
+test('日常巡检本人草稿与已保存行（recorded 及遗留 submitted/pending）提供删除按钮，他人记录不提供', async () => {
   const s = await setupPc('daily-inspections');
   const base = { projectId: 2, inspectionDate: '2026-10-29', inspectorId: 1, content: '巡检原文' };
   s.records = [
     { ...base, id: 11, status: 'recorded', lockVersion: 4 },
     { ...base, id: 12, status: 'recorded', lockVersion: 2, inspectorId: 9 },
-    { ...base, id: 13, status: 'draft', lockVersion: 1 }
+    { ...base, id: 13, status: 'draft', lockVersion: 1 },
+    { ...base, id: 14, status: 'submitted', lockVersion: 5 },
+    { ...base, id: 15, status: 'pending', lockVersion: 6, inspectorId: 9 }
   ];
   await s.actions.load();
   assert.match(s.nodes.fwRows.innerHTML, /data-del="11"/);
+  assert.match(s.nodes.fwRows.innerHTML, /data-del="13"/);
+  assert.match(s.nodes.fwRows.innerHTML, /data-del="14"/);
   assert.doesNotMatch(s.nodes.fwRows.innerHTML, /data-del="12"/);
-  assert.doesNotMatch(s.nodes.fwRows.innerHTML, /data-del="13"/);
-  // 草稿行保留原有编辑入口；删除草稿仍走编辑器底部按钮
+  assert.doesNotMatch(s.nodes.fwRows.innerHTML, /data-del="15"/);
+  // 草稿行保留原有编辑入口，删除入口与已保存行一致
   assert.match(s.nodes.fwRows.innerHTML, /data-id="13"[^>]*>继续编辑/);
+});
+test('日常巡检删除草稿行：确认文案区分草稿，确认后携当前版本 DELETE 并刷新列表', async () => {
+  const s = await setupPc('daily-inspections');
+  const row = { id: 13, projectId: 2, inspectionDate: '2026-10-29', inspectorId: 1, status: 'draft', lockVersion: 1, content: '本人草稿' };
+  s.record = row; s.records = [row];
+  s.nodes.fwStatus.value = 'draft'; await s.nodes.fwStatus.onchange();
+  s.confirmResult = false;
+  await s.nodes.fwRows.onclick({ target: { closest: () => ({ dataset: { del: '13' } }) } });
+  assert.equal(s.calls.filter(c => c.opts && c.opts.method === 'DELETE').length, 0);
+  assert.match(String(s.confirms.at(-1)), /草稿/, '草稿删除确认文案应与已保存记录区分');
+  s.confirmResult = true;
+  await s.nodes.fwRows.onclick({ target: { closest: () => ({ dataset: { del: '13' } }) } });
+  const del = s.calls.find(c => c.opts && c.opts.method === 'DELETE');
+  assert.ok(del, '确认后应发起删除请求');
+  assert.equal(del.path, '/daily-inspections/13');
+  assert.equal(del.opts.headers['X-Record-Version'], 1, '删除请求应携带当前乐观锁版本');
 });
 test('日常巡检删除：取消确认不发请求，确认后携当前版本 DELETE 并刷新列表', async () => {
   const s = await setupPc('daily-inspections');

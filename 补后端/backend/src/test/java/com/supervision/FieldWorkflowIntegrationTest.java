@@ -289,9 +289,13 @@ class FieldWorkflowIntegrationTest {
         assertEquals("submitted", db.queryForObject("select status from biz_daily_inspection where id=?", String.class, submittedId));
         // 历史待审核记录也不再进入审核接口
         call(reviewer, body(post("/daily-inspections/" + submittedId + "/approve").header("X-Record-Version", legacy.path("lockVersion").asLong()), Map.of("status", "approved")), 400);
-        // 历史审核态巡检不可删除：仅本人草稿或 recorded 状态开放删除
+        // 已审核通过的历史巡检不可删除；从未被审核的遗留待审核态（submitted/pending）等同已保存，本人可删
         JsonNode approvedLegacy = call(author, get("/daily-inspections/" + ids.get("approved")), 200);
         call(author, delete("/daily-inspections/" + ids.get("approved")).header("X-Record-Version", approvedLegacy.path("lockVersion").asLong()), 409);
+        JsonNode pendingLegacy = call(author, get("/daily-inspections/" + ids.get("pending")), 200);
+        assertEquals("pending", pendingLegacy.path("status").asText());
+        call(author, delete("/daily-inspections/" + ids.get("pending")).header("X-Record-Version", pendingLegacy.path("lockVersion").asLong()), 200);
+        assertEquals("inactive", db.queryForObject("select status from biz_daily_inspection where id=?", String.class, ids.get("pending")));
         // 本人实际更新后才写成 recorded，其他项目成员仍只读
         JsonNode rewritten = call(author, body(put("/daily-inspections/" + submittedId).header("X-Record-Version", legacy.path("lockVersion").asLong()), Map.of("content", "历史巡检补充")), 200);
         assertEquals("recorded", rewritten.path("status").asText());
@@ -1105,6 +1109,86 @@ class FieldWorkflowIntegrationTest {
                             .andReturn().getResponse().getStatus();
                     assertTrue(actual == 400 || actual == 409, entry.getKey() + "创建即verified必须拒绝，实际HTTP=" + actual);
                 }));
+    }
+
+    @Test void noticeRelatedDiaryValidationAndDetailRoundTrip() throws Exception {
+        JsonNode diary = create(author, "supervision-diaries", diary(), UUID.randomUUID().toString());
+        long diaryId = diary.path("id").asLong();
+        var notice = new LinkedHashMap<String, Object>();
+        notice.put("code", "NOTICE-DIARY-" + project);
+        notice.put("projectId", project);
+        notice.put("noticeDate", "2026-09-24");
+        notice.put("title", "关联监理日记的通知单");
+        notice.put("content", "请按日记记录的现场问题完成整改");
+        notice.put("relatedDiaryId", diaryId);
+        call(author, body(post("/supervision-notices"), notice), 400);
+
+        diary = approve(submit(diary, "supervision-diaries"), "supervision-diaries", "approved");
+        JsonNode created = call(author, body(post("/supervision-notices"), notice), 200);
+        long noticeId = created.path("id").asLong();
+        assertEquals(diaryId, created.path("relatedDiaryId").asLong());
+        JsonNode detail = call(author, get("/supervision-notices/" + noticeId), 200);
+        assertEquals(diaryId, detail.path("relatedDiary").path("id").asLong());
+        assertEquals(diary.path("code").asText(), detail.path("relatedDiary").path("code").asText());
+        assertEquals("2026-09-23", detail.path("relatedDiary").path("diaryDate").asText());
+        assertEquals("测试人员" + author, detail.path("relatedDiary").path("authorName").asText());
+        assertEquals("检查钢筋绑扎", detail.path("relatedDiary").path("construction").asText());
+
+        notice.remove("relatedDiaryId");
+        JsonNode cleared = call(author, body(put("/supervision-notices/" + noticeId), notice), 200);
+        assertFalse(cleared.hasNonNull("relatedDiaryId"));
+
+        var crossProject = new LinkedHashMap<String, Object>(notice);
+        crossProject.put("code", "NOTICE-DIARY-OTHER-" + project);
+        crossProject.put("projectId", otherProject);
+        crossProject.put("relatedDiaryId", diaryId);
+        call(outsider, body(post("/supervision-notices"), crossProject), 400);
+        notice.put("code", "NOTICE-DIARY-MISSING-" + project);
+        notice.put("relatedDiaryId", 99999999L);
+        call(author, body(post("/supervision-notices"), notice), 400);
+    }
+
+    @Test void noticeDocumentDirectoryValidationAndRoundTrip() throws Exception {
+        long root = sequence.incrementAndGet();
+        long leaf = sequence.incrementAndGet();
+        long inactive = sequence.incrementAndGet();
+        long other = sequence.incrementAndGet();
+        db.update("insert into biz_sub_item_database(id,project_id,name,status) values (?,?,'单位工程','active')", root, project);
+        db.update("insert into biz_sub_item_database(id,project_id,parent_id,name,status) values (?,?,?,'分项工程','active')", leaf, project, root);
+        db.update("insert into biz_sub_item_database(id,project_id,name,status) values (?,?,'已禁用目录','inactive')", inactive, project);
+        db.update("insert into biz_sub_item_database(id,project_id,name,status) values (?,?,'其他项目目录','active')", other, otherProject);
+
+        JsonNode tree = call(author, get("/sub-item-databases/tree").param("projectId", String.valueOf(project)), 200);
+        assertTrue(tree.size() > 0);
+        assertEquals(leaf, tree.get(0).path("children").get(0).path("id").asLong());
+        assertFalse(tree.toString().contains("其他项目目录"));
+
+        var notice = new LinkedHashMap<String, Object>();
+        notice.put("code", "NOTICE-DIRECTORY-" + project);
+        notice.put("projectId", project);
+        notice.put("noticeDate", "2026-11-03");
+        notice.put("title", "绑定工程资料目录的通知单");
+        notice.put("content", "请按目录归档整改资料");
+        notice.put("documentDirectoryIds", List.of(leaf));
+        JsonNode created = call(author, body(post("/supervision-notices"), notice), 200);
+        long noticeId = created.path("id").asLong();
+        assertEquals(leaf, created.path("documentDirectoryIds").get(0).asLong());
+        assertEquals("[" + leaf + "]", db.queryForObject(
+                "select document_directory_ids from biz_supervision_notice where id=?", String.class, noticeId));
+
+        JsonNode detail = call(author, get("/supervision-notices/" + noticeId), 200);
+        assertEquals("单位工程 / 分项工程", detail.path("documentDirectories").get(0).path("path").asText());
+        notice.put("status", "issued");
+        JsonNode issued = call(author, body(put("/supervision-notices/" + noticeId), notice), 200);
+        assertEquals(leaf, issued.path("documentDirectoryIds").get(0).asLong());
+
+        for (long invalid : List.of(inactive, other, root, 99999999L)) {
+            var bad = new LinkedHashMap<String, Object>(notice);
+            bad.put("code", "NOTICE-DIRECTORY-BAD-" + invalid + "-" + project);
+            bad.put("status", "draft");
+            bad.put("documentDirectoryIds", List.of(invalid));
+            call(author, body(post("/supervision-notices"), bad), 400);
+        }
     }
 
     @Test void independentTokensAndLogoutRevocation() throws Exception {
