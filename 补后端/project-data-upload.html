@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
+﻿﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -121,6 +121,11 @@
         .bound-meta { color: #1D4ED8; }
         .bound-link { color: #2563EB; text-decoration: none; font-weight: 500; }
         .bound-link:hover { text-decoration: underline; }
+        .diary-filter { display: flex; align-items: center; gap: 8px; margin: 10px 0; color: #4B5563; font-size: 12px; }
+        .diary-filter select { height: 32px; padding: 0 28px 0 10px; border: 1px solid #D1D5DB; border-radius: 6px; background: #fff; color: #374151; }
+        .diary-binding { display: inline-flex; margin-top: 6px; padding: 3px 8px; border-radius: 10px; font-size: 11px; }
+        .diary-binding.linked { background: #DBEAFE; }
+        .diary-binding.unlinked { background: #F3F4F6; color: #6B7280; }
         .project-selector { display: flex; align-items: center; gap: 16px; padding: 16px 20px; background: #fff; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); margin-bottom: 16px; flex-wrap: wrap; }
         .selector-label { font-size: 14px; font-weight: 600; color: #1F2937; white-space: nowrap; }
         .selector-select { flex: 1; min-width: 240px; max-width: 400px; padding: 8px 12px; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 13px; color: #374151; background: #fff; cursor: pointer; transition: border-color 0.2s; }
@@ -252,7 +257,14 @@
 
                         <div class="existing-files">
                             <h5>📂 已上传资料 (<span id="existingCount">0</span>个文件)</h5>
-                            <p>引用篇数按当前可查看日记统计（含服务器草稿）。</p>
+                            <p>关联日记为直传资料绑定关系；历史正文引用篇数按当前可查看日记统计（含服务器草稿），两者独立。</p>
+                            <label class="diary-filter" for="diaryFilter">日记关联
+                                <select id="diaryFilter" onchange="changeDiaryFilter()">
+                                    <option value="">全部</option>
+                                    <option value="linked">已关联日记</option>
+                                    <option value="unlinked">未关联日记</option>
+                                </select>
+                            </label>
                             <div class="fd-document-pages"><button class="btn btn-outline" onclick="documentPage(-1)" id="documentsPrev">上一页</button><span id="documentsPage"></span><button class="btn btn-outline" onclick="documentPage(1)" id="documentsNext">下一页</button><button class="btn btn-outline" onclick="loadDocuments()">刷新</button></div>
                             <div id="existingFileList" style="border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;">
                             </div>
@@ -360,9 +372,13 @@
                 sel.innerHTML = '<option value="">-- 请先选择项目 --</option>';
                 list.forEach(function(p) { var opt = document.createElement('option'); opt.value = p.id; opt.textContent = p.name; sel.appendChild(opt); });
                 var saved = {}; try { saved = JSON.parse(sessionStorage.getItem(selectionKey) || '{}'); } catch (e) { }
-                if (list.some(p => String(p.id) === String(saved.project))) {
-                    sel.value = saved.project; onProjectChange();
-                    await loadTree(saved.folder, saved.page);
+                var params = new URLSearchParams(location.search);
+                var requestedProject = params.get('projectId');
+                var fromLink = list.some(p => String(p.id) === String(requestedProject));
+                var restoreProject = fromLink ? requestedProject : saved.project;
+                if (list.some(p => String(p.id) === String(restoreProject))) {
+                    sel.value = restoreProject; onProjectChange();
+                    await loadTree(fromLink ? params.get('subItemId') : saved.folder, fromLink ? 1 : saved.page);
                 }
             } catch (e) { if (sameAccount()) App.toast('项目读取失败：' + e.message, 'error'); }
         }
@@ -445,15 +461,21 @@
             if (next < 1 || (next - 1) * 20 >= documentsTotal) return;
             documentsPage = next; rememberSelection(); loadDocuments();
         }
+        function changeDiaryFilter() {
+            documentsPage = 1;
+            rememberSelection();
+            loadDocuments();
+        }
         function loadDocuments() {
             if (!sameAccount() || !currentProjectId || currentSubItemId == null) return;
             var seq = ++documentsSequence, project = currentProjectId, folder = currentSubItemId;
+            var diaryFilter = document.getElementById('diaryFilter').value;
             var container = document.getElementById('existingFileList');
             container.textContent = '加载中…'; currentDocuments = [];
             document.getElementById('existingCount').textContent = '…';
             document.getElementById('documentsPrev').disabled = true; document.getElementById('documentsNext').disabled = true;
-            return apiGetPage('/project-documents', { pageNum: documentsPage, pageSize: 20, projectId: project, subItemId: folder }).then(function(res) {
-                if (!sameAccount() || seq !== documentsSequence || project !== currentProjectId || folder !== currentSubItemId) return;
+            return apiGetPage('/project-documents', { pageNum: documentsPage, pageSize: 20, projectId: project, subItemId: folder, diaryFilter: diaryFilter || undefined }).then(function(res) {
+                if (!sameAccount() || seq !== documentsSequence || project !== currentProjectId || folder !== currentSubItemId || diaryFilter !== document.getElementById('diaryFilter').value) return;
                 documentsTotal = res.total;
                 if (documentsPage > 1 && !res.list.length) { documentsPage = Math.max(1, Math.ceil(res.total / 20)); rememberSelection(); return loadDocuments(); }
                 currentDocuments = res.list || []; renderExistingFiles(currentDocuments);
@@ -484,7 +506,8 @@
             var container = document.getElementById('existingFileList');
             document.getElementById('existingCount').textContent = documentsTotal;
             if (!files.length) {
-                container.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">该目录下暂无已上传资料</div></div>';
+                var filtered = document.getElementById('diaryFilter').value;
+                container.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">' + (filtered ? '当前筛选下暂无资料' : '该目录下暂无已上传资料') + '</div></div>';
                 return;
             }
             var html = '';
@@ -493,12 +516,17 @@
                 var iconText = iconClass === 'other' ? 'FILE' : iconClass.toUpperCase();
                 var size = formatSize(f.fileSize);
                 var date = f.createTime ? String(f.createTime).slice(0, 10) : '';
+                var diary = f.relatedDiary;
+                var diaryBinding = diary
+                    ? '<a class="diary-binding linked bound-link" href="supervision-diary.html?id=' + Number(diary.id) + '&readonly=true" target="_blank" rel="noopener">已关联监理日记 [' + escapeHtml(diary.code || ('#' + diary.id)) + '] · ' + escapeHtml(diary.diaryDate || '') + '</a>'
+                    : '<span class="diary-binding unlinked">未关联日记</span>';
                 html += '<div class="existing-file-item">' +
                     '<div class="file-icon ' + iconClass + '">' + iconText + '</div>' +
                     '<div class="file-info">' +
                         '<div class="file-name">' + escapeHtml(f.name) + '</div>' +
                         '<div class="file-meta"><span>' + escapeHtml(size) + '</span>' + (date ? '<span>' + escapeHtml(date) + '</span>' : '') + (f.description ? '<span>' + escapeHtml(f.description) + '</span>' : '') + '</div>' +
-                        (f.diaryReferenceCount > 0 ? '<button class="btn btn-outline fd-reference-count" onclick="showDiaryReferences(' + Number(f.id) + ',1)">被 ' + Number(f.diaryReferenceCount) + ' 篇监理日记引用</button>' : '') +
+                        diaryBinding +
+                        (f.diaryReferenceCount > 0 ? '<button class="btn btn-outline fd-reference-count" onclick="showDiaryReferences(' + Number(f.id) + ',1)">历史正文引用：被 ' + Number(f.diaryReferenceCount) + ' 篇监理日记引用</button>' : '') +
                     '</div>' +
                     '<div class="file-actions">' +
                         (f.filePath ? '<a class="btn btn-outline btn-sm" href="' + escapeHtml(documentLink(f)) + '" target="_blank" rel="noopener">📥 打开原件</a>' : '') +

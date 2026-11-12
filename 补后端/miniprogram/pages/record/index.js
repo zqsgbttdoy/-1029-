@@ -5,6 +5,7 @@ const { schemas, statusText, isSavedMemo, canEditStatus, canReviseStatus, unpack
 const C = require('../../utils/inspection-checklist');
 const inspectionEditor = require('../../utils/inspection-editor');
 const diaryLinks = require('../../utils/diary-links');
+const DailySync = require('../../utils/daily-inspection-sync');
 const modal = options => new Promise(resolve => wx.showModal(Object.assign({}, options, { success: resolve, fail: () => resolve({ confirm: false }) })));
 function array(value) { try { return JSON.parse(value || '[]'); } catch (e) { return []; } }
 // 巡检提交即保存，不进入审核；已保存巡检再次打开时按钮显示“保存修改”
@@ -18,7 +19,8 @@ function bodyOf(kind, record) {
   const body = {}; keys.forEach(k => { if (record[k] != null) body[k] = record[k]; }); return body;
 }
 Page(Object.assign({}, inspectionEditor, {
-  data: { body: {}, fields: [], media: [], photos: [], attachments: [], error: '', state: '', prefillState: '', busy: false, editable: false, history: [], sources: [], checkItems: [], problemPanel: null, panelError: '', submitLabel: '确认提交审核', memo: false },
+  data: { body: {}, fields: [], media: [], photos: [], attachments: [], error: '', state: '', prefillState: '', busy: false, editable: false, history: [], sources: [], checkItems: [], problemPanel: null, panelError: '', submitLabel: '确认提交审核', memo: false,
+    dailyRecords: [], dailyLoading: false, dailyError: '', dailySyncIndex: -1, dailySyncOptions: {} },
   async onLoad(options) {
     this.uid = api.userId();
     this.readonly = options.readonly === 'true';
@@ -44,11 +46,12 @@ Page(Object.assign({}, inspectionEditor, {
       wx.setNavigationBarTitle({ title: schemas[this.kind].title });
       this.loadContext();
       void this.prefillLog(true);
+      void this.loadDailyInspections();
     } catch (e) { this.fail(e); }
   },
   onShow() { this.visible = true; },
-  onHide() { this.visible = false; this.cancelPrefill(); voice.stop(true); },
-  onUnload() { this.visible = false; this.unloaded = true; this.cancelPrefill(); voice.stop(true); },
+  onHide() { this.visible = false; this.cancelPrefill(); this.dailySequence = (this.dailySequence || 0) + 1; voice.stop(true); },
+  onUnload() { this.visible = false; this.unloaded = true; this.cancelPrefill(); this.dailySequence = (this.dailySequence || 0) + 1; voice.stop(true); },
   fail(e) { this.setData({ error: e.message || '操作失败，请重试' }); },
   fields(body) {
     const values = unpack(this.kind, body), schema = schemas[this.kind];
@@ -74,7 +77,7 @@ Page(Object.assign({}, inspectionEditor, {
       canRevise: !this.readonly && canReviseStatus(this.kind, draft.serverStatus),
       sources: array(draft.body.diarySources) });
     this.refreshChecklist(draft);
-    const localUrls = new Set(draft.media.filter(m => !m.problemId).map(m => m.url));
+    const localUrls = new Set(draft.media.filter(m => !m.problemId && !m.itemId).map(m => m.url));
     this.loadFiles(Object.assign({}, draft.body, { photos: JSON.stringify(array(draft.body.photos).filter(p => !localUrls.has(typeof p === 'string' ? p : p.url))) }));
   },
   showRecord(record) {
@@ -149,7 +152,7 @@ Page(Object.assign({}, inspectionEditor, {
   },
   async choosePhoto(e) {
     if (!this.data.editable || this.data.busy) return;
-    if (this.data.media.filter(m => !m.problemId).length + this.data.photos.length >= 50) { this.fail(new Error('最多 50 张照片')); return; }
+    if (this.data.media.filter(m => !m.problemId && !m.itemId).length + this.data.photos.length >= 50) { this.fail(new Error('最多 50 张照片')); return; }
     const source = e.currentTarget.dataset.source;
     try {
       const result = await new Promise((resolve, reject) => wx.chooseMedia({ count: 1, mediaType: ['image'], sourceType: [source], sizeType: ['compressed'], success: resolve, fail: reject }));
@@ -316,6 +319,51 @@ Page(Object.assign({}, inspectionEditor, {
   markFieldEdit(field) {
     this.fieldEdits = this.fieldEdits || {};
     this.fieldEdits[field] = (this.fieldEdits[field] || 0) + 1;
+  },
+  async loadDailyInspections() {
+    if (this.kind !== 'supervision-diaries' || !this.localId || !this.data.editable || this.readonly) return;
+    const projectId = this.data.body.projectId, date = this.data.body.diaryDate, localId = this.localId;
+    if (!projectId || !date) return;
+    const sequence = this.dailySequence = (this.dailySequence || 0) + 1;
+    const valid = () => !this.unloaded && this.visible !== false && api.userId() === this.uid && sequence === this.dailySequence
+      && localId === this.localId && this.data.editable && projectId === this.data.body.projectId && date === this.data.body.diaryDate;
+    this.setData({ dailyLoading: true, dailyError: '' });
+    try {
+      const result = await api.request('/field/diary-day-workbench', 'GET', { projectId, date });
+      if (!valid()) return;
+      const dailyRecords = (result.dailyInspections || []).map(record => Object.assign({}, record, { photoCount: (record.syncPhotos || []).length }));
+      this.setData({ dailyRecords, dailyLoading: false });
+    } catch (e) {
+      if (valid()) this.setData({ dailyLoading: false, dailyError: '巡检读取失败：' + e.message + '。可继续填写日记或点击重试。' });
+    }
+  },
+  openDailySync(e) {
+    if (!this.data.editable || this.data.busy || this.data.recording) return;
+    const index = Number(e.currentTarget.dataset.index);
+    if (!this.data.dailyRecords[index]) return;
+    this.setData({ dailySyncIndex: index, dailySyncOptions: { inspection: true, issues: true, photos: true } });
+  },
+  dailySyncChoice(e) {
+    const selected = e.detail.value || [];
+    this.setData({ dailySyncOptions: { inspection: selected.includes('inspection'), issues: selected.includes('issues'), photos: selected.includes('photos') } });
+  },
+  closeDailySync() { this.setData({ dailySyncIndex: -1 }); },
+  confirmDailySync() {
+    if (!this.data.editable || this.data.busy || this.data.recording) return;
+    const record = this.data.dailyRecords[this.data.dailySyncIndex]; if (!record) return;
+    try {
+      this.collectBodyLinks();
+      const merged = DailySync.merge(record, this.data.body, this.data.body.photos, this.data.dailySyncOptions);
+      this.setData({ dailySyncIndex: -1 });
+      if (!merged.addedText && !merged.addedPhotos) { wx.showToast({ title: '所选内容已同步，未重复追加', icon: 'none' }); return; }
+      const body = merged.body;
+      ['inspection', 'newIssues'].forEach(field => this.markFieldEdit(field));
+      this.setData({ body, fields: this.fields(body) });
+      if (!this.persist()) return;
+      const localUrls = new Set(this.data.media.filter(m => !m.problemId && !m.itemId).map(m => m.url));
+      this.loadFiles(Object.assign({}, body, { photos: JSON.stringify(array(body.photos).filter(p => !localUrls.has(typeof p === 'string' ? p : p.url))) }));
+      wx.showToast({ title: '已追加 ' + merged.addedText + ' 个栏目、' + merged.addedPhotos + ' 张照片', icon: 'none' });
+    } catch (e) { this.fail(e); }
   },
   cancelPrefill() {
     this.prefillSequence = (this.prefillSequence || 0) + 1;

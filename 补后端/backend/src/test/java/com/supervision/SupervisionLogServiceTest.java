@@ -38,6 +38,7 @@ class SupervisionLogServiceTest {
         dto.setWeekStart(LocalDate.of(2024, 1, 1));
         dto.setWeekEnd(LocalDate.of(2024, 1, 7));
         dto.setAuthorId(1L);
+        dto.setParticipants("[1,2]");
         dto.setWeather("晴");
         dto.setWind("微风");
         dto.setTemperature("25℃");
@@ -56,6 +57,7 @@ class SupervisionLogServiceTest {
         log.setWeekStart(LocalDate.of(2024, 1, 1));
         log.setWeekEnd(LocalDate.of(2024, 1, 7));
         log.setAuthorId(1L);
+        log.setParticipants("[1,2]");
         log.setWeather("晴");
         log.setWind("微风");
         log.setTemperature("25℃");
@@ -86,6 +88,7 @@ class SupervisionLogServiceTest {
         assertEquals("JL-ZR-20240101", result.getCode());
         assertEquals(LocalDate.of(2024, 1, 1), result.getWeekStart());
         assertEquals(LocalDate.of(2024, 1, 7), result.getWeekEnd());
+        assertEquals("[1,2]", result.getParticipants());
         verify(supervisionLogRepository).save(any(SupervisionLog.class));
     }
 
@@ -203,6 +206,7 @@ class SupervisionLogServiceTest {
         assertEquals(existing.getWeather(), result.getWeather());
         assertEquals(existing.getWeekStart(), result.getWeekStart());
         assertEquals(existing.getWeekEnd(), result.getWeekEnd());
+        assertEquals(existing.getParticipants(), result.getParticipants());
         verify(supervisionLogRepository).save(any(SupervisionLog.class));
     }
 
@@ -221,6 +225,7 @@ class SupervisionLogServiceTest {
 
         assertEquals("更新后的内容", result.getContent());
         assertEquals("雨", result.getWeather());
+        assertEquals("[1,2]", result.getParticipants());
         verify(supervisionLogRepository).save(any(SupervisionLog.class));
     }
 

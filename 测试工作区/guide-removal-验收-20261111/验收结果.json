@@ -1,0 +1,70 @@
+{
+  "base": "http://127.0.0.1:18091",
+  "time": "2026-11-11T06:46:11.823Z",
+  "results": [
+    {
+      "name": "真实登录且只访问隔离环境",
+      "pass": true
+    },
+    {
+      "name": "监理日记：无填写指引栏且占位文案保留",
+      "pass": true,
+      "detail": {
+        "placeholders": 13,
+        "topGap": 4
+      }
+    },
+    {
+      "name": "监理日志：无填写指引栏且占位文案保留",
+      "pass": true,
+      "detail": {
+        "placeholders": 12,
+        "topGap": 4
+      }
+    },
+    {
+      "name": "日常巡检：无填写指引栏且占位文案保留",
+      "pass": true,
+      "detail": {
+        "placeholders": 4,
+        "topGap": 4
+      }
+    },
+    {
+      "name": "旁站检查：无填写指引栏且占位文案保留",
+      "pass": true,
+      "detail": {
+        "placeholders": 10,
+        "topGap": 4
+      }
+    },
+    {
+      "name": "安全日志：无填写提示面板且占位文案保留",
+      "pass": true,
+      "detail": {
+        "placeholders": 7
+      }
+    },
+    {
+      "name": "375px 窄屏巡检表单无指引栏且无横向溢出",
+      "pass": true,
+      "detail": {
+        "topGap": 4
+      }
+    },
+    {
+      "name": "全程无 JavaScript 异常和接口 4xx/5xx",
+      "pass": true
+    },
+    {
+      "name": "清理：测试项目软删且项目数回基线",
+      "pass": true,
+      "detail": {
+        "before": 0,
+        "after": 0
+      }
+    }
+  ],
+  "errors": [],
+  "httpErrors": []
+}

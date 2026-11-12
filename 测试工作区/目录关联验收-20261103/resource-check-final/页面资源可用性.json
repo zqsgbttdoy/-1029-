@@ -1,0 +1,296 @@
+{
+  "startedAt": "2026-11-04T03:13:52.318Z",
+  "finishedAt": "2026-11-04T03:13:52.743Z",
+  "server": "e2e-static-server.js（Node 静态服务，非 Nginx）",
+  "base": "http://127.0.0.1:18091",
+  "htmlPages": 27,
+  "pagesPassed": 27,
+  "assets": 6,
+  "assetsPassed": 6,
+  "unknownPageStatus": 404,
+  "uploadsDirectoryStatus": 403,
+  "counts": {
+    "通过": 35,
+    "失败": 0
+  },
+  "boundaryChecks": [
+    {
+      "title": "未知页面返回 404",
+      "expected": 404,
+      "actual": 404,
+      "pass": true
+    },
+    {
+      "title": "上传物理目录不可匿名访问",
+      "expected": 403,
+      "actual": 403,
+      "pass": true
+    }
+  ],
+  "results": [
+    {
+      "route": "/daily-inspection.html",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 16087,
+      "sha256": "5cd96d79204d72a4508ab71e965af7b66f82dedf1f3cd48f5e7d4e4e6bb98083",
+      "pass": true
+    },
+    {
+      "route": "/department-management.html",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 30483,
+      "sha256": "fc623ba4a4f4363997ca978f12a986c04d6da42652645aed1c7bd934ce0fc119",
+      "pass": true
+    },
+    {
+      "route": "/diary-report.html",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 22267,
+      "sha256": "6f9a9b3a132e9e53c259fe2de27f6b97607c29391d172c1a246fdf2f16f6bf81",
+      "pass": true
+    },
+    {
+      "route": "/diary-statistics.html",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 22873,
+      "sha256": "fe11126b79b3a0b6808641dcd798beffe8fe0af3eedebd75f136fc7f1e7028bb",
+      "pass": true
+    },
+    {
+      "route": "/file-reference.html",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 2007,
+      "sha256": "99682072cb03fab8919ccd6b2ba3b30a7844e66b167b110d4c8f51b76c099f59",
+      "pass": true
+    },
+    {
+      "route": "/index.html",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 83254,
+      "sha256": "93a3181e5501da17b88a3ddf2f96b14d2780da3517905d7f73c3586ce3b9232e",
+      "pass": true
+    },
+    {
+      "route": "/log-statistics.html",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 29068,
+      "sha256": "f46c5b7f34a22cbf4a8cfeb3e20ce3b81fd588bc0bcd9b6f6a8f4a94c1d65ace",
+      "pass": true
+    },
+    {
+      "route": "/login.html",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 7913,
+      "sha256": "ca4b0cde46d65113ef919113825a4d0f70d42aa2fb4fb9043cea53cee9069c75",
+      "pass": true
+    },
+    {
+      "route": "/meeting-minutes.html",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 59741,
+      "sha256": "0106ec5592d595581849c283267adb653cf29679bc2ba6cf105312af3f7b4ec3",
+      "pass": true
+    },
+    {
+      "route": "/message-center.html",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 66261,
+      "sha256": "2ebe307b43bd9a4f61bb2311919517ea2145d2468164d40365220a671b3b2e4a",
+      "pass": true
+    },
+    {
+      "route": "/operation-log.html",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 23001,
+      "sha256": "e21a7abef0fbeed78eaef66ec9ee8249b99d1a2f17a76f4e3d85abf36e27b0bf",
+      "pass": true
+    },
+    {
+      "route": "/permission-settings.html",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 51662,
+      "sha256": "f9a1b5bca41e10546362280043e235c41e2877b36807d594487f70a45547d8b2",
+      "pass": true
+    },
+    {
+      "route": "/personnel-management.html",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 50841,
+      "sha256": "1e757a4a13cd82c6619224847d28bf501f245796c6af4af8df4889992ea222bc",
+      "pass": true
+    },
+    {
+      "route": "/process-management.html",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 26519,
+      "sha256": "0271e362fd704c9cb3b3be24a6c47ef1d81a4ea1929e307e6801eee10a76766e",
+      "pass": true
+    },
+    {
+      "route": "/project-data-upload.html",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 49561,
+      "sha256": "79094892e97932e2196d83d3ada87e67922e946b990ab2a48225ef49d292368c",
+      "pass": true
+    },
+    {
+      "route": "/project-ledger.html",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 33489,
+      "sha256": "c22374ba7e23068372471225a0ff8a9b4aa92d91a27e70386a059759341e9986",
+      "pass": true
+    },
+    {
+      "route": "/safety-log-statistics.html",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 27512,
+      "sha256": "56450f153fcd0a498de9797e7459c141aaedef3321f498fc10a1791f90459f06",
+      "pass": true
+    },
+    {
+      "route": "/safety-log.html",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 143268,
+      "sha256": "9a43a1e79865b2ef340a81cfd6b943183740fc6b3613a015801eb3dde1f0d70c",
+      "pass": true
+    },
+    {
+      "route": "/sideline-inspection.html",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 18027,
+      "sha256": "16c4f0b5d072d5ec2e62e80288dc90e3dd77ddfb69b2e425638333a3a5238812",
+      "pass": true
+    },
+    {
+      "route": "/sub-item-database.html",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 44807,
+      "sha256": "4d67febdb78ebe8facad4f8bdbe9c1155506c81adb7e3762a2996e4fed001294",
+      "pass": true
+    },
+    {
+      "route": "/supervision-diary.html",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 8369,
+      "sha256": "d0ae063f75541a78aaef8b0fe63d2f9beff3068f62af6b19f3d56a34144adcba",
+      "pass": true
+    },
+    {
+      "route": "/supervision-log.html",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 8226,
+      "sha256": "947336e2376ca8d9e232656f8aedb490f8b90fd9e37708ff86b5cab218375da6",
+      "pass": true
+    },
+    {
+      "route": "/supervision-monthly-report.html",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 54925,
+      "sha256": "eaad496c2334c68f9dd331857825f66b379ddf676242a48fccd7c9203c6556ee",
+      "pass": true
+    },
+    {
+      "route": "/supervision-notice.html",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 99636,
+      "sha256": "0be9ee84326b17d6e9904d1e03baacea0b0ba9c746465eb35e89634fe72c55fb",
+      "pass": true
+    },
+    {
+      "route": "/welcome.html",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 22953,
+      "sha256": "0eb80aa846eb06cb0284ca9cf05e5228a46a7fd8f389000e8d1be6f1aa5137bf",
+      "pass": true
+    },
+    {
+      "route": "/work-contact.html",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 76351,
+      "sha256": "76b81064eabff7811880c753268f52ccaae4a32b36a531b296dc14180c7585ba",
+      "pass": true
+    },
+    {
+      "route": "/work-standard-config.html",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 39438,
+      "sha256": "12feb99f1792ac8c86b2870795b800c15f80b208051e15c46786ed7722f49f84",
+      "pass": true
+    },
+    {
+      "route": "/assets/app.js",
+      "status": 200,
+      "contentType": "application/javascript; charset=utf-8",
+      "bytes": 54378,
+      "sha256": "81889bf1803714d2d3bfb5b936dbe5759a523f2e90282593873077d0937940c7",
+      "pass": true
+    },
+    {
+      "route": "/assets/field-records.js",
+      "status": 200,
+      "contentType": "application/javascript; charset=utf-8",
+      "bytes": 80227,
+      "sha256": "9a494ff5d115c36f1ce5ec913c430c40d0fdbef1b24ed6fce0d27257648abb20",
+      "pass": true
+    },
+    {
+      "route": "/assets/style.css",
+      "status": 200,
+      "contentType": "text/css; charset=utf-8",
+      "bytes": 932,
+      "sha256": "40693465cc2b40c3c0a89b8b9eb8880c32b2031e59662d7bbce10c1bd947a229",
+      "pass": true
+    },
+    {
+      "route": "/assets/responsive.css",
+      "status": 200,
+      "contentType": "text/css; charset=utf-8",
+      "bytes": 11164,
+      "sha256": "5f68f751162fb857b149ac35f11a190d707478aa4cb2b7e57416beecabe9e01f",
+      "pass": true
+    },
+    {
+      "route": "/assets/field-records.css",
+      "status": 200,
+      "contentType": "text/css; charset=utf-8",
+      "bytes": 32410,
+      "sha256": "c1c074e8d7a15218f7ee91c31c2048f6e2866e3c990b6808c5f46d92571e198d",
+      "pass": true
+    },
+    {
+      "route": "/miniprogram/utils/schema.js",
+      "status": 200,
+      "contentType": "application/javascript; charset=utf-8",
+      "bytes": 18218,
+      "sha256": "a7baf0e68690354ecc5bd427848ab2d930e4fb25216aa88667fa37c0cd9eff53",
+      "pass": true
+    }
+  ]
+}

@@ -124,6 +124,16 @@ class FieldWorkflowIntegrationTest {
         call(author, get("/files/access").param("url", photo), 200);
         call(reviewer, get("/files/access").param("url", photo), 200);
         assertTrue(call(reviewer, get(path + "/history"), 200).toString().contains("防护缺失"));
+        // 问题名称与类型已下线：仅带说明的新结构可直接新建并提交，历史字段不被重建
+        var minimalProblem = Map.of("id", "problem-desc", "description", "仅说明的问题", "attachments", List.of());
+        var minimalItem = Map.of("id", "item-desc", "content", "检查安全网", "result", "noncompliant", "problems", List.of(minimalProblem));
+        var minimal = new LinkedHashMap<String, Object>(Map.of("projectId", project, "inspectionDate", "2026-10-29",
+                "checklist", json.writeValueAsString(Map.of("version", 1, "items", List.of(minimalItem)))));
+        JsonNode minimalRecord = create(author, "daily-inspections", minimal, UUID.randomUUID().toString());
+        JsonNode minimalSaved = json.readTree(minimalRecord.path("checklist").asText()).path("items").get(0).path("problems").get(0);
+        assertFalse(minimalSaved.has("name")); assertFalse(minimalSaved.has("type"));
+        assertEquals("仅说明的问题", minimalSaved.path("description").asText());
+        assertEquals("recorded", submit(minimalRecord, "daily-inspections").path("status").asText());
         var legacy = new LinkedHashMap<>(input); legacy.remove("checklist"); legacy.remove("startTime"); legacy.remove("endTime");
         legacy.remove("workerCount"); legacy.remove("manageCount");
         JsonNode oldRecord = create(author, "daily-inspections", legacy, UUID.randomUUID().toString());
@@ -151,9 +161,56 @@ class FieldWorkflowIntegrationTest {
             var bad = dailyChecklistBody("compliant", null); bad.put("checklist", raw);
             call(author, body(post("/daily-inspections").header("Idempotency-Key", UUID.randomUUID().toString()), bad), 400);
         }
-        var reversed = dailyChecklistBody("compliant", null);
-        reversed.put("startTime", "2026-10-29T10:00:00"); reversed.put("endTime", "2026-10-29T09:00:00");
-        call(author, body(post("/daily-inspections").header("Idempotency-Key", UUID.randomUUID().toString()), reversed), 400);
+        // 巡检时间已合并为单一“巡检时间”：历史 endTime 仍可接收，但不再参与先后校验或阻断提交
+        var merged = dailyChecklistBody("compliant", null);
+        merged.put("startTime", "2026-10-29T10:00:00"); merged.put("endTime", "2026-10-29T09:00:00");
+        JsonNode mergedRecord = create(author, "daily-inspections", merged, UUID.randomUUID().toString());
+        assertEquals("2026-10-29T10:00:00", mergedRecord.path("startTime").asText());
+        assertEquals("recorded", submit(mergedRecord, "daily-inspections").path("status").asText());
+    }
+
+    @Test void dailyLocationAndContentAreOptionalButChecklistStillValidates() throws Exception {
+        // 检查部位与巡视内容改为选填：不填也能建单、提交保存
+        var input = dailyChecklistBody("compliant", null);
+        input.remove("location"); input.remove("content");
+        JsonNode record = create(author, "daily-inspections", input, UUID.randomUUID().toString());
+        assertFalse(record.path("location").isTextual() && !record.path("location").asText().isEmpty());
+        assertFalse(record.path("content").isTextual() && !record.path("content").asText().isEmpty());
+        assertEquals("recorded", submit(record, "daily-inspections").path("status").asText());
+    }
+
+    @Test void dailyChecklistItemPhotosPersistAndGrantProjectAccess() throws Exception {
+        String itemPhoto = upload(author);
+        var input = dailyChecklistBody("compliant", null);
+        var data = json.readTree(input.get("checklist").toString());
+        ((com.fasterxml.jackson.databind.node.ObjectNode) data.path("items").get(0)).putArray("photos")
+                .addObject().put("url", itemPhoto).put("name", "检查项凭证.jpg").put("size", 3);
+        input.put("checklist", data.toString());
+        JsonNode record = create(author, "daily-inspections", input, UUID.randomUUID().toString());
+        String path = "/daily-inspections/" + record.path("id").asLong();
+        JsonNode saved = json.readTree(record.path("checklist").asText()).path("items").get(0).path("photos");
+        assertEquals(itemPhoto, saved.get(0).path("url").asText());
+        assertEquals("检查项凭证.jpg", saved.get(0).path("name").asText());
+        // 检查项照片作为独立附件来源：项目内成员可访问，项目外仍拒绝
+        call(author, get("/files/access").param("url", itemPhoto), 200);
+        call(outsider, get("/files/access").param("url", itemPhoto), 403);
+        assertEquals("recorded", submit(record, "daily-inspections").path("status").asText());
+        JsonNode after = json.readTree(call(author, get(path), 200).path("checklist").asText()).path("items").get(0);
+        assertEquals(itemPhoto, after.path("photos").get(0).path("url").asText());
+        call(reviewer, get("/files/access").param("url", itemPhoto), 200);
+        // 每项最多 10 张，且必须已上传（有 url）
+        var tooMany = dailyChecklistBody("compliant", null);
+        var many = json.readTree(tooMany.get("checklist").toString());
+        var photos = ((com.fasterxml.jackson.databind.node.ObjectNode) many.path("items").get(0)).putArray("photos");
+        for (int n = 0; n < 11; n++) photos.addObject().put("url", itemPhoto).put("name", "p" + n + ".jpg");
+        tooMany.put("checklist", many.toString());
+        call(author, body(post("/daily-inspections").header("Idempotency-Key", UUID.randomUUID().toString()), tooMany), 400);
+        var missing = dailyChecklistBody("compliant", null);
+        var broken = json.readTree(missing.get("checklist").toString());
+        ((com.fasterxml.jackson.databind.node.ObjectNode) broken.path("items").get(0)).putArray("photos")
+                .addObject().put("name", "无地址.jpg");
+        missing.put("checklist", broken.toString());
+        call(author, body(post("/daily-inspections").header("Idempotency-Key", UUID.randomUUID().toString()), missing), 400);
     }
 
     @Test void sidelineMinutePrecisionTimesRoundTripAndRejectEqualOrReversed() throws Exception {
@@ -395,6 +452,39 @@ class FieldWorkflowIntegrationTest {
         assertFalse(legacy.hasNonNull("construction")); assertFalse(legacy.hasNonNull("safetyIssues"));
         assertEquals("历史混合正文", legacy.path("content").asText());
         assertEquals("submitted", submit(legacy, "supervision-logs").path("status").asText());
+    }
+
+    @Test void logParticipantsRoundTripMembershipValidationAndLegacyUpdate() throws Exception {
+        long member = sequence.incrementAndGet(), disabled = sequence.incrementAndGet(), inactive = sequence.incrementAndGet();
+        for (long uid : List.of(member, disabled)) db.update("insert into sys_user(id,name,status) values (?,?, 'active')", uid, "候选人员" + uid);
+        db.update("insert into sys_user(id,name,status) values (?,?, 'inactive')", inactive, "停用人员" + inactive);
+        db.update("update sys_user set project_id=? where id=?", otherProject, member);
+        db.update("insert into biz_project_member(id,project_id,user_id,enabled,can_review) values (?,?,?,true,false)", sequence.incrementAndGet(), project, member);
+        db.update("insert into biz_project_member(id,project_id,user_id,enabled,can_review) values (?,?,?,false,false)", sequence.incrementAndGet(), project, disabled);
+        JsonNode options = call(author, get("/field/projects/" + project + "/member-options"), 200);
+        Set<Long> candidateIds = new HashSet<>(); options.forEach(option -> candidateIds.add(option.path("userId").asLong()));
+        assertEquals(Set.of(author, reviewer, member), candidateIds);
+        call(outsider, get("/field/projects/" + project + "/member-options"), 403);
+
+        var input = new LinkedHashMap<String, Object>(Map.of("projectId", project, "logDate", "2026-09-23", "construction", "脚手架验收"));
+        input.put("participants", json.writeValueAsString(List.of(author, reviewer, member, author)));
+        JsonNode record = create(author, "supervision-logs", input, UUID.randomUUID().toString());
+        assertEquals(json.writeValueAsString(List.of(author, reviewer, member)), record.path("participants").asText());
+        assertEquals(record.path("participants").asText(), db.queryForObject("select participants from biz_supervision_log where id=?", String.class, record.path("id").asLong()));
+        String path = "/supervision-logs/" + record.path("id").asLong();
+        JsonNode saved = call(author, body(put(path).header("X-Record-Version", record.path("lockVersion").asLong()), Map.of("content", "旧客户端未传参会人员")), 200);
+        assertEquals(record.path("participants").asText(), saved.path("participants").asText());
+        saved = call(author, body(put(path).header("X-Record-Version", saved.path("lockVersion").asLong()), Map.of("participants", "[]")), 200);
+        assertEquals("[]", saved.path("participants").asText());
+
+        for (long invalid : List.of(outsider, disabled, inactive)) {
+            var bad = new LinkedHashMap<>(input); bad.put("participants", json.writeValueAsString(List.of(invalid)));
+            call(author, body(post("/supervision-logs").header("Idempotency-Key", UUID.randomUUID().toString()), bad), 400);
+        }
+        for (String malformed : List.of("{bad", "{}", "[\"" + author + "\"]", "[0]", "[1.5]")) {
+            var bad = new LinkedHashMap<>(input); bad.put("participants", malformed);
+            call(author, body(post("/supervision-logs").header("Idempotency-Key", UUID.randomUUID().toString()), bad), 400);
+        }
     }
 
     @Test void logSpecificationSubmitApprovalSnapshotsAndAttachments() throws Exception {
@@ -1189,6 +1279,105 @@ class FieldWorkflowIntegrationTest {
             bad.put("documentDirectoryIds", List.of(invalid));
             call(author, body(post("/supervision-notices"), bad), 400);
         }
+    }
+
+    @Test void directoryAttachmentSourcesCoverEveryBusinessAndContactDirsRoundTrip() throws Exception {
+        long root = sequence.incrementAndGet();
+        long branch = sequence.incrementAndGet();
+        long leaf = sequence.incrementAndGet();
+        long sibling = sequence.incrementAndGet();
+        long other = sequence.incrementAndGet();
+        db.update("insert into biz_sub_item_database(id,project_id,name,status) values (?,?,'单位工程','active')", root, project);
+        db.update("insert into biz_sub_item_database(id,project_id,parent_id,name,status) values (?,?,?,'分部工程','active')", branch, project, root);
+        db.update("insert into biz_sub_item_database(id,project_id,parent_id,name,status) values (?,?,?,'分项工程','active')", leaf, project, branch);
+        db.update("insert into biz_sub_item_database(id,project_id,parent_id,name,status) values (?,?,?,'另一分项','active')", sibling, project, branch);
+        db.update("insert into biz_sub_item_database(id,project_id,name,status) values (?,?,'其他项目目录','active')", other, otherProject);
+        String path = "单位工程 / 分部工程 / 分项工程";
+
+        call(author, body(post("/project-documents"), Map.of("projectId", project, "subItemId", leaf,
+                "name", "直接上传资料", "filePath", photo)), 200);
+
+        var notice = acceptanceLegacyBody("noticeDate");
+        notice.put("documentDirectoryIds", List.of(leaf));
+        notice.put("attachments", json.writeValueAsString(List.of(Map.of("url", photo, "name", "通知单附件"))));
+        call(author, body(post("/supervision-notices"), notice), 200);
+
+        var contact = acceptanceLegacyBody("contactDate");
+        String contactAttachments = json.writeValueAsString(List.of(Map.of(
+                "url", photo, "name", "联系单附件", "dirs", List.of(path))));
+        contact.put("attachments", contactAttachments);
+        JsonNode contactRecord = call(author, body(post("/work-contacts"), contact), 200);
+        long contactId = contactRecord.path("id").asLong();
+        assertEquals(contactAttachments, db.queryForObject(
+                "select attachments from biz_work_contact where id=?", String.class, contactId));
+        assertEquals(contactAttachments, call(author, get("/work-contacts/" + contactId), 200).path("attachments").asText());
+        contactAttachments = json.writeValueAsString(List.of(Map.of(
+                "url", photo, "name", "联系单附件", "dirs", List.of(path, "单位工程 / 分部工程 / 另一分项"))));
+        contact.put("attachments", contactAttachments);
+        call(author, body(put("/work-contacts/" + contactId), contact), 200);
+        assertEquals(contactAttachments, db.queryForObject(
+                "select attachments from biz_work_contact where id=?", String.class, contactId));
+
+        var diary = diary();
+        diary.put("attachments", json.writeValueAsString(List.of(Map.of("url", photo, "dirs", List.of(path)))));
+        create(author, "supervision-diaries", diary, UUID.randomUUID().toString());
+        create(author, "supervision-logs", new LinkedHashMap<>(Map.of("projectId", project,
+                "logDate", "2026-09-23", "content", "目录追溯日志",
+                "attachments", json.writeValueAsString(List.of(Map.of("url", photo, "dirs", List.of(path)))))),
+                UUID.randomUUID().toString());
+        for (String endpoint : List.of("safety-logs", "meeting-minutes")) {
+            var input = acceptanceLegacyBody(endpoint.equals("safety-logs") ? "logDate" : "meetingDate");
+            input.put("attachments", json.writeValueAsString(List.of(Map.of("url", photo, "dirs", List.of(path)))));
+            call(author, body(post("/" + endpoint), input), 200);
+        }
+        var monthly = acceptanceLegacyBody("reportMonth");
+        monthly.put("reportMonth", "2026-09");
+        monthly.put("attachments", json.writeValueAsString(List.of(Map.of("url", photo, "dirs", List.of(path)))));
+        call(author, body(post("/supervision-monthly-reports"), monthly), 200);
+        for (String endpoint : List.of("daily-inspections", "sideline-inspections")) {
+            create(author, endpoint, new LinkedHashMap<>(Map.of("projectId", project,
+                    "inspectionDate", "2026-09-23", "location", "一层现场", "content", "目录追溯检查",
+                    "attachments", json.writeValueAsString(List.of(Map.of("url", photo, "dirs", List.of(path)))))),
+                    UUID.randomUUID().toString());
+        }
+
+        String otherPhoto = upload(outsider);
+        var otherContact = acceptanceLegacyBody("contactDate");
+        otherContact.put("projectId", otherProject);
+        otherContact.put("attachments", json.writeValueAsString(List.of(Map.of(
+                "url", otherPhoto, "dirs", List.of("其他项目目录")))));
+        call(outsider, body(post("/work-contacts"), otherContact), 200);
+
+        JsonNode tree = call(author, get("/sub-item-databases/tree").param("projectId", String.valueOf(project)), 200);
+        JsonNode rootNode = tree.get(0);
+        assertEquals(10, rootNode.path("attachmentCount").asInt());
+        assertEquals(10, rootNode.path("recordCount").asInt(),
+                "同一联系单绑定两个下级目录时，父目录只能计一次附件和记录");
+        assertEquals(10, rootNode.path("sourceDistribution").size());
+        assertEquals(1, rootNode.path("children").get(0).path("children").get(1).path("attachmentCount").asInt());
+
+        JsonNode detail = call(author, get("/sub-item-databases/" + leaf + "/attachment-sources"), 200);
+        assertEquals(path, detail.path("directoryPath").asText());
+        assertEquals(10, detail.path("attachmentCount").asInt());
+        assertEquals(10, detail.path("recordCount").asInt());
+        Set<String> types = new HashSet<>();
+        JsonNode contactGroup = null;
+        for (JsonNode group : detail.path("sources")) {
+            types.add(group.path("sourceType").asText());
+            if ("work-contacts".equals(group.path("sourceType").asText())) contactGroup = group;
+        }
+        assertEquals(Set.of("project-documents", "supervision-notices", "work-contacts", "supervision-diaries",
+                "supervision-logs", "safety-logs", "meeting-minutes", "supervision-monthly-reports",
+                "daily-inspections", "sideline-inspections"), types);
+        assertNotNull(contactGroup);
+        assertEquals("work-contact.html?id=" + contactId + "&readonly=true",
+                contactGroup.path("records").get(0).path("route").asText());
+        assertEquals(path, contactGroup.path("records").get(0).path("attachments").get(0)
+                .path("directoryPaths").get(0).asText());
+        assertFalse(detail.toString().contains("其他项目目录"));
+        call(outsider, get("/sub-item-databases/" + leaf + "/attachment-sources"), 403);
+        call(author, get("/files/access").param("url", photo), 200);
+        call(outsider, get("/files/access").param("url", photo), 403);
     }
 
     @Test void independentTokensAndLogoutRevocation() throws Exception {

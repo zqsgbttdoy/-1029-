@@ -32,6 +32,7 @@ public class ProjectDocumentService {
     private final com.supervision.repository.SubItemDatabaseRepository subItems;
     private final DiaryReferenceService diaryReferences;
     private final DiaryResourceResolver diaryResources;
+    private final DiaryAttachmentService diaryAttachments;
 
     private void validateSubItem(Long projectId, Long subItemId) {
         if (subItemId == null) throw new BusinessException(400, "请选择资料所属子项");
@@ -40,9 +41,12 @@ public class ProjectDocumentService {
             throw new BusinessException(400, "资料子项不属于当前项目或已停用");
     }
 
-    public PageResult<ProjectDocument> list(int pageNum, int pageSize, Long projectId, Long subItemId, String name) {
+    public PageResult<ProjectDocument> list(int pageNum, int pageSize, Long projectId, Long subItemId, String name,
+                                            String diaryFilter) {
         pageNum = PageUtils.normalizePageNum(pageNum);
         pageSize = PageUtils.normalizePageSize(pageSize);
+        if (diaryFilter != null && !diaryFilter.isBlank() && !java.util.Set.of("linked", "unlinked").contains(diaryFilter))
+            throw new BusinessException(400, "日记关联筛选条件无效");
         Specification<ProjectDocument> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(access.scope(root, cb));
@@ -55,11 +59,14 @@ public class ProjectDocumentService {
             if (name != null && !name.isEmpty()) {
                 predicates.add(cb.like(root.get("name"), "%" + name + "%"));
             }
+            if ("linked".equals(diaryFilter)) predicates.add(cb.isNotNull(root.get("diaryId")));
+            if ("unlinked".equals(diaryFilter)) predicates.add(cb.isNull(root.get("diaryId")));
             return cb.and(predicates.toArray(new Predicate[0]));
         };
         Page<ProjectDocument> page = projectDocumentRepository.findAll(spec,
                 PageRequest.of(pageNum - 1, pageSize, Sort.by(Sort.Direction.DESC, "createTime")));
         diaryReferences.fillCounts(page.getContent());
+        diaryAttachments.fillDocumentMetadata(page.getContent());
         return new PageResult<>(page.getContent(), page.getTotalElements(), pageNum, pageSize);
     }
 
@@ -67,6 +74,8 @@ public class ProjectDocumentService {
         ProjectDocument record = projectDocumentRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("项目文档不存在"));
         access.requireRead(record.getProjectId());
+        diaryReferences.fillCounts(List.of(record));
+        diaryAttachments.fillDocumentMetadata(List.of(record));
         return record;
     }
 
@@ -110,8 +119,11 @@ public class ProjectDocumentService {
 
     @Transactional
     public void delete(Long id) {
-        ProjectDocument existing = locked(id);
+        ProjectDocument existing = projectDocumentRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(404, "项目文档不存在"));
+        diaryResources.requireVisible("project-documents", existing);
         access.requireEdit(existing.getProjectId(), existing.getUploaderId());
+        existing = diaryAttachments.prepareDocumentDelete(id);
         diaryReferences.invalidate("project-documents", existing, true);
         projectDocumentRepository.delete(existing);
     }

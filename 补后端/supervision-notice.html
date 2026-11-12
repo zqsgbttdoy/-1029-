@@ -263,7 +263,7 @@
                     </h5>
                     <div class="doc-desc">根据工程资料目录设置绑定，一个通知单可对应多个目录</div>
                     <div class="doc-tree" id="docTree">
-                        <div class="demo-placeholder" style="padding:20px;text-align:center;color:#9CA3AF;font-size:13px;">请先选择所属项目</div>
+                        <div class="demo-placeholder" style="padding:20px;text-align:center;color:#9CA3AF;font-size:13px;">暂无工程资料目录，请先在“工程资料目录设置”中创建</div>
                     </div>
                     <div class="selected-docs" id="selectedDocs">
                         <span class="selected-doc-empty">未选择工程资料目录</span>
@@ -966,7 +966,11 @@
 
         function applyFilters() { currentPage = 1; loadData(1); }
 
-        loadProjects().then(function () { loadData(1); });
+                loadProjects().then(function () {
+            loadData(1);
+            var id = new URLSearchParams(location.search).get('id');
+            if (id && /^\d+$/.test(id)) viewDetail(id);
+        });
 
         // ========== 新建 / 编辑 ==========
         function setValue(id, value) { var el = document.getElementById(id); if (el) el.value = value == null ? '' : value; }
@@ -1375,7 +1379,7 @@
                 return Promise.resolve();
             }
             if (!projectId) {
-                setDocTreePlaceholder('请先选择所属项目');
+                setDocTreePlaceholder('暂无工程资料目录，请先在“工程资料目录设置”中创建');
                 updateSelectedDocs();
                 return Promise.resolve();
             }

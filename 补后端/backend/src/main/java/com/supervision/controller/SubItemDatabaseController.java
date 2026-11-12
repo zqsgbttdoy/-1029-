@@ -34,6 +34,11 @@ public class SubItemDatabaseController {
         return ApiResponse.success(subItemDatabaseService.getById(id));
     }
 
+    @GetMapping("/{id}/attachment-sources")
+    public ApiResponse<Map<String, Object>> getAttachmentSources(@PathVariable Long id) {
+        return ApiResponse.success(subItemDatabaseService.getAttachmentSources(id));
+    }
+
     @PostMapping
     public ApiResponse<SubItemDatabase> create(@Valid @RequestBody SubItemDatabaseDTO dto) {
         return ApiResponse.success(subItemDatabaseService.create(dto));

@@ -1,0 +1,90 @@
+{
+  "base": "http://127.0.0.1:8081",
+  "projectId": 3,
+  "recordId": 7,
+  "results": [
+    {
+      "name": "新建监理日志中\"参会人员\"复选框紧跟\"编号\"字段",
+      "pass": true,
+      "detail": {
+        "around": [
+          "fwF-code",
+          "fwF-participants"
+        ],
+        "options": [
+          "admin（系统管理员）"
+        ]
+      }
+    },
+    {
+      "name": "真实鼠标点击可勾选本项目全部候选人员",
+      "pass": true,
+      "detail": [
+        "1"
+      ]
+    },
+    {
+      "name": "保存后服务器持久化人员 ID（participants 列迁移在真实库生效）",
+      "pass": true,
+      "detail": {
+        "id": 7,
+        "code": "LOG-866acf58-af9a-4e55-a424-d72e1b14b745",
+        "status": "draft",
+        "participants": "[1]"
+      }
+    },
+    {
+      "name": "关闭并重新打开后姓名与勾选状态准确回显",
+      "pass": true,
+      "detail": [
+        "admin（系统管理员）"
+      ]
+    },
+    {
+      "name": "打印预览在参会人员位置输出姓名文本",
+      "pass": true,
+      "detail": {
+        "printed": "admin"
+      }
+    },
+    {
+      "name": "只读详情展示人员姓名且不可编辑",
+      "pass": true,
+      "detail": {
+        "text": "admin",
+        "checkbox": 0,
+        "saveHidden": true,
+        "submitHidden": true
+      }
+    },
+    {
+      "name": "CSV 导出参会人员列显示姓名而非人员 ID JSON",
+      "pass": true,
+      "detail": {
+        "header": "\"参会人员\"",
+        "cell": "admin"
+      }
+    },
+    {
+      "name": "服务端拒绝勾选非本项目人员（跨项目二次校验）",
+      "pass": true,
+      "detail": {
+        "status": 400,
+        "message": "参会人员必须是本项目的启用人员，请重新勾选"
+      }
+    },
+    {
+      "name": "真实浏览器流程无 JavaScript 异常和意外接口错误",
+      "pass": true
+    }
+  ],
+  "cleanup": {
+    "cleanedIds": [
+      7
+    ],
+    "remainingActive": 0,
+    "baseline": 0
+  },
+  "errors": [],
+  "httpErrors": []
+}

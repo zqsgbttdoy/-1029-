@@ -47,10 +47,12 @@ function create(kind, body, server) {
     if (previous) {
       const photos = JSON.parse(body.photos || '[]').map(p => typeof p === 'string' ? { url: p } : p);
       const checklist = kind === 'daily-inspections' ? C.parse(body.checklist) : null;
+      // 检查项照片挂在 itemId 下，与问题附件、整单照片分开恢复
+      const itemHas = m => { const item = checklist && checklist.items.find(i => i.id === m.itemId); return !!item && (item.photos || []).some(f => f.url === m.url); };
       const media = previous.media.filter(m => m.problemId
         ? checklist && (C.mediaProblem(checklist, m) || { attachments: [] }).attachments.some(p => p.url === m.url)
-        : photos.some(p => p.url === m.url)).map(m => {
-        if (m.problemId) return m;
+        : m.itemId ? itemHas(m) : photos.some(p => p.url === m.url)).map(m => {
+        if (m.problemId || m.itemId) return m;
         const photo = photos.find(p => p.url === m.url);
         return Object.assign({}, m, photo, { id: m.id, path: m.path, description: photo.description || '' });
       });
@@ -75,13 +77,16 @@ function edit(localId, patch) {
     }) });
     if (patch.body) {
       const removedMedia = draft.media.filter(m => !patch.media.some(x => x.id === m.id));
-      const removed = new Set(removedMedia.filter(m => !m.problemId).map(m => m.url));
+      const removed = new Set(removedMedia.filter(m => !m.problemId && !m.itemId).map(m => m.url));
       const body = Object.assign({}, patch.body);
       if (removed.size) body.photos = JSON.stringify(JSON.parse(body.photos || '[]').filter(p => !removed.has(typeof p === 'string' ? p : p.url)));
       if (draft.kind === 'daily-inspections' && body.checklist) {
         const data = C.parse(body.checklist);
         removedMedia.filter(m => m.problemId && m.url).forEach(m => {
           const p = C.mediaProblem(data, m); if (p) p.attachments = p.attachments.filter(f => f.url !== m.url);
+        });
+        removedMedia.filter(m => m.itemId && !m.problemId && m.url).forEach(m => {
+          const item = data.items.find(i => i.id === m.itemId); if (item) item.photos = (item.photos || []).filter(f => f.url !== m.url);
         });
         patch.media = patch.media.filter(m => !m.problemId || C.mediaProblem(data, m));
         body.checklist = C.withMedia(data, patch.media);
@@ -150,11 +155,11 @@ async function synchronize(localId, uid, options) {
       requireSaved(localId, uid);
       draft = get(localId, uid);
       let existing = []; try { existing = JSON.parse(draft.body.photos || '[]'); } catch (e) { throw new Error('照片数据异常，请保留草稿并联系管理员'); }
-      const photoMedia = draft.media.filter(m => !m.problemId), mediaUrls = new Set(photoMedia.map(m => m.url));
+      const photoMedia = draft.media.filter(m => !m.problemId && !m.itemId), mediaUrls = new Set(photoMedia.map(m => m.url));
       const body = pack(draft.kind, Object.assign({}, draft.body, { status: memo ? 'recorded' : 'draft', photos: JSON.stringify(existing.filter(p => !mediaUrls.has(typeof p === 'string' ? p : p.url)).concat(photoMedia.map(m => ({
         url: m.url, name: m.name, source: m.source, capturedAt: m.capturedAt, description: m.description
       })))) }));
-      if (draft.kind === 'daily-inspections' && (body.checklist || draft.media.some(m => m.problemId))) body.checklist = C.withMedia(body.checklist, draft.media);
+      if (draft.kind === 'daily-inspections' && (body.checklist || draft.media.some(m => m.problemId || m.itemId))) body.checklist = C.withMedia(body.checklist, draft.media);
       draft.pending = { body, revision: draft.localRevision, serverId: draft.serverId, version: draft.version };
       save(draft, uid);
     }

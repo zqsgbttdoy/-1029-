@@ -315,6 +315,7 @@ CREATE TABLE IF NOT EXISTS biz_supervision_diary (
     reject_reason VARCHAR(500)                        COMMENT '驳回原因',
     photos        TEXT                                COMMENT '照片(JSON)',
     attachments   TEXT                                COMMENT '附件(JSON)',
+    related_attachment_ids TEXT                       COMMENT '关联直传资料ID(JSON)',
     morning_meeting TEXT                              COMMENT '晨会记录',
     drawing_review  TEXT                              COMMENT '图纸会审',
     reviewer_id     BIGINT                            COMMENT '审核人ID',
@@ -348,6 +349,7 @@ CREATE TABLE IF NOT EXISTS biz_supervision_log (
     week_start      DATE                                COMMENT '周开始日期',
     week_end        DATE                                COMMENT '周结束日期',
     author_id       BIGINT                              COMMENT '作者ID',
+    participants    TEXT                                COMMENT '参会人员用户ID(JSON)',
     content         TEXT                                COMMENT '工作内容',
     construction    TEXT                                COMMENT '施工部位及形象进度',
     safety_issues   TEXT                                COMMENT '存在的安全问题及处理结果',
@@ -494,12 +496,15 @@ CREATE TABLE IF NOT EXISTS biz_project_document (
     upload_date  DATE         NOT NULL                COMMENT '上传日期',
     uploader_id  BIGINT                              COMMENT '上传人ID',
     description  VARCHAR(500)                        COMMENT '描述',
+    diary_id     BIGINT                              COMMENT '关联监理日记ID',
     create_time  DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time  DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (id),
     INDEX idx_biz_project_document_project_id (project_id),
     INDEX idx_biz_project_document_sub_item_id (sub_item_id),
-    INDEX idx_biz_project_document_uploader_id (uploader_id)
+    INDEX idx_biz_project_document_uploader_id (uploader_id),
+    INDEX idx_biz_project_document_diary_id (diary_id),
+    INDEX idx_biz_project_document_diary_day (project_id, upload_date, diary_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='项目文档表';
 
 -- 日记正文派生的引用索引；不改写历史正文，不维护累计篇数。

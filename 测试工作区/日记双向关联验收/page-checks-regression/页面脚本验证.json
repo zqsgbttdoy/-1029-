@@ -1,0 +1,425 @@
+{
+  "note": "原页面内联JS+DOM桩/接口桩，不是浏览器渲染/点击测试，也不是真实大量数据负载测试。",
+  "counts": {
+    "通过": 50
+  },
+  "results": [
+    {
+      "id": "P001",
+      "page": "index",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P002",
+      "page": "welcome",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P003",
+      "page": "project-ledger",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P004",
+      "page": "daily-inspection",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 0
+      }
+    },
+    {
+      "id": "P005",
+      "page": "sideline-inspection",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 0
+      }
+    },
+    {
+      "id": "P006",
+      "page": "supervision-notice",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P007",
+      "page": "work-contact",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P008",
+      "page": "supervision-diary",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 0
+      }
+    },
+    {
+      "id": "P009",
+      "page": "supervision-log",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 0
+      }
+    },
+    {
+      "id": "P010",
+      "page": "safety-log",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P011",
+      "page": "meeting-minutes",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P012",
+      "page": "supervision-monthly-report",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P013",
+      "page": "sub-item-database",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P014",
+      "page": "project-data-upload",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P015",
+      "page": "diary-statistics",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P016",
+      "page": "log-statistics",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P017",
+      "page": "safety-log-statistics",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P018",
+      "page": "diary-report",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P019",
+      "page": "message-center",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P020",
+      "page": "department-management",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P021",
+      "page": "personnel-management",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P022",
+      "page": "permission-settings",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P023",
+      "page": "process-management",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P024",
+      "page": "operation-log",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P025",
+      "page": "work-standard-config",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P026",
+      "page": "login",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P027",
+      "page": "assets/app.js",
+      "title": "共享脚本语法检查",
+      "result": "通过"
+    },
+    {
+      "id": "P028",
+      "page": "assets/field-records.js",
+      "title": "共享脚本语法检查",
+      "result": "通过"
+    },
+    {
+      "id": "P029",
+      "page": "miniprogram/utils/schema.js",
+      "title": "共享脚本语法检查",
+      "result": "通过"
+    },
+    {
+      "id": "P030",
+      "page": "assets/field-records.js",
+      "title": "记录类页面导出按钮统一使用“导出”文案",
+      "result": "通过"
+    },
+    {
+      "id": "P031",
+      "page": "全部页面",
+      "title": "导出按钮文案已统一精简（无“导出CSV/导出Excel/导出日志/导出筛选结果”）",
+      "result": "通过",
+      "actual": []
+    },
+    {
+      "id": "P032",
+      "page": "全部页面",
+      "title": "日记报表、操作日志、安全日志与人员管理均使用“📥 导出”",
+      "result": "通过",
+      "actual": [
+        {
+          "page": "supervision-notice",
+          "label": "📥 导出"
+        },
+        {
+          "page": "work-contact",
+          "label": "📥 导出"
+        },
+        {
+          "page": "safety-log",
+          "label": "📥 导出"
+        },
+        {
+          "page": "safety-log",
+          "label": "📄 导出Word"
+        },
+        {
+          "page": "safety-log",
+          "label": "📄 导出Word"
+        },
+        {
+          "page": "diary-report",
+          "label": "📥 导出"
+        },
+        {
+          "page": "personnel-management",
+          "label": "📥 导出"
+        },
+        {
+          "page": "operation-log",
+          "label": "📥 导出"
+        }
+      ]
+    },
+    {
+      "id": "P033",
+      "page": "全部页面",
+      "title": "记录页“项目成员授权”入口、面板及遗留选择器已移除",
+      "result": "通过",
+      "actual": []
+    },
+    {
+      "id": "P034",
+      "page": "assets/field-records.js",
+      "title": "记录页新建按钮只显示“新建”，不再拼接记录类型名",
+      "result": "通过"
+    },
+    {
+      "id": "P035",
+      "page": "assets/field-records.js",
+      "title": "关闭与取消直接关闭编辑器并丢弃未保存暂存，不经离开确认",
+      "result": "通过"
+    },
+    {
+      "id": "P036",
+      "page": "assets/field-records.js",
+      "title": "巡检旁站新建不再要求先选工具栏项目，改由表单项目下拉选择",
+      "result": "通过"
+    },
+    {
+      "id": "P037",
+      "page": "work-standard-config",
+      "title": "已存截止时间同步到控件和预览",
+      "result": "通过"
+    },
+    {
+      "id": "P038",
+      "page": "work-standard-config",
+      "title": "提前提醒按真实配置计算",
+      "result": "通过"
+    },
+    {
+      "id": "P039",
+      "page": "work-standard-config",
+      "title": "缺失预览与选项一致",
+      "result": "通过"
+    },
+    {
+      "id": "P040",
+      "page": "work-standard-config",
+      "title": "更新时间来自接口",
+      "result": "通过"
+    },
+    {
+      "id": "P041",
+      "page": "work-standard-config",
+      "title": "编辑配置后预览联动",
+      "result": "通过"
+    },
+    {
+      "id": "P042",
+      "page": "work-standard-config",
+      "title": "保存成功更新元数据且重复点击不重复发起",
+      "result": "通过",
+      "actual": {
+        "writes": 11
+      }
+    },
+    {
+      "id": "P043",
+      "page": "work-standard-config",
+      "title": "权限失败不显示保存成功",
+      "result": "通过"
+    },
+    {
+      "id": "P044",
+      "page": "work-standard-config",
+      "title": "接口缺失不伪报保存成功",
+      "result": "通过"
+    },
+    {
+      "id": "P045",
+      "page": "work-standard-config",
+      "title": "读取失败禁止保存而非当作默认值",
+      "result": "通过"
+    },
+    {
+      "id": "P046",
+      "page": "work-standard-config",
+      "title": "未完整加载时禁止保存",
+      "result": "通过"
+    },
+    {
+      "id": "P047",
+      "page": "work-standard-config",
+      "title": "同名配置冲突显式拒绝保存",
+      "result": "通过"
+    },
+    {
+      "id": "P048",
+      "page": "work-standard-config",
+      "title": "重置同步预览且不自动保存",
+      "result": "通过"
+    },
+    {
+      "id": "P049",
+      "page": "work-standard-config",
+      "title": "未实现调度明确告知且无立即生效承诺",
+      "result": "通过"
+    },
+    {
+      "id": "P050",
+      "page": "work-standard-config",
+      "title": "预览和元数据拥有真实DOM锚点",
+      "result": "通过"
+    }
+  ]
+}

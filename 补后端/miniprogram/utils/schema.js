@@ -72,27 +72,27 @@ const schemas = {
   },
   'daily-inspections': {
     title: '日常巡检', date: 'inspectionDate',
-    fields: [['location', '检查部位'], ['startTime', '巡视开始时间'], ['endTime', '巡视结束时间'], ['workerCount', '施工人数'], ['manageCount', '管理人数'], ['content', '巡视内容'], ['issues', '发现问题补充说明']],
+    fields: [['location', '检查部位'], ['startTime', '巡检时间'], ['workerCount', '施工人数'], ['manageCount', '管理人数'], ['content', '巡视内容'], ['issues', '发现问题补充说明']],
     extraFields: ['checklist'],
-    shortFields: ['startTime', 'endTime', 'workerCount', 'manageCount'],
+    shortFields: ['startTime', 'workerCount', 'manageCount'],
     pcSections: [
-      { title: '时间与现场人数', fields: ['startTime', 'endTime', 'workerCount', 'manageCount'] },
+      { title: '时间与现场人数', fields: ['startTime', 'workerCount', 'manageCount'] },
       { title: '巡视内容', fields: ['location', 'content'] },
       { title: '发现问题补充说明', fields: ['issues'] }
     ],
     hints: {
       inspectionDate: '新建时默认当天，可按实际巡视日期修改。',
-      startTime: '可选；提交时若填写一个时间，需补齐另一个。草稿可只记录开始时间。',
-      endTime: '可选；结束时间须晚于开始时间。',
+      startTime: '新建时自动带入当前时间（精确到分钟），可按实际巡视时间调整。',
       workerCount: '可选，填写现场施工人数；0 表示无人，留空表示未记录。',
       manageCount: '可选，填写现场管理人数，须为非负整数。',
       projectId: '从获授权项目中选择本次填报项目。',
-      location: '写明楼栋、楼层、轴线或区段，便于复查问题。',
-      content: '按时间顺序记录巡视部位、检查内容与结果；具体问题可在检查项中单独记录。',
+      location: '选填；写明楼栋、楼层、轴线或区段，便于复查问题。',
+      content: '选填；按时间顺序记录巡视部位、检查内容与结果；具体问题可在检查项中单独记录。',
       issues: '记录问题类别、部位、已采取措施、责任人与复查结果；无问题请填“无”。'
     },
     placeholders: {
       location: '例：3 号楼 5 层东侧模板支撑区（轴线 A~C / 1~3）',
+      startTime: '例：2026-11-09 09:30',
       content: '例：上午 9:00 巡视 5 层模板支撑体系，立杆间距、扫地杆、剪刀撑符合专项方案；抽查 12 处扣件扭矩全部合格。',
       issues: '例：3 根立杆底部垫板缺失，已通知施工班组补齐，下午复查合格。'
     }
@@ -135,7 +135,13 @@ const schemas = {
     }
   }
 };
-function today() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function today(date) { const d = date || new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+// 巡检新建默认时间：当前系统时间精确到分钟，格式与后端 LocalDateTime 兼容
+function nowMinute(date) {
+  const d = date || new Date();
+  return today(d) + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+function minuteOfToday() { return nowMinute(new Date()); }
 const statuses = { draft: '草稿', submitted: '待审核', pending: '待审核', approved: '审核通过', rejected: '已退回', recorded: '已记录', fixed: '已整改' };
 // 日常巡检作为现场备忘录：历史提交/审核状态统一按“已保存”使用，不再产生审核待办；不修改全局 statuses
 const memoStatuses = ['recorded', 'submitted', 'pending', 'approved', 'rejected', 'fixed', 'active'];
@@ -204,6 +210,6 @@ function logPrefillPatch(body, source, excluded = []) {
   });
   return patch;
 }
-const fieldSchema = { schemas, today, statuses, memoStatuses, isSavedMemo, statusText, canEditStatus, canReviseStatus, pack, unpack, diaryPeople, logPrefillPatch, inspectionChecklist };
+const fieldSchema = { schemas, today, nowMinute, minuteOfToday, statuses, memoStatuses, isSavedMemo, statusText, canEditStatus, canReviseStatus, pack, unpack, diaryPeople, logPrefillPatch, inspectionChecklist };
 if (typeof module !== 'undefined') module.exports = fieldSchema;
 else window.FieldSchema = fieldSchema;

@@ -159,6 +159,29 @@ public class ProjectAccessService {
         return ids.isEmpty() ? cb.disjunction() : root.get("projectId").in(ids);
     }
 
+    /** 参会人员候选：项目读取权限内可见；显式成员行优先，无成员行时兼容负责人及旧所属项目。 */
+    public List<Map<String, Object>> memberOptions(Long projectId) {
+        requireRead(projectId);
+        Project project = em.find(Project.class, projectId);
+        if (project == null || "inactive".equals(project.getStatus())) throw new BusinessException(404, "项目不存在");
+        Map<Long, ProjectMember> memberships = new HashMap<>();
+        em.createQuery("select m from ProjectMember m where m.projectId=:pid", ProjectMember.class)
+                .setParameter("pid", projectId).getResultList().forEach(m -> memberships.put(m.getUserId(), m));
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (User user : em.createQuery("select u from User u where u.status='active' order by u.name,u.id", User.class).getResultList()) {
+            ProjectMember member = memberships.get(user.getId());
+            boolean belongs = member != null ? member.isEnabled()
+                    : Objects.equals(project.getManagerId(), user.getId()) || Objects.equals(user.getProjectId(), projectId);
+            if (!belongs) continue;
+            Map<String, Object> option = new LinkedHashMap<>();
+            option.put("userId", user.getId());
+            option.put("userName", user.getName());
+            option.put("position", user.getPosition());
+            result.add(option);
+        }
+        return result;
+    }
+
     /**
      * 项目授权列表。现场记录页的“项目成员授权”入口已下线，权限统一在“权限设置”页维护；
      * 该方法保留供回归测试与运维排查调用，不对外暴露页面入口。

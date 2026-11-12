@@ -7,8 +7,8 @@
   const isDaily = kind === 'daily-inspections', isSideline = kind === 'sideline-inspections', C = window.FieldSchema.inspectionChecklist;
   // 巡检已免审核：历史审核态（submitted/pending/approved 等）文案统一为“已保存”，徽标底色也归一到 recorded，避免同文案异色
   const chipClass = status => isDaily && isSavedMemo(kind, status || 'draft') ? 'recorded' : (status || 'draft');
-  let checklistView = null, linkEditors = [], resourceView = null;
-  const linkView = window.DiaryLinkView, links = window.DiaryLinks;
+  let checklistView = null, linkEditors = [];
+  const linkView = window.DiaryLinkView, links = window.DiaryLinks, DailySync = window.DailyInspectionSync;
   const api = async (...args) => { const result = await App.apiFetch(...args); assertAccount(); return result; };
   if (!App.requireAuth()) return;
   App.initTopbar();
@@ -48,6 +48,9 @@
   }
   const run = fn => (...args) => Promise.resolve().then(() => { if (!busy) { assertAccount(); return fn(...args); } }).catch(reportError);
   let pendingUploads = [], prefillSequence = 0, fieldEdits = {};
+  let participantSeq = 0, participantProjectId = null, participantOptions = [], participantLoaded = false, participantLoading = false, participantError = '';
+  let diaryDaySeq = 0, diaryRelatedSeq = 0, diaryDayData = null, diaryDayLoading = false, diaryDayError = '';
+  let diaryRelated = { list: [], count: 0, loaded: false, error: '' }, diaryBadgeOpen = false, diarySyncIndex = -1;
   function assertAccount() { if (String((App.getUser() || {}).userId) !== uid) throw new Error('账号已变化，请重新登录原账号恢复草稿'); }
   function persistDraft() {
     assertAccount();
@@ -76,6 +79,52 @@
   // 列表删除入口的开放范围：本人草稿与已保存（recorded 及从未被审核过的遗留 submitted/pending）；已审核通过/退回的历史记录不可删
   const canDeleteRow = record => isDaily && own(record) && ['draft', 'recorded', 'submitted', 'pending'].includes(record.status || '');
   function options(list) { return list.map(p => '<option value="' + p.id + '">' + esc(p.name) + '</option>').join(''); }
+  function participantIds(raw) {
+    const values = Array.isArray(raw) ? raw : parse(raw);
+    return [...new Set(values.map(Number).filter(id => Number.isSafeInteger(id) && id > 0).map(String))];
+  }
+  function participantText(raw, names) {
+    return participantIds(raw).map(id => (names && names.get(id)) || (participantOptions.find(p => String(p.userId) === id) || {}).userName || '用户#' + id).join('、');
+  }
+  function renderParticipants() {
+    const box = $('fwF-participants');
+    if (!isLog || !box || !draft) return;
+    const selected = participantIds(draft.body.participants);
+    if (!editable(draft.record)) {
+      box.innerHTML = '<div class="fd-readonly">' + esc(participantText(selected) || '—') + '</div>';
+      return;
+    }
+    const known = new Set(participantOptions.map(p => String(p.userId)));
+    const optionsHtml = participantOptions.map(person => {
+      const id = String(person.userId), label = person.userName + (person.position ? '（' + person.position + '）' : '');
+      return '<label class="fd-participant-option"><input type="checkbox" data-participant-id="' + esc(id) + '"' + (selected.includes(id) ? ' checked' : '') + (busy ? ' disabled' : '') + '><span>' + esc(label) + '</span></label>';
+    }).join('');
+    const legacyHtml = selected.filter(id => !known.has(id)).map(id => '<label class="fd-participant-option fd-participant-legacy"><input type="checkbox" data-participant-id="' + esc(id) + '" checked' + (busy ? ' disabled' : '') + '><span>用户#' + esc(id) + '（已停用或已移出本项目，保存前请取消勾选）</span></label>').join('');
+    const state = participantLoading ? '<p class="fd-hint">正在加载本项目人员…</p>' : participantError
+      ? '<p class="fd-hint fd-participant-error">' + esc(participantError) + ' <button type="button" data-participant-retry>重试</button></p>'
+      : participantLoaded && !participantOptions.length ? '<p class="fd-hint">本项目暂无可选择的启用人员，请联系管理员维护项目成员。</p>' : '';
+    box.innerHTML = '<div class="fd-participant-list" role="group" aria-label="参会人员">' + optionsHtml + legacyHtml + '</div>' + state;
+    box.querySelectorAll('[data-participant-id]').forEach(input => { input.onchange = () => {
+      draft.body.participants = JSON.stringify(Array.from(box.querySelectorAll('[data-participant-id]:checked')).map(el => Number(el.dataset.participantId)));
+      try { localSave(); } catch (e) { notice('本机保存失败，请勿关闭页面：' + e.message); }
+    }; });
+    const retry = box.querySelector('[data-participant-retry]'); if (retry) retry.onclick = () => { if (!busy) void loadParticipants(draft); };
+  }
+  async function loadParticipants(local) {
+    if (!isLog || !local || draft !== local) return;
+    const projectId = local.body.projectId, seq = ++participantSeq;
+    participantProjectId = projectId == null ? null : String(projectId); participantOptions = []; participantLoaded = false; participantLoading = !!projectId; participantError = '';
+    renderParticipants();
+    if (!projectId) { participantLoaded = true; participantLoading = false; renderParticipants(); return; }
+    try {
+      const list = await api('/field/projects/' + encodeURIComponent(projectId) + '/member-options');
+      if (draft !== local || seq !== participantSeq || $('fwEditor').hidden || String(local.body.projectId) !== String(projectId)) return;
+      participantOptions = Array.isArray(list) ? list : []; participantLoaded = true; participantLoading = false; renderParticipants();
+    } catch (error) {
+      if (draft !== local || seq !== participantSeq || $('fwEditor').hidden) return;
+      participantLoaded = true; participantLoading = false; participantError = '参会人员加载失败：' + (error.message || '请重试'); renderParticipants();
+    }
+  }
 
   /* ---------------- 编辑器骨架：标题 + 独立滚动正文 + 固定底部操作栏 ---------------- */
   root.innerHTML = '<div class="fw-toolbar"><label>项目 <select id="fwProject"><option value="">全部获授权项目</option></select></label>'
@@ -92,7 +141,8 @@
         + '<div class="fd-body">'
           + '<p id="fwError" class="fd-error" role="alert" tabindex="-1"></p>'
           + '<p id="fwPrefillState" class="fd-hint" role="status"></p>'
-          + '<div id="fwForm" class="fd-grid"><div id="fwGuide" class="fd-wide"></div></div>'
+          + '<div id="fwForm" class="fd-grid"></div>'
+          + '<div id="fwDefaultDirs"></div>'
           + '<div id="fwMedia"></div>'
           + '<div class="fd-field" id="fwUploadField">'
             + '<div class="fd-label">' + uploadView.label + '</div>'
@@ -132,29 +182,27 @@
 
   /* ---------------- 字段编排：只调整呈现顺序与控件类型，字段名与提交内容不变 ---------------- */
   const AUTHOR_LABEL = { 'supervision-diaries': '记录人', 'supervision-logs': '填写人', 'daily-inspections': '检查人员', 'sideline-inspections': '旁站人员' }[kind] || '填写人';
-  const labels = { [schema.date]: '日期', projectId: '项目名称', code: '编号', weather: '天气', wind: '风力', temperature: '气温', weekStart: '周起始日期（可选）', weekEnd: '周结束日期（可选）' };
+  const labels = { [schema.date]: '日期', projectId: '项目名称', code: '编号', participants: '参会人员', weather: '天气', wind: '风力', temperature: '气温', weekStart: '周起始日期（可选）', weekEnd: '周结束日期（可选）' };
   schema.fields.forEach(f => { labels[f[0]] = f[1]; });
   if (hasTemplate) Object.assign(labels, { projectId: '工程名称', reviewer: '审核人' });
   const requiredKeys = new Set([schema.date, 'projectId']);
   if (hasTemplate) requiredKeys.add('author');
   if (isDiary) requiredKeys.add('weather');
-  // 与服务端提交校验一致的必填项：巡检要求检查部位/巡视内容，旁站还要求工序、时间、人数、结果、关联资料
+  // 与服务端提交校验一致：巡检的检查部位、巡视内容与时间均为选填（时间默认当前分钟），旁站仍要求部位、工序、时间、人数、结果、关联资料
   ({
-    'daily-inspections': ['location', 'content'],
     'sideline-inspections': ['location', 'process', 'startTime', 'endTime', 'manageCount', 'workerCount', 'result', 'docsText']
   }[kind] || []).forEach(field => requiredKeys.add(field));
-  // 日常巡检的日期与起止时间、旁站的时间与日期改由选择面板填写：面板内点“确定”才写回输入框，取消/遮罩/Esc 均不落库
+  // 日常巡检的日期与巡检时间、旁站的时间与日期改由选择面板填写：面板内点“确定”才写回输入框，取消/遮罩/Esc 均不落库
   const PICK_HINTS = isDaily ? {
-    startTime: '精确到小时（例：2026-10-30 14:00）；提交时若填写一个时间，需补齐另一个。草稿可只记录开始时间。',
-    endTime: '精确到小时（例：2026-10-30 18:00）；结束时间须晚于开始时间。'
+    startTime: '新建时自动带入当前时间，精确到分钟；可按实际巡视时间调整，留空表示未记录。'
   } : isSideline ? {
     startTime: '点选日期、整点与分钟（5 分钟一档），例：2026-10-29 08:00；须早于结束时间。',
     endTime: '点选日期、整点与分钟（5 分钟一档），例：2026-10-29 11:30；须晚于开始时间。'
   } : {};
   const PICK_PLACEHOLDER = isDaily
-    ? { startTime: '请选择巡视开始时间（精确到小时）', endTime: '请选择巡视结束时间（精确到小时）' }
+    ? { startTime: '请选择巡检时间（精确到分钟）' }
     : isSideline ? { startTime: '请选择旁站开始时间', endTime: '请选择旁站结束时间' } : {};
-  const HINTS = Object.assign({ code: '留空由系统生成，可按需修改。' }, schema.hints || {}, PICK_HINTS);
+  const HINTS = Object.assign({ code: '留空由系统生成，可按需修改。', participants: '可勾选多名本项目的启用人员；保存人员账号，改名后仍能对应同一人。' }, schema.hints || {}, PICK_HINTS);
   const PLACEHOLDERS = Object.assign({}, schema.placeholders || {}, PICK_PLACEHOLDER);
   const closePicker = () => { if (window.FdDateTimePicker) window.FdDateTimePicker.close(); };
   // 服务端的 ISO 时间转成选择器展示的“YYYY-MM-DD HH:mm”；旁站保留秒位，未改动的历史值原样往返
@@ -167,21 +215,20 @@
     if (withSeconds) return clock + ':' + (m[6] || '00');
     return clock + (m[6] && m[6] !== '00' ? ':' + m[6] : '');
   }
-  const GUIDE_TEXT = { 'supervision-logs': '工作内容按当日实际情况填写；管理情况、巡检情况与晨会、图纸审查分栏记录。', 'daily-inspections': '按实际部位手动添加检查项；问题独立记录，确认后请保存巡视。' , 'sideline-inspections': '旁站部位、时间与见证取样内容需与现场实际一致。' };
 
   function topKeys() {
     const rows = [];
     if (isDiary) rows.push('projectId', schema.date, 'author', 'reviewer', 'weather', 'wind', 'temperature', 'code');
-    else if (isLog) rows.push('projectId', schema.date, 'author', 'reviewer', 'weather', 'wind', 'temperature', 'code');
+    else if (isLog) rows.push('projectId', schema.date, 'author', 'reviewer', 'weather', 'wind', 'temperature', 'code', 'participants');
     else rows.push(schema.date, 'projectId', 'author', 'code');
     const names = schema.fields.map(f => f[0]);
-    return rows.filter(k => ['author', 'reviewer', 'projectId', 'code'].includes(k) || k === schema.date || names.includes(k));
+    return rows.filter(k => ['author', 'reviewer', 'projectId', 'code', 'participants'].includes(k) || k === schema.date || names.includes(k));
   }
   function longKeys() { const top = topKeys(); return schema.fields.map(f => f[0]).filter(k => !top.includes(k)); }
   function compatibilityKeys() { return isLog ? (schema.legacyFields || []).concat('weekStart', 'weekEnd') : []; }
   function controlKind(field) {
     if (field === 'projectId') return 'project';
-    if (isDaily && ['startTime', 'endTime'].includes(field)) return 'hour';
+    if (isDaily && field === 'startTime') return 'minute';
     // 旁站时间需要分钟精度，用“日期+整点+分钟”面板；日期同样改成带确认的面板
     if (isSideline && ['startTime', 'endTime'].includes(field)) return 'minute';
     if ((isDaily || isSideline) && field === schema.date) return 'date-pick';
@@ -191,14 +238,20 @@
     return 'textarea';
   }
   function fieldCell(field, body, read, projectLocked, opts) {
-    const option = opts || {}, label = (labels[field] || field).replace(/\s*\*+$/, ''), hint = HINTS[field];
-    const inlineHint = hasTemplate && !['author', 'reviewer', 'projectId', schema.date].includes(field);
+    const option = opts || {}, label = (labels[field] || field).replace(/\s*\*+$/, '');
+    // 新建监理日记允许在表单内直接选择工程名称；既有记录仍锁定原项目，日志继续由工具栏选定后只读带入
+    const projectPick = field === 'projectId' && isDiary && !read && !draft.record.id;
+    const hint = projectPick ? '从获授权项目中选择本次填报的工程名称；保存后项目归属锁定。' : HINTS[field];
+    const inlineHint = hasTemplate && !['author', 'reviewer', 'projectId', schema.date, 'participants'].includes(field);
     const placeholder = esc((inlineHint ? hint : PLACEHOLDERS[field]) || '');
     const help = hint && !inlineHint ? '<div class="fd-hint" id="fwHint-' + field + '">' + esc(hint) + '</div>' : '';
     const described = (requiredKeys.has(field) ? ' aria-required="true"' : '') + (!hint ? '' : inlineHint
       ? ' title="' + esc(hint) + '" aria-description="' + esc(hint) + '"'
       : ' aria-describedby="fwHint-' + field + '"');
-    if (hasTemplate && ['author', 'reviewer', 'projectId'].includes(field)) {
+    if (field === 'participants') {
+      return '<div class="fd-field fd-wide"><div class="fd-label">参会人员</div><div id="fwF-participants"></div>' + help + '</div>';
+    }
+    if (hasTemplate && ['author', 'reviewer', 'projectId'].includes(field) && !projectPick) {
       const people = diaryPeople(draft.record, App.getUser());
       const value = field === 'projectId' ? (projects.find(p => String(p.id) === String(body.projectId)) || {}).name || '项目#' + body.projectId : people[field];
       return '<div class="fd-field"><div class="fd-label">' + esc(field === 'author' ? AUTHOR_LABEL : label) + '</div><div class="fd-readonly">' + esc(value) + '</div>' + help + '</div>';
@@ -210,7 +263,7 @@
     const kindOfControl = controlKind(field), value = body[field] == null ? '' : String(body[field]);
     let control;
     if (kindOfControl === 'project') {
-      /* 巡检/旁站新建时可以不先选工具栏项目，由本下拉选择；未选时给出占位项便于识别 */
+      /* 巡检、旁站与监理日记新建时可以不先选工具栏项目，由本下拉选择；未选时给出占位项便于识别 */
       const pick = body.projectId ? '' : '<option value="">请选择项目名称</option>';
       control = '<select class="fd-select" id="fwF-projectId" data-field="projectId"' + described + ' ' + (projectLocked ? 'disabled' : '') + '>' + pick + options(projects) + '</select>';
     } else if (kindOfControl === 'hour' || kindOfControl === 'minute' || kindOfControl === 'date-pick') {
@@ -220,7 +273,7 @@
       const owner = isDaily ? '巡视' : '旁站';
       const relation = field === 'endTime'
         ? ' data-picker-after="fwF-startTime" data-picker-after-msg="' + owner + '结束时间必须晚于开始时间"'
-        : field === 'startTime'
+        : isSideline && field === 'startTime'
           ? ' data-picker-before="fwF-endTime" data-picker-before-msg="' + owner + '开始时间必须先于结束时间"'
           : '';
       const pickMode = kindOfControl === 'date-pick' ? 'date' : kindOfControl === 'minute' ? 'minute' : 'hour';
@@ -245,21 +298,216 @@
         + (requiredKeys.has(field) ? '<span class="fd-req">*</span>' : '') + '</label>')
       + control + help + '</div>';
   }
-  function renderGuide() {
-    const box = $('fwGuide');
-    if (!box) return;
-    box.hidden = false;
-    const fileLine = (photos.length + attachments.length)
-      ? '<div class="fd-info-item on">照片 ' + photos.length + ' 张 · 附件 ' + attachments.length + ' 个</div>'
-      : '<div class="fd-info-item">暂无上传文件</div>';
-    if (!hasTemplate) {
-      box.innerHTML = '<div class="fd-info"><div class="fd-info-col"><div class="fd-info-title">填写提示</div><div class="fd-info-item on">' + esc(GUIDE_TEXT[kind] || '按现场实际情况逐栏填写，提交前请核对项目与日期。') + '</div><div class="fd-info-item on">* 为提交时必填；正文未完成可先保存草稿，项目与日期仍需填写。提示示例不会自动保存。</div></div>'
-        + '<div class="fd-info-col"><div class="fd-info-title">本次上传文件</div>' + fileLine + '</div></div>';
-      return;
+
+  /* 日记当天摘要与直传资料独立加载；旧正文稳定链接仍由 linkView.mount 负责。 */
+  function diaryValid(local, seq, projectId, date) {
+    return draft === local && seq === diaryDaySeq && !$('fwEditor').hidden
+      && String((App.getUser() || {}).userId) === uid
+      && String(local.body.projectId || '') === String(projectId || '')
+      && String(local.body[schema.date] || '') === String(date || '');
+  }
+  function diarySummaryLocal() {
+    const record = draft.record;
+    return { id: record.id, code: record.code || draft.body.code, diaryDate: record.diaryDate || draft.body.diaryDate,
+      authorId: record.authorId || uid, authorName: record.authorName || (App.getUser() || {}).userName,
+      status: record.status || 'draft', route: 'supervision-diary.html?id=' + record.id + '&readonly=true' };
+  }
+  function diarySyncPanel(record, index) {
+    const count = (record.syncPhotos || []).length;
+    return '<div class="diary-sync-panel"><strong>选择同步内容</strong><p>追加到当前日记草稿，不覆盖已有文字；相同文字块与照片自动去重。</p>'
+      + '<label><input type="checkbox" data-daily-sync-option="inspection" checked> 监理工作情况（时间、部位、人数、巡视内容与检查项）</label>'
+      + '<label><input type="checkbox" data-daily-sync-option="issues" checked> 工作中的新问题（巡视补充与不符合项）</label>'
+      + '<label><input type="checkbox" data-daily-sync-option="photos"' + (count ? ' checked' : ' disabled') + '> 现场照片（可同步 ' + count + ' 张）</label>'
+      + '<div class="diary-day-actions"><button type="button" class="diary-sync-confirm" data-daily-sync-confirm="' + index + '">确认同步</button>'
+      + '<button type="button" data-daily-sync-cancel>取消</button></div></div>';
+  }
+  function diaryBusinessHtml(title, group, records) {
+    const daily = group === 'dailyInspections';
+    const rows = (records || []).map((record, index) => '<article class="diary-day-record">'
+      + '<div class="diary-day-record-head"><strong>' + esc(record.code || ('记录#' + record.id)) + '</strong><span>' + esc(record.title || '无标题') + '</span></div>'
+      + (record.content ? '<p>' + esc(record.content) + '</p>' : '')
+      + '<div class="diary-day-actions"><button type="button" data-diary-copy="' + group + ':' + index + '">复制</button>'
+      + (daily ? '<button type="button" class="diary-sync-button" data-daily-sync="' + index + '">同步到日记</button>' : '')
+      + (record.route ? '<a href="' + esc(record.route) + '" target="_blank" rel="noopener">查看原记录</a>' : '') + '</div>'
+      + ((record.attachments || []).length ? '<div class="diary-day-files">' + record.attachments.map((file, fileIndex) =>
+        '<button type="button" class="diary-file-link" data-daily-file="' + index + ':' + fileIndex + '">' + esc(file.name || '查看附件') + '</button>').join('') + '</div>' : '')
+      + '<div class="diary-copy-host"></div>' + (daily && diarySyncIndex === index ? diarySyncPanel(record, index) : '') + '</article>').join('');
+    return '<section class="diary-day-group"><h4>' + esc(title) + '</h4>' + (rows || '<p class="diary-day-empty">当天暂无记录</p>') + '</section>';
+  }
+  function diaryDocumentHtml(document, index) {
+    const current = document.diaryId != null && String(document.diaryId) === String(draft.record.id || '');
+    const related = document.relatedDiary || (current ? diarySummaryLocal() : null);
+    const canBind = editable(draft.record) && draft.record.status === 'draft';
+    const tag = document.diaryId != null
+      ? '<details class="diary-linked-details"><summary class="diary-linked-tag">' + (related ? '已关联监理日记 [' + esc(related.code || ('#' + related.id)) + ']' : '已关联其他日记') + '</summary>'
+        + (related ? '<div class="diary-linked-summary">编号：' + esc(related.code) + '<br>日期：' + esc(related.diaryDate) + '<br>作者：' + esc(related.authorName || related.authorId) + '<br>状态：' + esc(statusText(kind, related.status))
+          + '<br><a href="' + esc(related.route) + '" target="_blank" rel="noopener">打开日记</a></div>' : '<div class="diary-linked-summary">目标日记详情不可见</div>') + '</details>'
+      : '<span class="diary-unlinked-tag">未关联日记</span>';
+    return '<article class="diary-document-row"><div class="diary-document-main"><strong>' + esc(document.name || '未命名资料') + '</strong>'
+      + '<p>' + esc(document.directoryPath || '目录不可用') + '</p><p>上传时间：' + esc(prettyTime(document.createTime) || '—') + ' · 上传者：' + esc(document.uploaderName || document.uploaderId || '—') + '</p>'
+      + tag + '</div><div class="diary-document-actions"><button type="button" data-document-open="' + index + '">打开</button>'
+      + (canBind && !document.diaryId ? '<button type="button" class="diary-bind-button" data-document-attach="' + document.id + '">关联</button>' : '')
+      + (canBind && current ? '<button type="button" class="diary-unbind-button" data-document-detach="' + document.id + '">取消关联</button>' : '')
+      + '</div></article>';
+  }
+  function renderDiaryDay() {
+    const box = $('fwDiaryDay'); if (!box || !draft) return;
+    if (!draft.body.projectId || !draft.body[schema.date]) {
+      box.innerHTML = '<section class="diary-day-panel"><h3>当天业务与资料</h3><p class="diary-day-empty">选择项目和日记日期后自动加载</p></section>'; return;
     }
-    box.innerHTML = '<div class="fd-guide-title">' + (isDiary ? '监理日记填写指引 · 14 项规范' : '监理日志填写指引 · 9 项规范') + '</div><div class="fd-info"><div class="fd-info-col"><div class="fd-info-title">记录要求</div><div class="fd-info-item on">' + esc(schema.guide) + '</div>'
-      + (schema.prefillHint ? '<div class="fd-info-item on">' + esc(schema.prefillHint) + '</div>' : '')
-      + '</div><div class="fd-info-col"><div class="fd-info-title">本次上传文件</div>' + fileLine + '</div></div>';
+    let content;
+    if (diaryDayLoading) content = '<p class="diary-day-empty">正在加载当天业务摘要和直传资料…</p>';
+    else if (diaryDayError) content = '<p class="diary-day-error">' + esc(diaryDayError) + '</p><button type="button" data-diary-day-retry>重试</button>';
+    else if (diaryDayData) {
+      const data = diaryDayData;
+      content = '<div class="diary-day-grid">'
+        + diaryBusinessHtml('日常巡检', 'dailyInspections', data.dailyInspections)
+        + diaryBusinessHtml('发出的监理通知单', 'supervisionNotices', data.supervisionNotices)
+        + diaryBusinessHtml('工作联系单', 'workContacts', data.workContacts) + '</div>'
+        + '<section class="diary-documents"><h4>当天直传资料</h4>'
+        + ((data.documents || []).length ? data.documents.map(diaryDocumentHtml).join('') : '<p class="diary-day-empty">今天暂无关联资料</p>') + '</section>';
+    } else content = '<p class="diary-day-empty">暂无当天数据</p>';
+    box.innerHTML = '<section class="diary-day-panel"><div class="diary-day-title"><h3>当天业务摘要与资料</h3><button type="button" data-diary-day-retry>刷新</button></div>'
+      + '<p class="fd-hint">巡检可追加同步文字与照片，核对后仍需保存日记；其他业务复制只写入剪贴板。资料关联实时生效，与旧正文引用分开统计。</p>' + content + '</section>';
+    box.querySelectorAll('[data-diary-day-retry]').forEach(button => { button.onclick = () => { if (!busy) void loadDiaryWorkbench(draft); }; });
+    box.querySelectorAll('[data-diary-copy]').forEach(button => { button.onclick = () => {
+      const parts = button.dataset.diaryCopy.split(':'), record = (diaryDayData[parts[0]] || [])[Number(parts[1])];
+      if (record) void copyDiaryText(record.copyText || [record.code, record.title, record.content].filter(Boolean).join('\n'), button);
+    }; });
+    box.querySelectorAll('[data-daily-file]').forEach(button => { button.onclick = () => {
+      const parts = button.dataset.dailyFile.split(':'), record = (diaryDayData.dailyInspections || [])[Number(parts[0])], file = record && record.attachments[Number(parts[1])];
+      if (file && linkView) void linkView.open({ sourceType: 'daily-inspections', sourceId: record.id, file: file.file }, button, reportError);
+    }; });
+    box.querySelectorAll('[data-daily-sync]').forEach(button => { button.onclick = () => { if (!busy) { diarySyncIndex = Number(button.dataset.dailySync); renderDiaryDay(); } }; });
+    box.querySelectorAll('[data-daily-sync-cancel]').forEach(button => { button.onclick = () => { diarySyncIndex = -1; renderDiaryDay(); }; });
+    box.querySelectorAll('[data-daily-sync-confirm]').forEach(button => { button.onclick = () => {
+      const panel = button.closest('.diary-sync-panel'), options = {};
+      panel.querySelectorAll('[data-daily-sync-option]').forEach(input => { options[input.dataset.dailySyncOption] = input.checked; });
+      syncDailyInspection(Number(button.dataset.dailySyncConfirm), options);
+    }; });
+    box.querySelectorAll('[data-document-open]').forEach(button => { button.onclick = () => {
+      const document = diaryDayData.documents[Number(button.dataset.documentOpen)]; if (document) openFile(document.filePath);
+    }; });
+    box.querySelectorAll('[data-document-attach]').forEach(button => { button.onclick = run(async () => changeDiaryAttachment(Number(button.dataset.documentAttach), true)); });
+    box.querySelectorAll('[data-document-detach]').forEach(button => { button.onclick = run(async () => changeDiaryAttachment(Number(button.dataset.documentDetach), false)); });
+  }
+  function syncDailyInspection(index, options) {
+    const local = draft, record = diaryDayData && (diaryDayData.dailyInspections || [])[index];
+    if (!local || local !== draft || busy || !editable(local.record) || !record || !DailySync) return;
+    try {
+      collect();
+      const merged = DailySync.merge(record, local.body, photos, options);
+      diarySyncIndex = -1;
+      if (!merged.addedText && !merged.addedPhotos) { renderDiaryDay(); notice('所选内容已同步过，日记未重复追加。'); return; }
+      local.body = merged.body; photos = merged.photos;
+      form(local.body, local.record); localSave(); renderMedia(); renderDiaryDay();
+      notice('已追加 ' + merged.addedText + ' 个正文栏目、' + merged.addedPhotos + ' 张巡检照片；请核对并保存日记。');
+    } catch (error) { reportError(error); }
+  }
+  async function copyDiaryText(text, button) {
+    const local = draft;
+    try {
+      if (!navigator.clipboard || !navigator.clipboard.writeText) throw new Error('剪贴板不可用');
+      await navigator.clipboard.writeText(text);
+      if (draft === local) { button.textContent = '已复制'; setTimeout(() => { if (button.isConnected) button.textContent = '复制'; }, 1600); }
+    } catch (error) {
+      if (draft !== local) return;
+      const host = button.closest('.diary-day-record').querySelector('.diary-copy-host');
+      host.innerHTML = '';
+      const manual = document.createElement('textarea'); manual.className = 'diary-manual-copy'; manual.readOnly = true;
+      manual.setAttribute('aria-label', '请手动选择并复制当天业务内容'); manual.value = text;
+      host.appendChild(manual); manual.focus(); manual.select(); button.textContent = '请手动复制';
+    }
+  }
+  async function loadDiaryWorkbench(local) {
+    if (!isDiary || !local || draft !== local || !editable(local.record)) return;
+    collect();
+    const projectId = local.body.projectId, date = local.body[schema.date], seq = ++diaryDaySeq;
+    diaryDayData = null; diaryDayError = '';
+    if (!projectId || !date) { diaryDayLoading = false; renderDiaryDay(); return; }
+    diaryDayLoading = true; renderDiaryDay();
+    try {
+      const data = await api('/field/diary-day-workbench?' + App.buildQuery({ projectId, date }));
+      if (!diaryValid(local, seq, projectId, date)) return;
+      diaryDayLoading = false; diaryDayData = data; renderDiaryDay();
+    } catch (error) {
+      if (!diaryValid(local, seq, projectId, date)) return;
+      diaryDayLoading = false; diaryDayError = '当天业务与资料加载失败：' + (error.message || '请重试'); renderDiaryDay();
+    }
+  }
+  function diaryBadgeHtml() {
+    return '<button type="button" id="fwDiaryBadge" class="fw-chip diary-related-badge" aria-expanded="' + diaryBadgeOpen + '">已关联 ' + diaryRelated.count + ' 份附件</button>';
+  }
+  function renderDiaryRelated() {
+    const box = $('fwDiaryRelated'); if (!box || !draft) return;
+    box.hidden = !diaryBadgeOpen;
+    if (!diaryBadgeOpen) { box.innerHTML = ''; return; }
+    let content;
+    if (!draft.record.id) content = '<p class="diary-day-empty">首次关联时将先保存服务器草稿</p>';
+    else if (!diaryRelated.loaded && !diaryRelated.error) content = '<p class="diary-day-empty">正在读取实际关联资料…</p>';
+    else if (diaryRelated.error) content = '<p class="diary-day-error">' + esc(diaryRelated.error) + '</p><button type="button" data-related-retry>重试</button>';
+    else if (!diaryRelated.list.length) content = '<p class="diary-day-empty">暂无实际关联资料</p>';
+    else content = diaryRelated.list.map((document, index) => '<article class="diary-document-row"><div class="diary-document-main"><strong>' + esc(document.name) + '</strong><p>' + esc(document.directoryPath || '目录不可用') + '</p></div>'
+      + '<div class="diary-document-actions"><button type="button" data-related-open="' + index + '">打开</button>'
+      + (editable(draft.record) && draft.record.status === 'draft' ? '<button type="button" class="diary-unbind-button" data-document-detach="' + document.id + '">取消关联</button>' : '') + '</div></article>').join('');
+    box.innerHTML = '<section class="diary-related-panel"><h3>实际绑定资料 <span>' + diaryRelated.count + ' 份</span></h3>' + content + '</section>';
+    const retry = box.querySelector('[data-related-retry]'); if (retry) retry.onclick = () => void loadDiaryRelated(draft);
+    box.querySelectorAll('[data-related-open]').forEach(button => { button.onclick = () => openFile(diaryRelated.list[Number(button.dataset.relatedOpen)].filePath); });
+    box.querySelectorAll('[data-document-detach]').forEach(button => { button.onclick = run(async () => changeDiaryAttachment(Number(button.dataset.documentDetach), false)); });
+  }
+  async function loadDiaryRelated(local) {
+    if (!isDiary || !local || draft !== local) return;
+    const seq = ++diaryRelatedSeq, id = local.record.id;
+    if (!id) { diaryRelated = { list: [], count: 0, loaded: true, error: '' }; renderState(local.record); renderDiaryRelated(); return; }
+    diaryRelated.loaded = false; diaryRelated.error = ''; renderDiaryRelated();
+    try {
+      const result = await api('/supervision-diaries/' + id + '/related-attachments');
+      if (draft !== local || seq !== diaryRelatedSeq || $('fwEditor').hidden || String(local.record.id) !== String(id)) return;
+      diaryRelated = { list: result.list || [], count: Number(result.count || 0), loaded: true, error: '' };
+      local.record.relatedAttachmentIds = JSON.stringify(diaryRelated.list.map(document => document.id));
+      renderState(local.record); renderDiaryRelated();
+    } catch (error) {
+      if (draft !== local || seq !== diaryRelatedSeq || $('fwEditor').hidden) return;
+      diaryRelated.loaded = true; diaryRelated.error = '关联资料读取失败：' + (error.message || '请重试'); renderDiaryRelated();
+    }
+  }
+  async function ensureDiaryDraftForAttachment() {
+    if (draft.record.id) return draft.record;
+    collect();
+    if (!draft.body.projectId) throw new Error('请选择项目名称后再关联资料');
+    if (pendingUploads.length) throw new Error('请先完成正在上传的文件，再保存草稿并关联资料');
+    localSave();
+    if (!draft.pending) draft.pending = { body: pack(kind, Object.assign({}, draft.body, { status: 'draft' })), id: null, version: null };
+    persistDraft();
+    let record;
+    try { record = await api('/' + kind, { method: 'POST', body: draft.pending.body, headers: { 'Idempotency-Key': draft.requestId } }); }
+    catch (error) { if ([400, 413, 415, 422].includes(error.code)) { draft.pending = null; persistDraft(); } throw error; }
+    draft.record = record; draft.pending = null;
+    if (!draft.body.code) draft.body.code = record.code;
+    dirty = false; persistDraft();
+    $('fwTitle').textContent = schema.title + ' · V' + (record.version || 1) + ' · ' + record.code;
+    $('fwDelete').hidden = false; $('fwHistory').hidden = false; $('fwCompare').hidden = false;
+    renderState(record);
+    return record;
+  }
+  async function changeDiaryAttachment(documentId, attach) {
+    const local = draft;
+    if (!isDiary || !local || !editable(local.record) || local.record.status !== 'draft') throw new Error('仅本人可编辑草稿可以修改资料关联');
+    await locked(async () => {
+      await ensureDiaryDraftForAttachment();
+      const id = local.record.id;
+      diaryRelatedSeq++;
+      const result = await api('/supervision-diaries/' + id + '/related-attachments/' + documentId, { method: attach ? 'PUT' : 'DELETE' });
+      if (draft !== local || $('fwEditor').hidden || String(local.record.id) !== String(id)) return;
+      local.record = result.diary;
+      diaryRelated = { list: result.list || [], count: Number(result.count || 0), loaded: true, error: '' };
+      if (diaryDayData) {
+        const document = (diaryDayData.documents || []).find(item => String(item.id) === String(documentId));
+        if (document) { document.diaryId = attach ? id : null; document.relatedDiary = attach ? diarySummaryLocal() : null; }
+      }
+      dirty = false; persistDraft(); renderState(local.record); renderDiaryRelated(); renderDiaryDay();
+      notice(attach ? '资料已实时关联，服务器草稿及最新并发版本已同步。' : '已实时取消资料关联，最新并发版本已同步。');
+    });
   }
 
   function filters() { return { projectId: $('fwProject').value, status: $('fwStatus').value, dateFrom: $('fwFrom').value, dateTo: $('fwTo').value, code: $('fwCode').value, authorId: $('fwMine').checked ? uid : undefined }; }
@@ -339,6 +587,9 @@
     linkEditors.forEach(editor => editor.collect());
     root.querySelectorAll('[data-field]').forEach(el => { draft.body[el.dataset.field] = el.value; });
     draft.body.projectId = Number(draft.body.projectId);
+    if (isLog && participantLoaded && String(participantProjectId) === String(draft.body.projectId)) {
+      draft.body.participants = JSON.stringify(Array.from(root.querySelectorAll('[data-participant-id]:checked')).map(el => Number(el.dataset.participantId)));
+    }
     draft.body.photos = JSON.stringify(photos); draft.body.attachments = JSON.stringify(attachments);
   }
   function localSave() {
@@ -347,37 +598,45 @@
     if (String(App.getUser().userId) !== uid) throw new Error('登录账号已变化，请保留本页内容并重新登录');
     dirty = true;
     persistDraft();
-    $('fwState').textContent = '仅本机保存，尚未同步到服务器';
+    renderState(draft.record);
+    $('fwState').insertAdjacentHTML('beforeend', '<span class="diary-local-state">仅本机保存，尚未同步到服务器</span>');
   }
   function renderState(record) {
     if (!record) { $('fwState').textContent = ''; return; }
-    if (!record.id) { $('fwState').innerHTML = '<span class="fw-chip draft">本机草稿</span>尚未同步到服务器'; return; }
-    const status = record.status || 'draft';
-    const chip = '<span class="fw-chip ' + esc(chipClass(status)) + '">' + esc(statusText(kind, status)) + '</span>';
-    const meta = (hasTemplate ? 'V' + (record.version || 1) + (record.sourceRecordId ? ' · 修订自记录 #' + record.sourceRecordId : '')
-      + (record.status === 'draft' ? ' · 可编辑草稿' : ' · 原件已冻结，正文及附件不可覆盖') + ' · ' : '')
-      + '并发版本 ' + (record.lockVersion == null ? '—' : record.lockVersion);
-    $('fwState').innerHTML = chip + esc(meta)
-      + (!isDaily && record.rejectReason ? '<div class="fw-sub-reject">退回原因：' + esc(record.rejectReason) + '</div>' : '');
+    const badge = isDiary ? diaryBadgeHtml() : '';
+    if (!record.id) { $('fwState').innerHTML = '<span class="fw-chip draft">本机草稿</span>尚未同步到服务器' + badge; }
+    else {
+      const status = record.status || 'draft';
+      const chip = '<span class="fw-chip ' + esc(chipClass(status)) + '">' + esc(statusText(kind, status)) + '</span>';
+      const meta = (hasTemplate ? 'V' + (record.version || 1) + (record.sourceRecordId ? ' · 修订自记录 #' + record.sourceRecordId : '')
+        + (record.status === 'draft' ? ' · 可编辑草稿' : ' · 原件已冻结，正文及附件不可覆盖') + ' · ' : '')
+        + '并发版本 ' + (record.lockVersion == null ? '—' : record.lockVersion);
+      $('fwState').innerHTML = chip + esc(meta) + badge
+        + (!isDaily && record.rejectReason ? '<div class="fw-sub-reject">退回原因：' + esc(record.rejectReason) + '</div>' : '');
+    }
+    const button = $('fwDiaryBadge');
+    if (button) button.onclick = () => { diaryBadgeOpen = !diaryBadgeOpen; renderState(draft.record); renderDiaryRelated(); if (diaryBadgeOpen) $('fwDiaryRelated').scrollIntoView({ block: 'nearest' }); };
   }
   function form(body, record) {
     const read = !editable(record), projectLocked = !!record.id || read;
     const topHtml = topKeys().map(field => fieldCell(field, body, read, projectLocked)).join('');
-    const guideHtml = '<div id="fwGuide" class="fd-wide"></div>' + (isDiary && linkView && !read ? '<div id="fwResources" class="fd-wide"></div>' : '');
+    // 填写指引面板已下线：仅保留输入框占位文案，日记工作区与关联资料容器照常渲染
+    const extraHtml = (isDiary && !read ? '<div id="fwDiaryDay" class="fd-wide"></div>' : '')
+      + (isDiary ? '<div id="fwDiaryRelated" class="fd-wide" hidden></div>' : '');
     let bodyHtml;
     if (isDiary) {
-      bodyHtml = '<div class="fd-section-heading fd-wide">基础信息</div>' + topHtml + guideHtml
+      bodyHtml = '<div class="fd-section-heading fd-wide">基础信息</div>' + topHtml + extraHtml
         + '<div class="fd-section-heading fd-wide">当日工作记录</div>'
         + longKeys().map(field => fieldCell(field, body, read, projectLocked, { wide: true })).join('');
     } else if (isLog) {
       const compatibility = compatibilityKeys(), hasLegacy = compatibility.some(field => String(body[field] || '').trim());
-      bodyHtml = '<div class="fd-section-heading fd-wide">基础信息</div>' + topHtml + guideHtml
+      bodyHtml = '<div class="fd-section-heading fd-wide">基础信息</div>' + topHtml + extraHtml
         + '<div class="fd-section-heading fd-wide">当日安全监理记录</div>'
         + longKeys().filter(field => !compatibility.includes(field)).map(field => fieldCell(field, body, read, projectLocked, { wide: true })).join('')
         + '<details class="fd-compat"' + (hasLegacy ? ' open' : '') + '><summary>原有栏目与日记整编内容（保留原文）</summary><div class="fd-compat-grid">'
         + compatibility.map(field => fieldCell(field, body, read, projectLocked, { wide: controlKind(field) === 'textarea' })).join('') + '</div></details>';
     } else if (schema.pcSections) {
-      bodyHtml = '<div class="fd-section-heading fd-wide">基础信息</div>' + topHtml + guideHtml
+      bodyHtml = '<div class="fd-section-heading fd-wide">基础信息</div>' + topHtml + extraHtml
         + schema.pcSections.map(section => (isDaily && section.fields.includes('issues') ? '<div class="fd-wide ic-workspace" id="fwChecklist"></div>' : '')
           + '<div class="fd-section-heading fd-wide">' + esc(section.title) + '</div>'
           + section.fields.map(field => fieldCell(field, body, read, projectLocked, { wide: controlKind(field) === 'textarea' })).join('')).join('');
@@ -385,7 +644,7 @@
       const longs = longKeys(), grouped = longs.length >= 3;
       // 栏目标题统一承载必填红星，并去掉字段名里自带的星号，避免出现“* *”或样式不一致
       const sectionTitle = field => (labels[field] || field).replace(/\s*\*+$/, '');
-      bodyHtml = guideHtml + topHtml + longs.map(field => grouped
+      bodyHtml = extraHtml + topHtml + longs.map(field => grouped
         ? '<div class="fd-sec"><div class="fd-sec-title">' + esc(sectionTitle(field)) + (requiredKeys.has(field) ? '<span class="fd-req">*</span>' : '') + '</div>' + fieldCell(field, body, read, projectLocked, { wide: true, headless: true }) + '</div>'
         : fieldCell(field, body, read, projectLocked, { wide: true })).join('');
     }
@@ -393,6 +652,7 @@
     destroyLinks();
     closePicker();
     $('fwForm').innerHTML = bodyHtml;
+    if (isLog) { renderParticipants(); void loadParticipants(draft); }
     if (isDiary && linkView) {
       const current = draft;
       const active = () => draft === current && !$('fwEditor').hidden && String((App.getUser() || {}).userId) === uid;
@@ -405,7 +665,6 @@
           error: reportError
         }));
       });
-      if (!read) resourceView = linkView.resources($('fwResources'), { projectId: body.projectId, date: body.diaryDate, valid: active, error: reportError });
     }
     if (isDaily) {
       const current = draft;
@@ -423,12 +682,21 @@
       if (el.dataset.field === schema.date || el.dataset.field === 'projectId') draft.body.diarySources = '[]';
       try { localSave(); } catch (e) { notice('本机保存失败，请勿关闭页面：' + e.message); }
     }));
-    // 项目或日期变化后刷新“今日填写指引”，取数失败不影响填写
+    // 项目或日期变化后刷新当日摘要与审核权限，取数失败不影响填写
     root.querySelectorAll('[data-field="' + schema.date + '"], [data-field="projectId"]').forEach(el => el.addEventListener('change', () => {
-      if (el.dataset.field === 'projectId') { attachments.forEach(a => { a.dirs = []; }); dirTreeInvalidate(); renderMedia(); }
+      if (el.dataset.field === 'projectId') {
+        if (isLog) draft.body.participants = '[]';
+        attachments.forEach(a => { a.dirs = []; });
+        defaultDirPaths = [];
+        dirTreeInvalidate();
+        renderMedia();
+        renderDefaultDirTree();
+        void ensureDirTree();
+      }
       try { localSave(); } catch (e) { notice('本机保存失败，请勿关闭页面：' + e.message); }
       if (!draft.body.projectId || !draft.body[schema.date]) return;
-      run(async () => { summaryCache = await api('/field/summary?' + App.buildQuery({ projectId: draft.body.projectId, date: draft.body[schema.date] })); renderGuide(); })();
+      run(async () => { summaryCache = await api('/field/summary?' + App.buildQuery({ projectId: draft.body.projectId, date: draft.body[schema.date] })); })();
+      if (isDiary) void loadDiaryWorkbench(draft);
     }));
     if ((isDaily || isSideline) && !read && window.FdDateTimePicker) window.FdDateTimePicker.enhance($('fwForm'));
     $('fwTitle').textContent = record.code ? schema.title + (hasTemplate ? ' · V' + (record.version || 1) : '') + ' · ' + record.code : '新建' + schema.title;
@@ -454,9 +722,8 @@
   function cancelPrefill() { prefillSequence++; $('fwPrefillState').textContent = ''; }
   function destroyLinks() {
     linkEditors.forEach(editor => editor.destroy()); linkEditors = [];
-    if (resourceView) { resourceView.destroy(); resourceView = null; }
   }
-  function closeEditor() { closePicker(); cancelPrefill(); destroyLinks(); if (checklistView) { checklistView.destroy(); checklistView = null; } $('fwEditor').hidden = true; document.body.classList.remove('fw-modal-open'); }
+  function closeEditor() { diaryDaySeq++; diaryRelatedSeq++; participantSeq++; closePicker(); cancelPrefill(); destroyLinks(); dirTreeInvalidate(); if (checklistView) { checklistView.destroy(); checklistView = null; } $('fwEditor').hidden = true; document.body.classList.remove('fw-modal-open'); }
   async function prefillLog(automatic = false) {
     if (!isLog || !draft || busy || draft.pending || !editable(draft.record) || $('fwEditor').hidden) return;
     collect();
@@ -486,12 +753,22 @@
     }
   }
   async function show(local, autoPrefill = false) {
-    cancelPrefill(); fieldEdits = {};
+    cancelPrefill(); fieldEdits = {}; diaryDaySeq++; diaryRelatedSeq++;
+    diaryDayData = null; diaryDayLoading = false; diaryDayError = ''; diaryBadgeOpen = false; diarySyncIndex = -1;
+    diaryRelated = { list: [], count: parse(local.record.relatedAttachmentIds).length, loaded: !local.record.id, error: '' };
     draft = local;
     photos = parse(draft.body.photos).map(p => typeof p === 'string' ? { url: p } : p);
     attachments = parse(draft.body.attachments).map(p => typeof p === 'string' ? { url: p } : p);
+    defaultDirPaths = [];
+    dirTreeInvalidate();
     reviewAllowed = false;
-    openEditor(); form(draft.body, draft.record); renderMedia(); renderGuide();
+    openEditor(); form(draft.body, draft.record); renderMedia(); renderDefaultDirTree();
+    if (isDiary) {
+      renderDiaryDay(); renderDiaryRelated();
+      if (editable(draft.record)) void loadDiaryWorkbench(draft);
+      if (draft.record.id) void loadDiaryRelated(draft);
+    }
+    await ensureDirTree();
     const body = $('fwEditor').querySelector('.fd-body'); if (body) body.scrollTop = 0;
     // 预填独立启动，统计接口延迟不能拖延取数或在保存后重新补回空栏。
     if (autoPrefill) void prefillLog(true);
@@ -502,7 +779,6 @@
       summaryCache = summary;
       reviewAllowed = summary.canReview;
       ['fwApprove', 'fwReject'].forEach(id => $(id).hidden = isDaily || !!draft.readOnly || !reviewAllowed || !['submitted', 'pending'].includes(draft.record.status));
-      renderGuide();
     } catch (e) { if (draft === local) notice(e.message); }
   }
   async function mayLeave() {
@@ -521,22 +797,26 @@
     }
     const record = await api('/' + kind + '/' + id); dirty = false;
     const data = unpack(kind, record), body = {};
-    ['code', 'projectId', schema.date, 'photos', 'attachments', 'diarySources', 'weekStart', 'weekEnd'].concat(schema.fields.map(f => f[0]), schema.extraFields || []).forEach(k => { if (data[k] != null) body[k] = data[k]; });
+    ['code', 'projectId', schema.date, 'participants', 'photos', 'attachments', 'diarySources', 'weekStart', 'weekEnd'].concat(schema.fields.map(f => f[0]), schema.extraFields || []).forEach(k => { if (data[k] != null) body[k] = data[k]; });
     ['startTime', 'endTime'].forEach(k => { if (body[k]) body[k] = prettyTime(body[k]); });
     await show({ record, body, readOnly, requestId: key() }, true);
   }
   async function create() {
     if (!projects.length) throw new Error('暂无获授权项目，请联系管理员');
-    // 巡检/旁站的项目名称可在表单内直接选择，不再要求先在上方筛选；日记/日志工程名称为只读带入，仍需先选定项目
-    if (hasTemplate && !$('fwProject').value && projects.length > 1) {
+    // 巡检、旁站与监理日记的项目名称可在表单内直接选择；日志工程名称仍为只读带入，需先在上方选定项目
+    if (isLog && !$('fwProject').value && projects.length > 1) {
       $('fwProject').focus();
       throw new Error(projectRequiredMessage);
     }
     if (!await mayLeave()) return;
     clearProjectNotice();
     const selected = Number($('fwProject').value);
-    const fallback = hasTemplate || projects.length === 1 ? projects[0].id : null;
+    // 多项目且工具栏未选时不猜测归属：日记与巡检均留空，等待表单内明确选择；单项目可直接带入
+    const fallback = isLog || projects.length === 1 ? projects[0].id : null;
     const body = { projectId: selected || fallback, [schema.date]: today(), photos: '[]', attachments: '[]' };
+    if (isLog) body.participants = '[]';
+    // 巡检新建时自动带入当前系统时间（精确到分钟），用户可在时间面板内按实际巡视时间调整
+    if (isDaily) body.startTime = window.FieldSchema.nowMinute();
     dirty = false; await show({ record: { status: 'draft' }, body, requestId: key() }, true); localSave();
   }
   function openFile(url) {
@@ -573,7 +853,7 @@
         act.appendChild(view);
         if (editableNow) {
           const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'fd-danger'; remove.textContent = '移除';
-          remove.onclick = run(async () => { photos.splice(photos.indexOf(item), 1); localSave(); renderMedia(); renderGuide(); });
+          remove.onclick = run(async () => { photos.splice(photos.indexOf(item), 1); localSave(); renderMedia(); });
           act.appendChild(remove);
         }
         card.appendChild(act);
@@ -587,27 +867,26 @@
       field.innerHTML = '<div class="fd-label">附件材料（' + attachments.length + '）</div>';
       const list = document.createElement('div'); list.className = 'fd-files';
       attachments.forEach(item => {
-        const dirs = (item.dirs || []).filter(Boolean);
-        const row = document.createElement('div'); row.className = 'fd-file-row';
+        const row = document.createElement('div'); row.className = 'fd-file-row'; row.style.alignItems = 'flex-start';
         const info = document.createElement('div'); info.style.cssText = 'flex:1;min-width:0;';
         const name = document.createElement('div'); name.className = 'fd-file-name'; name.textContent = item.name || '已上传文件';
         info.appendChild(name);
-        const dirBox = document.createElement('div'); dirBox.className = 'fwd-file-dirs';
-        dirBox.innerHTML = dirs.length
-          ? dirs.map(d => '<span class="fwd-tag" title="' + esc(d) + '">' + esc(String(d).split(' / ').pop()) + '</span>').join('')
-          : '<span class="fwd-empty">未选择目录</span>';
-        info.appendChild(dirBox);
+        const dirWrap = document.createElement('div'); dirWrap.innerHTML = attachmentDirSectionHtml();
+        const dirHost = dirWrap.firstElementChild;
+        dirHost._attachment = item;
+        dirHost._dirs = (item.dirs || []).filter(Boolean).slice();
+        dirHost._readOnly = !editableNow;
+        info.appendChild(dirHost);
         row.appendChild(info);
         const view = document.createElement('button'); view.type = 'button'; view.textContent = '查看'; view.onclick = () => openFile(item.url);
         row.appendChild(view);
         if (editableNow) {
-          const pick = document.createElement('button'); pick.type = 'button'; pick.textContent = dirs.length ? '更改目录' : '选择目录'; pick.onclick = () => openDirPicker(item);
-          row.appendChild(pick);
           const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'fd-danger'; remove.textContent = '移除';
-          remove.onclick = run(async () => { attachments.splice(attachments.indexOf(item), 1); localSave(); renderMedia(); renderGuide(); });
+          remove.onclick = run(async () => { attachments.splice(attachments.indexOf(item), 1); localSave(); renderMedia(); });
           row.appendChild(remove);
         }
         list.appendChild(row);
+        renderDirTree(dirHost);
       });
       field.appendChild(list);
       $('fwMedia').appendChild(field);
@@ -619,136 +898,222 @@
     }
   }
 
-  /* ---------------- 附件“所属工程资料目录”选择器（仅 PC，目录随附件 JSON 落库，不改小程序/schema） ---------------- */
+  /* ---------------- 常驻工程资料目录树；仅附件级 dirs 落库，默认目录只用于新附件继承 ---------------- */
   const DIR_CSS = ''
-    + '.fwd-overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;align-items:center;justify-content:center;z-index:3000;padding:16px;}'
-    + '.fwd-overlay.show{display:flex;}'
-    + '.fwd-modal{width:560px;max-width:100%;max-height:88vh;background:#fff;border-radius:10px;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,.2);}'
-    + '.fwd-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #E5E7EB;}'
-    + '.fwd-head h3{font-size:15px;color:#1E3A5F;margin:0;}'
-    + '.fwd-x{border:none;background:none;font-size:18px;color:#9CA3AF;cursor:pointer;}'
-    + '.fwd-body{padding:14px 18px;overflow-y:auto;}'
-    + '.fwd-tip{font-size:12px;color:#6B7280;margin-bottom:10px;}'
-    + '.fwd-sel{margin-bottom:10px;padding:8px 10px;background:#F0F5FF;border:1px solid #BFDBFE;border-radius:6px;}'
-    + '.fwd-sel .t{font-size:12px;font-weight:600;color:#1E3A5F;display:flex;justify-content:space-between;margin-bottom:6px;}'
-    + '.fwd-tags{display:flex;flex-wrap:wrap;gap:6px;}'
-    + '.fwd-tag{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:12px;font-size:11px;background:#DBEAFE;color:#1D4ED8;max-width:100%;overflow:hidden;}'
-    + '.fwd-tag i{cursor:pointer;font-style:normal;color:#6B7280;flex-shrink:0;}'
-    + '.fwd-empty{font-size:12px;color:#9CA3AF;}'
-    + '.fwd-tree{max-height:300px;overflow-y:auto;border:1px solid #E5E7EB;border-radius:8px;padding:8px;background:#FAFBFC;}'
-    + '.fwd-node{padding:6px 10px;border-radius:5px;font-size:13px;display:flex;align-items:center;gap:6px;user-select:none;}'
-    + '.fwd-node.parent{color:#6B7280;}'
-    + '.fwd-node.parent::before{content:\'\ud83d\udcc1\';font-size:12px;}'
-    + '.fwd-node.leaf{cursor:pointer;}'
-    + '.fwd-node.leaf:hover{background:#EFF6FF;}'
-    + '.fwd-node.leaf::before{content:\'\';width:15px;height:15px;border:2px solid #D1D5DB;border-radius:3px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;color:#fff;margin-right:4px;flex-shrink:0;}'
-    + '.fwd-node.leaf.on{background:#DBEAFE;color:#1D4ED8;}'
-    + '.fwd-node.leaf.on::before{border-color:#2563EB;background:#2563EB;content:\'\u2713\';}'
-    + '.fwd-node .exp{font-size:10px;color:#9CA3AF;width:14px;cursor:pointer;flex-shrink:0;}'
-    + '.fwd-children{padding-left:20px;}'
-    + '.fwd-children.collapsed{display:none;}'
-    + '.fwd-foot{display:flex;justify-content:flex-end;gap:8px;padding:12px 18px;border-top:1px solid #E5E7EB;}'
-    + '.fwd-btn{height:34px;padding:0 16px;border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit;border:1px solid #E5E7EB;background:#fff;color:#374151;}'
-    + '.fwd-btn.primary{background:#1D4ED8;color:#fff;border-color:#1D4ED8;}'
-    + '.fwd-ph{padding:20px;text-align:center;color:#9CA3AF;font-size:13px;}'
-    + '.fwd-file-dirs{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;}'
-    + '.fwd-file-dirs .fwd-tag{font-size:10px;}';
-  const DIR_HTML = '<div class="fwd-overlay" id="fwDirModal"><div class="fwd-modal">'
-    + '<div class="fwd-head"><h3>选择所属工程资料目录（可多选）</h3><button type="button" class="fwd-x" id="fwDirCancel">✕</button></div>'
-    + '<div class="fwd-body"><div class="fwd-tip">请为附件 <strong id="fwDirFile" style="color:#1E3A5F;"></strong> 选择存储位置（仅可选择最低一级目录，可多选）</div>'
-    + '<div class="fwd-sel"><div class="t"><span>已选目录</span><span id="fwDirCount">0 项</span></div><div class="fwd-tags" id="fwDirTags"><span class="fwd-empty">未选择任何目录</span></div></div>'
-    + '<div class="fwd-tree" id="fwDirTree"><div class="fwd-ph">正在加载工程资料目录...</div></div></div>'
-    + '<div class="fwd-foot"><button type="button" class="fwd-btn" id="fwDirCancelBtn">取消</button><button type="button" class="fwd-btn primary" id="fwDirOk">确认选择</button></div>'
-    + '</div></div>';
-  let dirPickerItem = null, dirPickerPaths = [], dirPickerSeq = 0, dirPickerProjectId = null, dirPickerReady = false;
-  function ensureDirPickerDom() {
-    if (document.getElementById('fwDirModal')) return;
-    const style = document.createElement('style'); style.textContent = DIR_CSS; document.head.appendChild(style);
-    const wrap = document.createElement('div'); wrap.innerHTML = DIR_HTML; document.body.appendChild(wrap.firstChild);
-    $('fwDirCancel').onclick = closeDirPicker; $('fwDirCancelBtn').onclick = closeDirPicker; $('fwDirOk').onclick = confirmDirPicker;
-    $('fwDirModal').addEventListener('click', function (e) { if (e.target === this) closeDirPicker(); });
+    + '.doc-section{background:#F0F5FF;border:1px solid #BFDBFE;border-radius:8px;padding:16px;margin-top:16px;}'
+    + '.doc-section h5{font-size:13px;font-weight:600;color:#1E40AF;margin-bottom:4px;display:flex;align-items:center;justify-content:space-between;}'
+    + '.doc-section .doc-desc{font-size:11px;color:#6B7280;margin-bottom:12px;}'
+    + '.doc-tree{background:#fff;border:1px solid #E5E7EB;border-radius:6px;padding:8px;max-height:240px;overflow-y:auto;}'
+    + '.doc-tree-node{padding:6px 8px;border-radius:4px;font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;transition:background .15s;}'
+    + '.doc-tree-node:hover{background:#F0F5FF;}'
+    + '.doc-tree-node .expand-icon{font-size:10px;color:#9CA3AF;width:16px;text-align:center;flex-shrink:0;}'
+    + '.doc-tree-node .node-icon{font-size:13px;flex-shrink:0;}'
+    + '.doc-tree-node .node-label{flex:1;}'
+    + '.doc-tree-node input[type="checkbox"]{accent-color:#2563EB;width:15px;height:15px;cursor:pointer;flex-shrink:0;}'
+    + '.doc-tree-children{padding-left:24px;}'
+    + '.doc-tree-children.collapsed{display:none;}'
+    + '.selected-docs{margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;min-height:28px;}'
+    + '.selected-doc-tag{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:12px;font-size:11px;background:#DBEAFE;color:#1D4ED8;}'
+    + '.selected-doc-tag .remove-tag{cursor:pointer;font-size:12px;color:#6B7280;margin-left:2px;}'
+    + '.selected-doc-tag .remove-tag:hover{color:#DC2626;}'
+    + '.selected-doc-empty{font-size:12px;color:#9CA3AF;}'
+    + '.att-dir-tags{margin-top:10px;}.att-dir-tag{cursor:pointer;}'
+    + '.doc-tree .demo-placeholder{padding:20px;text-align:center;color:#9CA3AF;font-size:13px;}';
+  let defaultDirPaths = [], dirTreeData = null, dirTreeProjectId = null;
+  let dirTreeReady = false, dirTreeLoadError = false, dirTreeLoadSeq = 0;
+  function ensureDirTreeStyles() {
+    if ($('fwDirInlineStyles')) return;
+    const style = document.createElement('style'); style.id = 'fwDirInlineStyles'; style.textContent = DIR_CSS; document.head.appendChild(style);
   }
-  function dirTreeInvalidate() { dirPickerReady = false; dirPickerProjectId = null; }
-  function setDirPh(text) { const t = $('fwDirTree'); if (t) t.innerHTML = '<div class="fwd-ph">' + esc(text) + '</div>'; }
-  function buildDirNodes(nodes, container, parentPath) {
-    let leaf = 0;
+  function attachmentDirSectionHtml() {
+    return '<div class="doc-section attachment-dir-section">'
+      + '<h5><span>📂 所属工程资料</span><span class="dir-selected-count">已选 0 项</span></h5>'
+      + '<div class="doc-desc">根据工程资料目录设置绑定，一个附件可对应多个目录</div>'
+      + '<div class="doc-tree dir-tree-container"><div class="demo-placeholder">暂无工程资料目录，请先在“工程资料目录设置”中创建</div></div>'
+      + '<div class="selected-docs dir-selected-tags att-dir-tags"><span class="selected-doc-empty">未选择工程资料目录</span></div></div>';
+  }
+  function defaultDirSectionHtml() {
+    return '<div class="doc-section" id="fwDefaultDirSection">'
+      + '<h5><span>📂 所属工程资料</span><span class="dir-selected-count" style="font-size:11px;font-weight:400;color:#6B7280;">已选 0 项</span></h5>'
+      + '<div class="doc-desc">根据工程资料目录设置绑定，新上传的附件默认关联到所选目录，每个附件下方仍可单独调整</div>'
+      + '<div class="doc-tree dir-tree-container"><div class="demo-placeholder">暂无工程资料目录，请先在“工程资料目录设置”中创建</div></div>'
+      + '<div class="selected-docs dir-selected-tags"><span class="selected-doc-empty">未选择工程资料目录</span></div></div>';
+  }
+  function dirTreeInvalidate() {
+    dirTreeLoadSeq++; dirTreeReady = false; dirTreeLoadError = false; dirTreeProjectId = null; dirTreeData = null;
+  }
+  function setDirTreePlaceholder(container, text) {
+    if (!container) return;
+    container.innerHTML = '';
+    const placeholder = document.createElement('div'); placeholder.className = 'demo-placeholder'; placeholder.textContent = text;
+    container.appendChild(placeholder);
+  }
+  function directoryHosts() { return Array.from(root.querySelectorAll('#fwDefaultDirs .doc-section, #fwMedia .attachment-dir-section')); }
+  function renderDefaultDirTree() {
+    const wrap = $('fwDefaultDirs'); if (!wrap || !draft) return;
+    wrap.innerHTML = defaultDirSectionHtml();
+    const host = wrap.firstElementChild;
+    host._attachment = null; host._dirs = defaultDirPaths.slice(); host._readOnly = !editable(draft.record);
+    renderDirTree(host);
+  }
+  function renderAllDirTrees() { directoryHosts().forEach(renderDirTree); }
+  function appendDirTreeNodes(nodes, container, parentPath, host) {
+    let leafCount = 0;
     (nodes || []).forEach(node => {
       if (!node || node.status === 'inactive') return;
-      const path = parentPath ? parentPath + ' / ' + node.name : node.name;
-      const children = (node.children || []).filter(c => c && c.status !== 'inactive');
-      const row = document.createElement('div'); row.className = 'fwd-node ' + (children.length ? 'parent' : 'leaf'); row.setAttribute('data-path', path);
-      if (children.length) {
-        const exp = document.createElement('span'); exp.className = 'exp'; exp.textContent = '▼';
-        exp.onclick = e => { e.stopPropagation(); const box = row.nextElementSibling; if (box && box.classList.contains('fwd-children')) { box.classList.toggle('collapsed'); exp.textContent = box.classList.contains('collapsed') ? '▶' : '▼'; } };
-        row.appendChild(exp);
+      const path = parentPath ? parentPath + ' / ' + node.name : String(node.name || '');
+      const children = (node.children || []).filter(child => child && child.status !== 'inactive');
+      const row = document.createElement('div');
+      row.className = 'doc-tree-node dir-tree-node ' + (children.length ? 'doc-parent-node parent-node' : 'doc-leaf-node leaf-node');
+      row.setAttribute('data-path', path); row.setAttribute('data-project-id', String(node.projectId || ''));
+      const checkbox = document.createElement('input'); checkbox.type = 'checkbox';
+      checkbox.disabled = children.length > 0 || host._readOnly || busy;
+      if (!children.length) {
+        checkbox.setAttribute('data-id', String(node.id)); checkbox.setAttribute('data-label', path);
+        checkbox.addEventListener('change', () => updateSelectedDirList(host, true));
       }
-      row.appendChild(document.createTextNode(node.name));
-      if (!children.length) row.onclick = () => { row.classList.toggle('on'); syncDirPathsFromTree(); };
+      checkbox.addEventListener('click', event => event.stopPropagation()); row.appendChild(checkbox);
+      const expand = document.createElement('span'); expand.className = 'expand-icon'; expand.textContent = children.length ? '▼' : '';
+      if (!children.length) expand.style.visibility = 'hidden';
+      row.appendChild(expand);
+      const icon = document.createElement('span'); icon.className = 'node-icon'; icon.textContent = children.length ? '📁' : '📄'; row.appendChild(icon);
+      const label = document.createElement('span'); label.className = 'node-label'; label.textContent = node.name || ''; label.title = path; row.appendChild(label);
+      row.addEventListener('click', () => {
+        if (children.length) { toggleDirTreeNode(row); return; }
+        if (host._readOnly || busy) return;
+        checkbox.checked = !checkbox.checked; updateSelectedDirList(host, true);
+      });
       container.appendChild(row);
-      if (children.length) { const box = document.createElement('div'); box.className = 'fwd-children'; container.appendChild(box); leaf += buildDirNodes(children, box, path); }
-      else leaf++;
+      if (children.length) {
+        const childContainer = document.createElement('div'); childContainer.className = 'doc-tree-children dir-tree-children'; container.appendChild(childContainer);
+        leafCount += appendDirTreeNodes(children, childContainer, path, host);
+      } else leafCount++;
     });
-    return leaf;
+    return leafCount;
   }
-  function loadDirTree(projectId) {
-    if (!App.apiFetch) { setDirPh('目录加载失败：缺少请求组件'); return Promise.resolve(); }
-    if (!projectId) { setDirPh('请先选择所属项目'); dirPickerReady = false; return Promise.resolve(); }
-    dirPickerProjectId = String(projectId); dirPickerReady = false;
-    const seq = ++dirPickerSeq; setDirPh('正在加载工程资料目录...');
-    return App.apiFetch('/sub-item-databases/tree?projectId=' + encodeURIComponent(projectId)).then(tree => {
-      if (seq !== dirPickerSeq || String((draft && draft.body && draft.body.projectId) || '') !== dirPickerProjectId) return;
-      const nodes = (tree || []).filter(n => n && n.status !== 'inactive');
-      const t = $('fwDirTree'); t.innerHTML = '';
-      const leaf = buildDirNodes(nodes, t, '');
-      if (!leaf) { setDirPh('暂无工程资料目录，请先在“工程资料目录设置”中创建'); return; }
-      dirPickerReady = true;
-    }).catch(() => { if (seq === dirPickerSeq) setDirPh('目录加载失败，请稍后重试'); });
-  }
-  function syncDirPathsFromTree() {
-    dirPickerPaths = [];
-    $('fwDirTree').querySelectorAll('.fwd-node.leaf.on').forEach(el => { const p = el.getAttribute('data-path'); if (p) dirPickerPaths.push(p); });
-    renderDirSelected();
-  }
-  function paintTreeSelection() {
-    $('fwDirTree').querySelectorAll('.fwd-node.leaf').forEach(el => {
-      if (dirPickerPaths.indexOf(el.getAttribute('data-path')) > -1) el.classList.add('on'); else el.classList.remove('on');
-    });
-  }
-  function renderDirSelected() {
-    const tagsEl = $('fwDirTags'), countEl = $('fwDirCount');
-    countEl.textContent = dirPickerPaths.length + ' 项';
-    if (!dirPickerPaths.length) { tagsEl.innerHTML = '<span class="fwd-empty">未选择任何目录</span>'; return; }
-    tagsEl.innerHTML = dirPickerPaths.map(p => '<span class="fwd-tag">' + esc(p) + '<i data-rm="' + esc(p) + '">✕</i></span>').join('');
-    tagsEl.querySelectorAll('[data-rm]').forEach(x => { x.onclick = () => { const path = x.getAttribute('data-rm'); dirPickerPaths = dirPickerPaths.filter(v => v !== path); paintTreeSelection(); renderDirSelected(); }; });
-  }
-  function openDirPicker(item) {
-    ensureDirPickerDom();
-    dirPickerItem = item;
-    dirPickerPaths = (item.dirs || []).filter(Boolean).slice();
-    $('fwDirFile').textContent = item.name || '已上传文件';
-    $('fwDirModal').classList.add('show');
-    const pid = (draft && draft.body && draft.body.projectId) || '';
-    if (dirPickerReady && dirPickerProjectId === String(pid)) { paintTreeSelection(); renderDirSelected(); }
-    else loadDirTree(pid).then(() => { paintTreeSelection(); renderDirSelected(); });
-  }
-  function closeDirPicker() { const m = $('fwDirModal'); if (m) m.classList.remove('show'); dirPickerItem = null; }
-  function confirmDirPicker() {
-    if (dirPickerItem) {
-      dirPickerItem.dirs = dirPickerPaths.slice();
-      try { localSave(); } catch (e) { notice(e.message); }
-      renderMedia();
+  function ensureDirTree() {
+    const pid = String((draft && draft.body && draft.body.projectId) || ''), seq = ++dirTreeLoadSeq;
+    if (!pid) {
+      dirTreeProjectId = null; dirTreeData = null; dirTreeReady = false; dirTreeLoadError = false; renderAllDirTrees(); return Promise.resolve();
     }
-    closeDirPicker();
+    if (dirTreeReady && dirTreeProjectId === pid && dirTreeData) { renderAllDirTrees(); return Promise.resolve(); }
+    dirTreeProjectId = pid; dirTreeData = null; dirTreeReady = false; dirTreeLoadError = false; renderAllDirTrees();
+    if (!App.apiFetch) { dirTreeLoadError = true; renderAllDirTrees(); return Promise.resolve(); }
+    return App.apiFetch('/sub-item-databases/tree?projectId=' + encodeURIComponent(pid)).then(tree => {
+      if (seq !== dirTreeLoadSeq || String((draft && draft.body && draft.body.projectId) || '') !== pid) return;
+      dirTreeData = Array.isArray(tree) ? tree : []; dirTreeReady = true; renderAllDirTrees();
+    }).catch(() => {
+      if (seq !== dirTreeLoadSeq || String((draft && draft.body && draft.body.projectId) || '') !== pid) return;
+      dirTreeLoadError = true; renderAllDirTrees();
+    });
   }
+  function renderDirTree(host) {
+    const container = host && host.querySelector('.dir-tree-container'); if (!container) return;
+    const pid = String((draft && draft.body && draft.body.projectId) || '');
+    if (!pid) { setDirTreePlaceholder(container, '暂无工程资料目录，请先在“工程资料目录设置”中创建'); renderDirTags(host); return; }
+    if (dirTreeLoadError && dirTreeProjectId === pid) { setDirTreePlaceholder(container, '工程资料目录加载失败，请稍后重试'); renderDirTags(host); return; }
+    if (!dirTreeReady || dirTreeProjectId !== pid || !dirTreeData) { setDirTreePlaceholder(container, '正在加载工程资料目录…'); renderDirTags(host); return; }
+    container.innerHTML = '';
+    const leafCount = appendDirTreeNodes(dirTreeData, container, '', host);
+    if (!leafCount) { setDirTreePlaceholder(container, '暂无工程资料目录，请先在“工程资料目录设置”中创建'); renderDirTags(host); return; }
+    applyDirSelection(host);
+  }
+  function applyDirSelection(host) {
+    const selected = host._dirs || [];
+    host.querySelectorAll('.dir-tree-container input[type="checkbox"][data-label]').forEach(checkbox => {
+      checkbox.checked = selected.includes(checkbox.getAttribute('data-label'));
+    });
+    updateSelectedDirList(host, false);
+  }
+  function toggleDirTreeNode(row) {
+    const children = row.nextElementSibling;
+    if (!children || !children.classList.contains('doc-tree-children')) return;
+    children.classList.toggle('collapsed');
+    const icon = row.querySelector('.expand-icon');
+    if (icon && icon.style.visibility !== 'hidden') icon.textContent = children.classList.contains('collapsed') ? '▶' : '▼';
+  }
+  function updateSelectedDirList(host, save) {
+    const selected = [];
+    host.querySelectorAll('.dir-tree-container input[type="checkbox"][data-label]').forEach(checkbox => {
+      if (checkbox.checked) selected.push(checkbox.getAttribute('data-label'));
+    });
+    host._dirs = selected;
+    if (host._attachment) host._attachment.dirs = selected.slice(); else defaultDirPaths = selected.slice();
+    renderDirTags(host); syncDirParentCheckboxes(host);
+    if (save && host._attachment && !host._readOnly) {
+      try { localSave(); } catch (e) { notice(e.message); }
+    }
+  }
+  function renderDirTags(host) {
+    const tagsEl = host.querySelector('.dir-selected-tags'), countEl = host.querySelector('.dir-selected-count');
+    if (!tagsEl || !countEl) return;
+    const selected = host._dirs || []; countEl.textContent = '已选 ' + selected.length + ' 项'; tagsEl.innerHTML = '';
+    if (!selected.length) {
+      const empty = document.createElement('span'); empty.className = 'selected-doc-empty'; empty.textContent = '未选择工程资料目录'; tagsEl.appendChild(empty); return;
+    }
+    selected.forEach(path => {
+      const tag = document.createElement('span'); tag.className = 'selected-doc-tag att-dir-tag'; tag.setAttribute('data-path', path);
+      tag.setAttribute('role', 'button'); tag.setAttribute('tabindex', '0'); tag.title = path + '（点击定位到目录树，可重新修改）';
+      tag.appendChild(document.createTextNode(path)); tag.addEventListener('click', () => focusDirTreePath(host, path));
+      tag.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); focusDirTreePath(host, path); } });
+      if (!host._readOnly) {
+        const remove = document.createElement('span'); remove.className = 'remove-tag remove-dir-tag'; remove.textContent = '✕';
+        remove.addEventListener('click', event => { event.stopPropagation(); removeDirTag(host, path); }); tag.appendChild(remove);
+      }
+      tagsEl.appendChild(tag);
+    });
+  }
+  function focusDirTreePath(host, path) {
+    const checkbox = Array.from(host.querySelectorAll('.dir-tree-container input[type="checkbox"][data-label]'))
+      .find(el => el.getAttribute('data-label') === path);
+    if (checkbox) {
+      let children = checkbox.closest('.doc-tree-children');
+      while (children) {
+        children.classList.remove('collapsed');
+        const parentRow = children.previousElementSibling, icon = parentRow && parentRow.querySelector('.expand-icon');
+        if (icon) icon.textContent = '▼';
+        children = children.parentElement.closest('.doc-tree-children');
+      }
+      checkbox.scrollIntoView({ block: 'center', behavior: 'smooth' }); checkbox.focus({ preventScroll: true }); return;
+    }
+    const container = host.querySelector('.dir-tree-container'); if (container) container.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+  function removeDirTag(host, path) {
+    if (host._readOnly || busy) return;
+    const checkbox = Array.from(host.querySelectorAll('.dir-tree-container input[type="checkbox"][data-label]'))
+      .find(el => el.getAttribute('data-label') === path);
+    if (checkbox) { checkbox.checked = false; updateSelectedDirList(host, true); return; }
+    host._dirs = (host._dirs || []).filter(value => value !== path);
+    if (host._attachment) host._attachment.dirs = host._dirs.slice(); else defaultDirPaths = host._dirs.slice();
+    renderDirTags(host);
+  }
+  function syncDirParentCheckboxes(host) {
+    const rows = Array.from(host.querySelectorAll('.dir-tree-container .doc-tree-node'));
+    for (let i = rows.length - 1; i >= 0; i--) {
+      const checkbox = rows[i].querySelector('input[type="checkbox"]'), children = rows[i].nextElementSibling;
+      if (!checkbox || !children || !children.classList.contains('doc-tree-children')) continue;
+      const direct = Array.from(children.querySelectorAll(':scope > .doc-tree-node > input[type="checkbox"]'));
+      if (!direct.length) continue;
+      const allChecked = direct.every(child => child.checked), anyChecked = direct.some(child => child.checked || child.indeterminate);
+      checkbox.checked = allChecked; checkbox.indeterminate = !allChecked && anyChecked;
+    }
+  }
+  function syncDirectoryControls() {
+    directoryHosts().forEach(host => host.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+      checkbox.disabled = !checkbox.hasAttribute('data-label') || host._readOnly || busy;
+    }));
+  }
+  ensureDirTreeStyles();
   async function locked(action) {
     if (busy) return;
     if (checklistView) checklistView.guard();
     cancelPrefill();
     linkEditors.forEach(editor => { editor.guard(); editor.cancel(); });
-    if (resourceView) resourceView.cancel();
     busy = true; $('fwEditor').querySelectorAll('button, input, textarea, select').forEach(e => e.disabled = true);
     try { await action(); } finally {
       busy = false; $('fwEditor').querySelectorAll('button, input, textarea, select').forEach(e => e.disabled = false);
+      syncDirectoryControls();
+      if (isLog) renderParticipants();
       const select = root.querySelector('[data-field="projectId"]'); if (select && draft) select.disabled = !!draft.record.id || !editable(draft.record);
       if (isDaily && draft && !editable(draft.record)) root.querySelectorAll('[data-ic-field], [data-problem-field]').forEach(e => e.disabled = true);
     }
@@ -823,14 +1188,23 @@
   async function exportRows() {
     const rows = []; let number = 1; const params = filters();
     while (true) { const data = await App.apiGetPage('/records/' + kind, Object.assign({}, params, { pageNum: number++, pageSize: 100 })); assertAccount(); rows.push(...data.list); if (rows.length >= data.total || !data.list.length) break; }
+    const exportNames = new Map();
+    if (isLog) {
+      const projectIds = [...new Set(rows.map(r => r.projectId).filter(Boolean))];
+      await Promise.all(projectIds.map(async projectId => {
+        const list = await api('/field/projects/' + encodeURIComponent(projectId) + '/member-options');
+        (list || []).forEach(person => exportNames.set(String(person.userId), person.userName));
+      }));
+    }
     const fields = [['code', '编号'], ['projectId', '项目 ID'], [schema.date, '日期'], ['status', '状态']]
-      .concat(hasTemplate ? [['version', '业务版本'], ['sourceRecordId', '上一版本记录 ID'], ['submittedAt', '提交时间'], ['reviewedAt', '审核时间'], ['rejectReason', '驳回原因']] : [])
+      .concat(isLog ? [['participants', '参会人员']] : [], hasTemplate ? [['version', '业务版本'], ['sourceRecordId', '上一版本记录 ID'], ['submittedAt', '提交时间'], ['reviewedAt', '审核时间'], ['rejectReason', '驳回原因']] : [])
       .concat(hasTemplate ? [['projectName', '工程名称'], ['authorName', AUTHOR_LABEL], ['reviewerName', '审核人及审核记录']] : [], schema.fields,
         isLog ? [['weekStart', '周起始日期'], ['weekEnd', '周结束日期'], ['photos', '照片清单'], ['attachments', '附件清单'], ['diarySources', '引用日记']] : [],
         isDaily ? [['inspectionSummary', '检查统计'], ['inspectionDetails', '检查项与问题明细'], ['fileNames', '照片与附件名称']] : []);
     const cell = value => '"' + String(value == null ? '' : value).replace(/^[=+@\-\t\r]/, "'$&").replace(/"/g, '""') + '"';
     const csv = [fields.map(f => cell(f[1].replace(/\s*\*+$/, ''))).join(',')].concat(rows.map(r => {
       const data = unpack(kind, r);
+      if (isLog) data.participants = participantText(r.participants, exportNames);
       if (isDaily) { data.inspectionSummary = C.summary(r.checklist); data.inspectionDetails = C.format(r.checklist); data.fileNames = parse(r.photos).concat(parse(r.attachments)).map(f => f.name || '附件').join('、'); data.status = statusText(kind, r.status); }
       ['startTime', 'endTime'].forEach(k => { if (data[k]) data[k] = prettyTime(data[k]); });
       if (hasTemplate) {
@@ -891,6 +1265,7 @@
     return '<details><summary>V' + esc(record.version || 1) + ' · ' + esc(statusText(kind, record.status)) + ' · ' + esc(record[schema.date]) + '</summary>'
       + '<p>编号：' + esc(record.code) + ' · 填写人：' + esc(people.author) + '</p><p>提交：' + esc(record.submittedAt || '尚未提交') + ' · 审核：' + esc(people.reviewer) + '</p>'
       + (record.rejectReason ? '<p class="fw-sub-reject">驳回原因：' + esc(record.rejectReason) + '</p>' : '')
+      + (isLog ? '<h4>参会人员</h4><p>' + esc(participantText(record.participants) || '—') + '</p>' : '')
       + schema.fields.map(f => '<h4>' + esc(f[1]) + '</h4>' + (isDiary && links && links.fields.includes(f[0])
         ? '<div class="fd-history-body" data-diary-raw="' + esc(values[f[0]] || '') + '"></div>'
         : '<p style="white-space:pre-wrap">' + esc(values[f[0]] == null ? '' : values[f[0]]) + '</p>')).join('')
@@ -910,7 +1285,7 @@
   });
   $('fwCompare').onclick = run(async () => { const current = draft; const remote = await api('/' + kind + '/' + current.record.id); if (draft !== current || $('fwEditor').hidden) return; $('fwHistoryContent').innerHTML = '<h3>服务器当前版本（本机表单未覆盖）</h3>' + snapshotHtml(remote); renderSnapshotLinks(); });
   $('fwPrefill').onclick = run(() => prefillLog(false));
-  $('fwSource').onclick = run(async () => { cancelPrefill(); collect(); const source = await api('/field/diary-source?' + App.buildQuery({ projectId: draft.body.projectId, date: draft.body.logDate })); let filled = false; schema.fields.forEach(f => { if (!String(draft.body[f[0]] || '').trim() && source[f[0]]) { draft.body[f[0]] = source[f[0]]; filled = true; } }); if (filled) draft.body.diarySources = JSON.stringify(source.sources); form(draft.body, draft.record); localSave(); renderMedia(); renderGuide(); notice(filled ? '只填入空白栏目，来源已关联；请人工确认后提交。' : '没有可填入内容，原文未改变。'); });
+  $('fwSource').onclick = run(async () => { cancelPrefill(); collect(); const source = await api('/field/diary-source?' + App.buildQuery({ projectId: draft.body.projectId, date: draft.body.logDate })); let filled = false; schema.fields.forEach(f => { if (!String(draft.body[f[0]] || '').trim() && source[f[0]]) { draft.body[f[0]] = source[f[0]]; filled = true; } }); if (filled) draft.body.diarySources = JSON.stringify(source.sources); form(draft.body, draft.record); localSave(); renderMedia(); notice(filled ? '只填入空白栏目，来源已关联；请人工确认后提交。' : '没有可填入内容，原文未改变。'); });
   async function uploadPending() {
     await locked(async () => {
       const failed = [];
@@ -919,8 +1294,12 @@
           $('fwUploadState').textContent = '正在上传：' + entry.file.name;
           if (!entry.remote) { entry.remote = await App.uploadFile(entry.file); assertAccount(); }
           const list = entry.file.type.startsWith('image/') ? photos : attachments;
-          if (!list.some(p => p.url === entry.remote.url)) list.push(Object.assign({}, entry.remote, { source: 'album', description: '' }));
-          localSave(); await renderMedia(); renderGuide();
+          if (!list.some(p => p.url === entry.remote.url)) {
+            const uploaded = Object.assign({}, entry.remote, { source: 'album', description: '' });
+            if (list === attachments) uploaded.dirs = defaultDirPaths.slice();
+            list.push(uploaded);
+          }
+          localSave(); await renderMedia();
         } catch (e) { entry.error = e.message; failed.push(entry); }
       }
       pendingUploads = failed;
@@ -946,7 +1325,12 @@
   $('fwPrint').onclick = run(() => {
     if (checklistView) checklistView.print();
     linkEditors.forEach(editor => editor.collect());
-    const fields = Array.from($('fwForm').querySelectorAll('textarea, input, select')).filter(el => !el.hidden && !el.closest('#fwChecklist') && !el.closest('#fwResources'));
+    collect();
+    if (isLog) {
+      const host = $('fwF-participants'), text = document.createElement('div');
+      text.className = 'fw-print-value'; text.textContent = participantText(draft.body.participants) || '—'; text.style.whiteSpace = 'pre-wrap'; host.after(text);
+    }
+    const fields = Array.from($('fwForm').querySelectorAll('textarea, input, select')).filter(el => el.type !== 'checkbox' && !el.hidden && !el.closest('#fwChecklist') && !el.closest('#fwDiaryDay') && !el.closest('#fwDiaryRelated'));
     fields.forEach(el => { const text = document.createElement('div'); text.className = 'fw-print-value'; text.textContent = el.tagName === 'SELECT' ? (el.options[el.selectedIndex] || {}).text || '' : el.value; text.style.whiteSpace = 'pre-wrap'; el.after(text); el.hidden = true; });
     const collapsed = Array.from($('fwForm').querySelectorAll('details:not([open])'));
     collapsed.forEach(el => { el.open = true; });
@@ -964,7 +1348,7 @@
     if (hasTemplate) root.querySelector('thead th:nth-child(4)').textContent = AUTHOR_LABEL;
     await load();
     const params = new URLSearchParams(location.search), id = params.get('id');
-    if (hasTemplate && id) {
+    if (id) {
       if (!/^\d+$/.test(id)) throw new Error(schema.title + '编号参数无效');
       await open(id, params.get('readonly') === 'true');
     }

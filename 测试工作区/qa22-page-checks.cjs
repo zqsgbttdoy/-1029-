@@ -39,7 +39,7 @@ check('assets/field-records.js', '关闭与取消直接关闭编辑器并丢弃�
   && /const dismissEditor = run\(async \(\) => \{ removeDraft\(\); closeEditor\(\); dirty = false;/.test(fieldRecordsJs)
   && !/\$\('fwClose'\)\.onclick = leaveEditor/.test(fieldRecordsJs));
 check('assets/field-records.js', '巡检旁站新建不再要求先选工具栏项目，改由表单项目下拉选择',
-  /if \(hasTemplate && !\$\('fwProject'\)\.value && projects\.length > 1\)/.test(fieldRecordsJs)
+  /if \(isLog && !\$\('fwProject'\)\.value && projects\.length > 1\)/.test(fieldRecordsJs)
   && /<option value="">请选择项目名称<\/option>/.test(fieldRecordsJs)
   && /请选择项目名称（工程名称）后再/.test(fieldRecordsJs)
   && !/if \(!\$\('fwProject'\)\.value && projects\.length > 1\)/.test(fieldRecordsJs));
@@ -277,7 +277,7 @@ async function main() {
     /canReview && kind !== 'daily-inspections' && \(status === 'submitted' \|\| status === 'pending'\)/.test(recordWxml)
     && /\{\{submitLabel\}\}/.test(recordWxml)
     && /memo \? '联网保存 \/ 重试' : '联网保存草稿 \/ 重试'/.test(recordWxml)
-    && /检查项手动添加；不符合可添加问题，不会自动创建问题。/.test(recordWxml)
+    && /检查项手动添加；提交前请为每项选择检查结果。点击“问题”即可直接填写问题说明，无需再次添加。/.test(recordWxml)
     && !/改变审核状态/.test(recordWxml)
     && /if \(kind !== 'daily-inspections'\) return '确认提交审核';/.test(recordJs)
     && /return serverId && isSavedMemo\(kind, status\) \? '保存修改' : '提交';/.test(recordJs)

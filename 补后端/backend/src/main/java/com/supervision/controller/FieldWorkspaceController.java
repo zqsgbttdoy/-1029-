@@ -19,6 +19,7 @@ public class FieldWorkspaceController {
     private final FieldRecordService records;
     private final ProjectAccessService access;
     private final SafetyLogService safetyLogs;
+    private final DiaryAttachmentService diaryAttachments;
 
     /** 列表统一入口：保留原业务路径，复用同一状态过滤及项目、作者可见性校验。 */
     @GetMapping("/records/{kind}")
@@ -51,6 +52,12 @@ public class FieldWorkspaceController {
         return ApiResponse.success(records.summary(projectId, date));
     }
 
+    @GetMapping("/field/diary-day-workbench")
+    public ApiResponse<Map<String, Object>> diaryDayWorkbench(@RequestParam Long projectId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return ApiResponse.success(diaryAttachments.dailyWorkbench(projectId, date));
+    }
+
     @GetMapping("/field/diary-source")
     public ApiResponse<Map<String, Object>> diarySource(@RequestParam Long projectId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
@@ -62,6 +69,9 @@ public class FieldWorkspaceController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         return ApiResponse.success(records.diaryPrefill(projectId, date));
     }
+
+    @GetMapping("/field/projects/{projectId}/member-options")
+    public ApiResponse<?> memberOptions(@PathVariable Long projectId) { return ApiResponse.success(access.memberOptions(projectId)); }
 
     @GetMapping("/projects/{projectId}/members")
     public ApiResponse<?> members(@PathVariable Long projectId) { return ApiResponse.success(access.members(projectId)); }

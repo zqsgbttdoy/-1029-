@@ -65,6 +65,7 @@ public class SupervisionLogService {
         supervisionLog.setWeekStart(dto.getWeekStart());
         supervisionLog.setWeekEnd(dto.getWeekEnd());
         supervisionLog.setAuthorId(dto.getAuthorId());
+        supervisionLog.setParticipants(dto.getParticipants());
         supervisionLog.setWeather(dto.getWeather());
         supervisionLog.setWind(dto.getWind());
         supervisionLog.setTemperature(dto.getTemperature());
@@ -94,6 +95,7 @@ public class SupervisionLogService {
         existing.setWeekStart(dto.getWeekStart());
         existing.setWeekEnd(dto.getWeekEnd());
         existing.setAuthorId(dto.getAuthorId());
+        existing.setParticipants(dto.getParticipants());
         existing.setWeather(dto.getWeather());
         existing.setWind(dto.getWind());
         existing.setTemperature(dto.getTemperature());
@@ -143,6 +145,7 @@ public class SupervisionLogService {
         newVer.setWeekStart(existing.getWeekStart());
         newVer.setWeekEnd(existing.getWeekEnd());
         newVer.setAuthorId(existing.getAuthorId());
+        newVer.setParticipants(existing.getParticipants());
         newVer.setWeather(existing.getWeather());
         newVer.setWind(existing.getWind());
         newVer.setTemperature(existing.getTemperature());

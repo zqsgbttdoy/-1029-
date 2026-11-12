@@ -1,0 +1,218 @@
+{
+  "run": "SYNC-1794375136609",
+  "base": "http://127.0.0.1:18091/api",
+  "time": "2026-11-11T05:32:17.147Z",
+  "counts": {
+    "通过": 21
+  },
+  "results": [
+    {
+      "id": "T01",
+      "title": "隔离实例 admin 登录成功",
+      "result": "通过",
+      "expected": "",
+      "actual": {
+        "userId": 1
+      }
+    },
+    {
+      "id": "T02",
+      "title": "A1 仅说明的新结构可创建，落库不重建 name/type",
+      "result": "通过",
+      "expected": "",
+      "actual": {
+        "id": "p-min",
+        "description": "防护松动，已要求立即加固",
+        "foundById": 1,
+        "foundByName": "admin",
+        "attachments": []
+      }
+    },
+    {
+      "id": "T03",
+      "title": "A2 仅说明结构提交即保存（recorded）",
+      "result": "通过",
+      "expected": "",
+      "actual": "recorded"
+    },
+    {
+      "id": "T04",
+      "title": "A3 已保存巡检再编辑仍仅存说明且保持 recorded",
+      "result": "通过",
+      "expected": "",
+      "actual": {
+        "status": "recorded",
+        "problem": {
+          "id": "p-min",
+          "description": "防护已加固并复查合格",
+          "foundById": 1,
+          "foundByName": "admin",
+          "attachments": []
+        }
+      }
+    },
+    {
+      "id": "T05",
+      "title": "A4 历史 name/type 原样保留不被丢弃",
+      "result": "通过",
+      "expected": "",
+      "actual": {
+        "id": "p-old",
+        "name": "防护缺失",
+        "type": "安全问题",
+        "description": "历史问题说明",
+        "foundById": 1,
+        "foundByName": "admin",
+        "attachments": []
+      }
+    },
+    {
+      "id": "T06",
+      "title": "A5 历史记录提交不受字段下线影响",
+      "result": "通过",
+      "expected": "",
+      "actual": "recorded"
+    },
+    {
+      "id": "T07",
+      "title": "A6 空说明（仅旧名称）也可提交，名称必填已下线",
+      "result": "通过",
+      "expected": "",
+      "actual": {
+        "http": 200,
+        "message": "操作成功"
+      }
+    },
+    {
+      "id": "T08",
+      "title": "A7 历史类型字段仍做枚举校验（非法类型拒绝）",
+      "result": "通过",
+      "expected": "",
+      "actual": {
+        "http": 400,
+        "message": "问题类型无效"
+      }
+    },
+    {
+      "id": "T09",
+      "title": "B1 同步工作栏含检查项与不符合结果",
+      "result": "通过",
+      "expected": "",
+      "actual": "【日常巡检】SYNC-1794375136609-min\n巡检时间：2026-11-10 08:30\n检查部位：三层临边\n施工人数：5 人；管理人数：2 人\n巡视内容：巡视原文\n检查项：\n1. 检查临边防护\n检查结果：不符合"
+    },
+    {
+      "id": "T10",
+      "title": "B2 同步问题栏只输出“问题说明”且无名称/类型行",
+      "result": "通过",
+      "expected": "",
+      "actual": "【日常巡检】SYNC-1794375136609-min\n检查项 1：检查临边防护\n检查结果：不符合\n问题说明：防护已加固并复查合格"
+    },
+    {
+      "id": "T11",
+      "title": "B3 同步正文真实落库且读取一致",
+      "result": "通过",
+      "expected": "",
+      "actual": {
+        "inspection": "【日常巡检】SYNC-1794375136609-min\n巡检时间：2026-11-10 08:30\n检查部位：三层临边",
+        "newIssues": "【日常巡检】SYNC-1794375136609-min\n检查项 1：检查临边防护\n检查结果：不符合\n问题说明：防护已加固并复查合格"
+      }
+    },
+    {
+      "id": "T12",
+      "title": "B4 重复同步幂等不追加",
+      "result": "通过",
+      "expected": "",
+      "actual": {
+        "addedText": 0
+      }
+    },
+    {
+      "id": "T13",
+      "title": "B5 旧记录空说明回退旧名称同步",
+      "result": "通过",
+      "expected": "",
+      "actual": "【日常巡检】SYNC-1794375136609-legacy2\n检查项 1：检查临边防护\n检查结果：不符合\n问题说明：老问题名称"
+    },
+    {
+      "id": "T14",
+      "title": "B6 巡检照片并入日记照片区且带来源标记",
+      "result": "通过",
+      "expected": "",
+      "actual": [
+        {
+          "url": "/api/uploads/20261111/818cc44fc8924717a1dd0515f52900fe.png",
+          "name": "巡检现场.png",
+          "source": "daily-inspection",
+          "sourceId": 4,
+          "description": "来源：日常巡检 SYNC-1794375136609-min",
+          "size": 68
+        }
+      ]
+    },
+    {
+      "id": "T15",
+      "title": "B7 同步照片真实落库",
+      "result": "通过",
+      "expected": "",
+      "actual": {
+        "http": 200
+      }
+    },
+    {
+      "id": "T16",
+      "title": "C1 隔离站 PC 资产为点开即输入版本",
+      "result": "通过",
+      "expected": "",
+      "actual": {
+        "quick": true,
+        "hint": true
+      }
+    },
+    {
+      "id": "T17",
+      "title": "C2 PC 问题面板不再渲染名称/类型字段",
+      "result": "通过",
+      "expected": "",
+      "actual": null
+    },
+    {
+      "id": "T18",
+      "title": "C3 巡检页面可访问且引用检查项组件",
+      "result": "通过",
+      "expected": "",
+      "actual": {
+        "http": true
+      }
+    },
+    {
+      "id": "T19",
+      "title": "D1 清理后 daily-inspections 无残留",
+      "result": "通过",
+      "expected": "",
+      "actual": {
+        "http": 200,
+        "total": 0
+      }
+    },
+    {
+      "id": "T20",
+      "title": "D1 清理后 supervision-diaries 无残留",
+      "result": "通过",
+      "expected": "",
+      "actual": {
+        "http": 200,
+        "total": 0
+      }
+    },
+    {
+      "id": "T21",
+      "title": "D2 清理后项目数回到基线",
+      "result": "通过",
+      "expected": "",
+      "actual": {
+        "before": 0,
+        "after": 0
+      }
+    }
+  ]
+}

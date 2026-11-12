@@ -5,7 +5,6 @@
  *   · 表单卡片（标题 + 关闭 / 独立滚动正文 / 固定底部操作栏）
  *   · 两列字段栅格 + 全宽长文本
  *   · 控件高度 44px、圆角 6px、边框 #E5E7EB、聚焦蓝环
- *   · 浅蓝“今日填写指引”信息面板
  *   · 虚线拖放上传区
  *   · 主/次/危险按钮语义（保存草稿 / 取消 / 提交）
  * 本文件同时保留 .fw 记录工作区（列表 + 编辑器）的样式。
@@ -36,6 +35,12 @@
 .fd-input:focus, .fd-select:focus, .fd-textarea:focus { outline:none; border-color:#2563EB; box-shadow:0 0 0 3px rgba(37,99,235,.12); }
 .fd-input:disabled, .fd-select:disabled, .fd-textarea:disabled, .fd-textarea[readonly], .fd-input[readonly] { background:#F9FAFB; color:#6B7280; cursor:default; }
 .fd-readonly { display:flex; align-items:center; height:44px; padding:0 14px; border:1px solid #E5E7EB; border-radius:6px; background:#fff; color:#374151; font-size:14px; }
+.fd-participant-list { display:flex; flex-wrap:wrap; gap:10px 20px; padding:12px 14px; border:1px solid #E5E7EB; border-radius:6px; background:#fff; }
+.fd-participant-option { display:inline-flex; align-items:center; gap:7px; min-height:28px; color:#374151; font-size:14px; cursor:pointer; }
+.fd-participant-option input { width:16px; height:16px; margin:0; accent-color:#2563EB; cursor:pointer; }
+.fd-participant-option input:disabled, .fd-participant-option:has(input:disabled) { cursor:default; }
+.fd-participant-legacy { color:#B45309; }
+.fd-participant-error { color:#B45309; }
 .fd-hint { margin-top:8px; font-size:12px; color:#9CA3AF; line-height:1.7; }
 .fd-hint strong { color:#D97706; font-weight:600; }
 .fd-error { margin:0 0 16px; padding:10px 14px; border:1px solid #FECACA; border-radius:8px; background:#FEF2F2; color:#B91C1C; font-size:13px; line-height:1.7; white-space:pre-wrap; }
@@ -73,16 +78,53 @@
 [data-kind="safety-logs"] .fd-dz-sub { line-height:1.7; }
 .fd-sec-title { margin:0 0 14px; padding-bottom:10px; border-bottom:1px solid #F1F5F9; font-size:15px; font-weight:600; color:#111827; line-height:1.5; }
 
-/* ---------- 今日填写指引（浅蓝信息面板） ---------- */
-.fd-info { display:grid; grid-template-columns:1fr 1fr; gap:10px 24px; margin:0 0 22px; padding:18px 20px; border:1px solid #DBEAFE; border-radius:10px; background:#F0F7FF; }
-.fd-info-col { min-width:0; }
-.fd-info-title { margin-bottom:4px; font-size:14px; font-weight:600; color:#2563EB; }
-.fd-info-item { font-size:13px; color:#94A3B8; line-height:1.9; font-style:italic; word-break:break-word; }
-.fd-info-item.on { color:#334155; font-style:normal; }
-.fd-guide-title { margin-bottom:8px; font-size:14px; color:#374151; line-height:1.5; }
-#fwGuide { margin-bottom:20px; }
-#fwGuide .fd-info { margin-bottom:0; }
-#fwGuide[hidden] { display:none !important; }
+/* 日记当天业务摘要、实时资料绑定与实际附件徽标；与旧正文引用区完全分离。 */
+.diary-day-panel, .diary-related-panel { margin:0 0 22px; padding:16px; border:1px solid #BFDBFE; border-radius:10px; background:#F8FBFF; }
+.diary-day-title { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.diary-day-panel h3, .diary-related-panel h3 { margin:0; color:#1E40AF; font-size:15px; }
+.diary-day-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-top:14px; }
+.diary-day-group { min-width:0; padding:12px; border:1px solid #DBEAFE; border-radius:8px; background:#fff; }
+.diary-day-group h4, .diary-documents h4 { margin:0 0 10px; color:#334155; font-size:13px; }
+.diary-day-record { padding:10px 0; border-top:1px dashed #DBEAFE; overflow-wrap:anywhere; }
+.diary-day-record:first-of-type { border-top:0; padding-top:0; }
+.diary-day-record-head { display:flex; flex-direction:column; gap:4px; font-size:13px; }
+.diary-day-record-head strong { color:#1D4ED8; }
+.diary-day-record p, .diary-document-main p { margin:6px 0; color:#64748B; font-size:12px; line-height:1.7; white-space:pre-wrap; }
+.diary-day-actions, .diary-day-files, .diary-document-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:8px; }
+.diary-day-actions a, .diary-linked-summary a { color:#1D4ED8; line-height:1.8; }
+.diary-file-link { color:#1D4ED8 !important; text-align:left; overflow-wrap:anywhere; }
+.diary-copy-host { margin-top:8px; }
+.diary-sync-panel { display:grid; gap:8px; margin-top:10px; padding:12px; border:1px solid #93C5FD; border-radius:8px; background:#EFF6FF; }
+.diary-sync-panel p { margin:0; }
+.diary-sync-panel label { display:flex; align-items:flex-start; gap:8px; color:#334155; font-size:13px; line-height:1.6; }
+.diary-sync-panel input { flex:0 0 auto; margin-top:3px; }
+.diary-sync-confirm, .diary-sync-button { border-color:#2563EB !important; color:#1D4ED8 !important; }
+.diary-manual-copy { width:100%; min-height:84px; box-sizing:border-box; padding:8px; border:1px solid #93C5FD; border-radius:6px; background:#fff; resize:vertical; }
+.diary-day-empty { margin:10px 0; color:#94A3B8; font-size:13px; }
+.diary-day-error { margin:10px 0; color:#B91C1C; font-size:13px; white-space:pre-wrap; }
+.diary-documents { margin-top:16px; padding-top:14px; border-top:1px solid #DBEAFE; }
+.diary-document-row { display:flex; align-items:flex-start; gap:12px; padding:12px; margin-top:8px; border:1px solid #E5E7EB; border-radius:8px; background:#fff; }
+.diary-document-main { flex:1; min-width:0; overflow-wrap:anywhere; }
+.diary-document-main > strong { color:#1F2937; }
+.diary-document-actions { flex-shrink:0; margin-top:0; }
+.diary-bind-button { color:#1D4ED8 !important; border-color:#93C5FD !important; }
+.diary-unbind-button { color:#B91C1C !important; border-color:#FECACA !important; }
+.diary-linked-details { margin-top:8px; }
+.diary-linked-tag { display:inline-flex; width:fit-content; padding:3px 10px; border-radius:12px; background:#DBEAFE; color:#1D4ED8; font-size:12px; font-weight:600; cursor:pointer; }
+.diary-linked-summary { margin-top:8px; padding:10px; border-radius:6px; background:#F0F7FF; color:#475569; font-size:12px; line-height:1.8; }
+.diary-unlinked-tag { display:inline-flex; margin-top:8px; padding:3px 10px; border-radius:12px; background:#F3F4F6; color:#6B7280; font-size:12px; }
+.diary-related-panel { background:#F0F7FF; }
+.diary-related-panel h3 span { margin-left:8px; color:#64748B; font-size:12px; font-weight:400; }
+.fw .fw-chip.diary-related-badge { margin-left:8px; padding:4px 10px; border:1px solid #BFDBFE; background:#DBEAFE; color:#1D4ED8; vertical-align:middle; cursor:pointer; }
+.diary-local-state { display:block; margin-top:4px; color:#92400E; }
+@media (max-width:900px) {
+  .diary-day-grid { grid-template-columns:minmax(0,1fr); }
+  .diary-document-row { flex-direction:column; }
+  .diary-document-actions { width:100%; }
+}
+@media print {
+  .diary-day-panel button, .diary-related-panel button { display:none !important; }
+}
 
 /* 截图未包含、但现有提交模型仍需要的字段：保留取值与提交，不冒充模板字段 */
 .fd-compat { grid-column:1 / -1; margin:0 0 20px; }
@@ -227,15 +269,18 @@ body.fw-modal-open { overflow:hidden; }
 .fw .ic-table { table-layout:fixed; margin-top:14px; }
 .fw .ic-table th, .fw .ic-table td { padding:10px 8px; vertical-align:top; }
 .ic-table th:nth-child(1) { width:6%; }
-.ic-table th:nth-child(2) { width:31%; }
-.ic-table th:nth-child(3) { width:22%; }
-.ic-table th:nth-child(4) { width:9%; }
-.ic-table th:nth-child(5) { width:15%; }
-.ic-table th:nth-child(6) { width:17%; }
+.ic-table th:nth-child(2) { width:34%; }
+.ic-table th:nth-child(3) { width:18%; }
+.ic-table th:nth-child(4) { width:22%; }
+.ic-table th:nth-child(5) { width:20%; }
+.ic-photo-list { display:flex; flex-direction:column; gap:6px; margin-bottom:6px; }
+.ic-photo-item { display:flex; flex-wrap:wrap; align-items:center; gap:6px; font-size:12px; color:#475569; }
+.ic-photo-item img { width:56px; height:56px; object-fit:cover; border-radius:6px; border:1px solid #E2E8F0; background:#F8FAFC; }
+.ic-photo-item span { flex:1 1 60px; min-width:0; overflow-wrap:anywhere; }
+.ic-photo-item button { min-height:32px; padding:4px 8px; }
+.ic-empty-mini { font-size:12px; color:#94A3B8; }
 .ic-field { display:block; min-width:0; font-size:13px; line-height:1.7; margin-bottom:10px; color:#475569; }
 .ic-field .fd-textarea { display:block; min-height:80px; margin-top:5px; padding:8px; }
-.ic-table [data-ic-field="category"] { min-height:44px; height:44px; }
-.ic-table summary { cursor:pointer; color:#2563EB; line-height:1.8; overflow-wrap:anywhere; }
 .ic-table .fd-select { padding-left:8px; padding-right:24px; background-position:right 6px center; }
 .ic-results { padding:0; margin:0; border:0; min-width:0; }
 .ic-results legend { font-size:12px; color:#64748B; margin-bottom:8px; }
@@ -279,7 +324,7 @@ body.fw-modal-open { overflow:hidden; }
 
 /* ---------- 窄屏：底部按钮始终可点、字段单列 ---------- */
 @media (max-width:900px) {
-  .fd-grid, .fd-info, .fd-compat-grid, [data-kind="supervision-diaries"] .fd-grid, [data-kind="supervision-logs"] .fd-grid, [data-kind="safety-logs"] .fd-grid { grid-template-columns:minmax(0,1fr); }
+  .fd-grid, .fd-compat-grid, [data-kind="supervision-diaries"] .fd-grid, [data-kind="supervision-logs"] .fd-grid, [data-kind="safety-logs"] .fd-grid { grid-template-columns:minmax(0,1fr); }
   [data-kind="safety-logs"] .modal.fd-modal { max-width:none; height:100vh; height:100dvh; max-height:100vh !important; max-height:100dvh !important; }
   [data-kind="safety-logs"] .fd-footer .fd-btn { flex:1; padding:0 10px; min-height:44px; }
   [data-kind="safety-logs"] #safetyInspection { min-height:360px; }
@@ -325,7 +370,7 @@ body.fw-modal-open { overflow:hidden; }
   body.fw-print .fd-body { overflow:visible !important; max-height:none !important; padding:0 !important; }
   body.fw-print .fd-header { padding:0 0 12px !important; }
   body.fw-print .fd-footer, body.fw-print .fd-close, body.fw-print .fd-dropzone,
-  body.fw-print #fwGuide, body.fw-print #fwPrefillState, body.fw-print #fwHistoryContent, body.fw-print #fwUploadState,
+  body.fw-print #fwPrefillState, body.fw-print #fwHistoryContent, body.fw-print #fwUploadState,
   body.fw-print #fwRetryUpload, body.fw-print .fd-files { display:none !important; }
   body.fw-print .fd-grid { display:block; }
   body.fw-print [data-kind="supervision-diaries"] .fd-hint,

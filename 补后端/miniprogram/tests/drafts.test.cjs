@@ -6,6 +6,7 @@ const vm = require('node:vm');
 const path = require('node:path');
 const schema = require('../utils/schema');
 const C = require('../utils/inspection-checklist');
+const DailySync = require('../utils/daily-inspection-sync');
 const source = fs.readFileSync(path.join(__dirname, '../utils/drafts.js'), 'utf8');
 const copy = value => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
 const error = (code, message = '请求失败') => Object.assign(new Error(message), { code });
@@ -30,6 +31,7 @@ function setup() {
     async request(url, method = 'GET', body, headers) {
       state.calls.push(copy({ url, method, body, headers }));
       if (url === '/field/diary-prefill') return state.prefill ? state.prefill() : copy(state.prefillSource || {});
+      if (url === '/field/diary-day-workbench') return copy(state.workbench || { dailyInspections: [] });
       if (url.startsWith('/projects/')) return { id: 2, name: '测试工程' };
       if (url === '/field/summary') return { canReview: true };
       if (url.endsWith('/new-version') && method === 'POST') return copy(state.revision || (state.revision = revisionOf(state.server)));
@@ -297,8 +299,9 @@ async function setupPc(kind = 'supervision-diaries', search = '', projects = [{ 
   function node(id) {
     return nodes[id] || (nodes[id] = { id, value: '', dataset: {}, style: {}, hidden: false, innerHTML: '', textContent: '', children: [],
       classList: { add() {}, remove() {} }, listeners: {},
+      get firstElementChild() { return this.children[0] || node(this.id + ':first-child'); },
       addEventListener(event, fn) { this.listeners[event] = fn; }, insertAdjacentHTML() {}, focus() { state.focus = id; }, scrollIntoView() { state.scrolled = id; },
-      appendChild(child) { this.children.push(child); }, querySelectorAll() { return []; }, querySelector() { return null; }, click() {} });
+      appendChild(child) { this.children.push(child); return child; }, querySelectorAll() { return []; }, querySelector() { return null; }, click() {} });
   }
   const root = node('fieldWorkspace'); root.dataset.kind = kind;
   root.querySelector = selector => selector === 'thead th:nth-child(4)' ? node('authorHeading') : selector === '[data-field="projectId"]' ? node('fwF-projectId') : null;
@@ -314,7 +317,7 @@ async function setupPc(kind = 'supervision-diaries', search = '', projects = [{ 
         controls.push(control);
       }
     } });
-    root.querySelectorAll = selector => selector === '[data-field]' ? controls : [];
+    root.querySelectorAll = selector => selector === '[data-field]' ? controls : selector === '[data-participant-id]:checked' ? (state.participantChecks || []) : [];
     state.input = (field, value) => { const control = node('fwF-' + field); control.value = value; control.listeners.input(); };
   };
   const App = { escape: value => String(value == null ? '' : value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]),
@@ -343,6 +346,8 @@ async function setupPc(kind = 'supervision-diaries', search = '', projects = [{ 
       }
       if (path.startsWith('/field/diary-prefill')) return state.prefill ? state.prefill(path) : copy(state.prefillSource || {});
       if (path.startsWith('/field/diary-source')) return state.source;
+      if (path.startsWith('/field/diary-day-workbench')) return copy(state.workbench || { dailyInspections: [] });
+      if (path.endsWith('/member-options')) return copy(state.memberOptions || [{ userId: 1, userName: '当前账号', position: '专业监理' }, { userId: 2, userName: '项目同事', position: '监理员' }]);
       if (path.startsWith('/files/access')) return { url: 'signed:file' };
       if (path.endsWith('/new-version') && opts && opts.method === 'POST') return state.revision || (state.revision = revisionOf(state.record));
       if (path.endsWith('/versions')) return copy(state.versions || [state.record]);
@@ -362,11 +367,11 @@ async function setupPc(kind = 'supervision-diaries', search = '', projects = [{ 
     sessionStorage: { get length() { return values.size; }, key: i => [...values.keys()][i], getItem: k => values.get(k), setItem: (k, v) => values.set(k, v), removeItem: k => values.delete(k) },
     Blob, URL: { createObjectURL: blob => { state.blob = blob; return 'blob:test'; }, revokeObjectURL() {} },
     setTimeout: () => 0, console, addEventListener(name, fn) { state[name] = fn; }, print() { if (state.onPrint) state.onPrint(); } };
-  context.window = context; context.FieldSchema = schema; context.InspectionChecklist = C;
+  context.window = context; context.FieldSchema = schema; context.InspectionChecklist = C; context.DailyInspectionSync = DailySync;
   context.DiaryLinks = require('../utils/diary-links');
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../../assets/inspection-checklist.js'), 'utf8'), context);
   const code = fs.readFileSync(path.join(__dirname, '../../assets/field-records.js'), 'utf8')
-    .replace(/\}\)\(\);\s*$/, 'window.testActions = { create, open, show, save, exportRows, prefillLog, closeEditor, load, resumeLocal, getDraft: () => draft };})();');
+    .replace(/\}\)\(\);\s*$/, 'window.testActions = { create, open, show, save, exportRows, prefillLog, closeEditor, load, resumeLocal, syncDailyInspection, getDraft: () => draft };})();');
   vm.runInNewContext(code, context);
   await new Promise(resolve => setImmediate(resolve));
   return Object.assign(state, { nodes, values, actions: context.testActions });
@@ -463,10 +468,8 @@ test('电脑端日记九项正文直显、项目日期带入、提示不自动�
   assert.equal(write.opts.body.otherWork, '专题会议'); assert.equal(write.opts.body.projectId, 2);
   assert.equal(write.opts.body.reviewerId, undefined); assert.equal(write.opts.body.authorName, undefined);
 });
-test('电脑端多项目先明确归属，只读详情取服务器原记录并隐藏写按钮', async () => {
+test('电脑端日记项目可在表单内选择，只读详情取服务器原记录并隐藏写按钮', async () => {
   const s = await setupPc('supervision-diaries', '', [{ id: 2, name: '测试工程' }, { id: 3, name: '另一工程' }]);
-  await assert.rejects(s.actions.create(), /先在上方选择/);
-  assert.equal(s.focus, 'fwProject');
   s.record = { id: 9, projectId: 2, diaryDate: '2020-01-01', authorId: 5, authorName: '原记录人', reviewerId: 6, reviewerName: '总监', reviewedAt: '2020-01-01T18:00:00', status: 'approved', otherWork: '旧正文' };
   const cached = JSON.stringify({ record: s.record, body: { projectId: 2, otherWork: '未同步内容' } });
   s.values.set('field-pc:https://test.invalid:1:supervision-diaries:draft:old', cached);
@@ -477,23 +480,33 @@ test('电脑端多项目先明确归属，只读详情取服务器原记录并�
   assert.match(s.nodes.fwForm.innerHTML, /旧正文/); assert.match(s.nodes.fwForm.innerHTML, /2020-01-01/);
   for (const id of ['fwSave', 'fwSubmit', 'fwApprove', 'fwReject', 'fwFork', 'fwRevise']) assert.equal(s.nodes[id].hidden, true, id);
 });
-test('未选项目的新建提示在选择有效项目后清除，未选择时仍拦截', async () => {
+test('监理日记未选工具栏项目也能新建，在表单内选择工程名称后才能保存', async () => {
   const s = await setupPc('supervision-diaries', '', [{ id: 2, name: '测试工程' }, { id: 3, name: '另一工程' }]);
+  s.enableControls();
+  assert.equal(s.nodes.fwProject.value, '');
+  await s.actions.create();
+  assert.equal(s.nodes.fwEditor.hidden, false, '未选工具栏项目也应直接打开新建');
+  assert.equal(s.nodes.fwError.textContent, '', '新建不应提示先选项目');
+  assert.match(s.nodes.fwForm.innerHTML, /id="fwF-projectId"/);
+  assert.match(s.nodes.fwForm.innerHTML, /请选择项目名称/);
+  assert.equal(s.nodes['fwF-projectId'].value, '');
+  assert.equal(s.actions.getDraft().body.projectId, 0, '多项目未选择时不自动猜测归属');
+  assert.ok(!s.calls.some(c => c.path.startsWith('/field/summary')), '项目未选不请求统计');
+  await assert.rejects(s.actions.save(false), /请选择项目名称/);
+  assert.equal(s.nodes['fwF-projectId'].value, '');
+  s.input('projectId', '3');
+  assert.equal(s.actions.getDraft().body.projectId, 3);
+  await s.actions.save(false);
+  const write = s.calls.find(c => c.opts && c.opts.method === 'POST' && c.opts.body);
+  assert.equal(write.opts.body.projectId, 3);
+  assert.equal(s.nodes['fwF-projectId'].disabled, true, '保存成服务器草稿后项目归属锁定');
+});
+test('监理日志未选工具栏项目仍要求先明确工程名称', async () => {
+  const s = await setupPc('supervision-logs', '', [{ id: 2, name: '测试工程' }, { id: 3, name: '另一工程' }]);
   await s.nodes.fwNew.onclick();
   assert.match(s.nodes.fieldError.textContent, /请先在上方选择/);
   assert.equal(s.nodes.fwError.textContent, s.nodes.fieldError.textContent);
   assert.equal(s.actions.getDraft(), null); assert.equal(s.values.size, 0);
-  assert.equal(typeof s.nodes.fwProject.onchange, 'function');
-  await s.nodes.fwProject.onchange();
-  assert.match(s.nodes.fieldError.textContent, /请先在上方选择/);
-  s.nodes.fwProject.value = '3';
-  await s.nodes.fwProject.onchange();
-  assert.equal(s.nodes.fieldError.textContent, ''); assert.equal(s.nodes.fwError.textContent, '');
-  await s.nodes.fwNew.onclick();
-  assert.equal(s.nodes.fwEditor.hidden, false);
-  assert.equal(s.actions.getDraft().body.projectId, 3);
-  assert.match(s.nodes.fwForm.innerHTML, /另一工程/);
-  assert.equal(s.nodes.fwError.textContent, '');
 });
 test('未保存草稿就关闭或取消，列表不留下该条；保存草稿后才生成', async () => {
   const s = await setupPc('daily-inspections'); s.enableControls(); await s.actions.create();
@@ -543,7 +556,7 @@ test('新建成功前清除旧项目提示，不依赖下拉框变更事件', as
   assert.equal(s.actions.getDraft().body.projectId, 2);
 });
 test('项目提示清理不掩盖其他错误或随后发生的请求失败', async () => {
-  const s = await setupPc('supervision-diaries', '', [{ id: 2, name: '测试工程' }, { id: 3, name: '另一工程' }]);
+  const s = await setupPc('supervision-logs', '', [{ id: 2, name: '测试工程' }, { id: 3, name: '另一工程' }]);
   s.nodes.fieldError.textContent = '已有网络错误'; s.nodes.fwError.textContent = '已有网络错误';
   s.nodes.fwProject.value = '2';
   assert.equal(typeof s.nodes.fwProject.onchange, 'function');
@@ -581,10 +594,10 @@ test('电脑端日志四项正文直显、气象短输入和规范占位，不�
     if (['weather', 'wind', 'temperature'].includes(key)) assert.match(control, /^<input.*maxlength="30"/);
   }
   for (const key of ['construction', 'inspection', 'safetyIssues', 'otherMatters']) assert.ok(html.indexOf('data-field="' + key + '"') < html.indexOf('<details'), key);
-  assert.match(s.nodes.fwGuide.innerHTML, /9 项规范/);
+  assert.doesNotMatch(html, /id="fwGuide"|fd-info|fd-guide-title|填写指引/);
   assert.ok(s.nodes.fieldWorkspace.innerHTML.includes(log.attachmentHint));
   assert.match(s.nodes.fieldWorkspace.innerHTML, /id="fwSubmit"[^>]*>提交</);
-  assert.doesNotMatch(s.nodes.fieldWorkspace.innerHTML, /监理类型|参会人员|明日计划/);
+  assert.doesNotMatch(s.nodes.fieldWorkspace.innerHTML, /监理类型|明日计划/);
   Object.assign(s.actions.getDraft().body, { construction: '二层脚手架搭设', safetyIssues: '防护缺失已整改', inspection: '验收资料核查', otherMatters: '重要会议' });
   await s.actions.save(true);
   const write = s.calls.find(c => c.opts && c.opts.body);
@@ -594,6 +607,26 @@ test('电脑端日志四项正文直显、气象短输入和规范占位，不�
   assert.ok(s.calls.some(c => c.path.endsWith('/submit') && c.opts.headers['X-Record-Version'] === 1));
   assert.equal(s.actions.getDraft().record.status, 'submitted');
 });
+test('电脑端监理日志编号后勾选本项目参会人员，保存回显只读导出并隔离其他记录', async () => {
+  const s = await setupPc('supervision-logs'); s.enableControls(); await s.actions.create(); await tick();
+  const html = s.nodes.fwForm.innerHTML;
+  assert.ok(html.indexOf('data-field="code"') < html.indexOf('id="fwF-participants"'), '参会人员紧跟编号');
+  assert.match(s.nodes['fwF-participants'].innerHTML, /data-participant-id="1"[\s\S]*当前账号/);
+  assert.match(s.nodes['fwF-participants'].innerHTML, /data-participant-id="2"[\s\S]*项目同事/);
+  assert.equal(schema.schemas['supervision-logs'].fields.some(f => f[0] === 'participants'), false, '不改变小程序共用字段');
+  s.participantChecks = [1, 2].map(id => ({ dataset: { participantId: String(id) } }));
+  await s.actions.save(false); assert.equal(s.saved.participants, '[1,2]');
+  assert.equal(JSON.parse(s.saved.participants).length, 2);
+  s.record = { ...s.saved, id: 10, status: 'approved', participants: '[1,2]' };
+  await s.actions.open(10, true); await tick();
+  assert.match(s.nodes['fwF-participants'].innerHTML, /当前账号、项目同事/);
+  assert.doesNotMatch(s.nodes['fwF-participants'].innerHTML, /data-participant-id=/);
+  s.records = [s.record]; await s.actions.exportRows(); const csv = await s.blob.text();
+  assert.match(csv, /参会人员/); assert.match(csv, /当前账号、项目同事/);
+  const diary = await setupPc('supervision-diaries'); await diary.actions.create();
+  assert.doesNotMatch(diary.nodes.fwForm.innerHTML, /fwF-participants|参会人员/);
+});
+
 test('日志项目选择清除残留提示，新旧草稿、只读与修订均保留原日期和正文', async () => {
   const s = await setupPc('supervision-logs', '', [{ id: 2, name: '工程甲' }, { id: 3, name: '工程乙' }]);
   await s.nodes.fwNew.onclick(); assert.match(s.nodes.fwError.textContent, /请先在上方选择/);
@@ -629,7 +662,7 @@ test('日志日记整编仅补空白栏，来源保留且不生成安全结论',
   assert.equal(body.inspection, '手写验收情况'); assert.equal(body.safetyIssues, undefined);
   assert.equal(JSON.parse(body.diarySources)[0].id, 7);
   assert.match(s.nodes.fwForm.innerHTML, /<details class="fd-compat" open/);
-  assert.match(s.nodes.fwGuide.innerHTML, /9 项规范/);
+  assert.doesNotMatch(s.nodes.fwForm.innerHTML, /id="fwGuide"|fd-info|fd-guide-title|填写指引/);
 });
 test('日志导出含新旧正文、真实人员、附件与来源，公式和引号转义保留', async () => {
   const s = await setupPc('supervision-logs');
@@ -873,7 +906,7 @@ test('巡视旁站分组覆盖全部字段一次，短字段成对且必填星�
     for (const [field] of spec.fields) assert.equal((s.nodes.fwForm.innerHTML.match(new RegExp('data-field="' + field + '"', 'g')) || []).length, 1);
     assert.match(s.nodes.fwForm.innerHTML, /aria-required="true"/);
     assert.doesNotMatch(s.nodes.fwForm.innerHTML, /\*\s*<span class="fd-req">/);
-    assert.match(s.nodes.fwGuide.innerHTML, /正文未完成可先保存草稿/);
+    assert.doesNotMatch(s.nodes.fwForm.innerHTML, /id="fwGuide"|fd-info|fd-guide-title|填写指引/);
   }
   const s = await setupPc('sideline-inspections'); await s.actions.create();
   assert.match(s.nodes.fwForm.innerHTML, /<input[^>]+data-field="startTime"/);
@@ -892,10 +925,10 @@ test('旁站起止时间与日期改用确认式选择面板，历史秒值原�
   assert.match(html, /data-field="startTime"[^>]*data-picker-before="fwF-endTime"[^>]*data-picker-before-msg="旁站开始时间必须先于结束时间"/);
   assert.match(html, /data-field="endTime"[^>]*data-picker-after="fwF-startTime"[^>]*data-picker-after-msg="旁站结束时间必须晚于开始时间"/);
   assert.match(html, /data-field="inspectionDate"[^>]*data-picker="date"[^>]*readonly/);
-  // 日常巡检保持整点面板，旁站改造不能放宽巡视的精度要求
+  // 日常巡检的巡视时间已合并为单一“巡检时间”，同样要求分钟精度，且不再渲染结束时间
   const daily = await setupPc('daily-inspections'); await daily.actions.create();
-  assert.match(daily.nodes.fwForm.innerHTML, /data-field="startTime"[^>]*data-picker="hour"/);
-  assert.doesNotMatch(daily.nodes.fwForm.innerHTML, /data-picker="minute"/);
+  assert.match(daily.nodes.fwForm.innerHTML, /data-field="startTime"[^>]*data-picker="minute"/);
+  assert.doesNotMatch(daily.nodes.fwForm.innerHTML, /data-field="endTime"/);
   // 历史值带秒时原样展示，未重新选择则不被取整
   const history = await setupPc('sideline-inspections');
   await history.actions.show({ record: { id: 12, status: 'draft', authorId: 1 },
@@ -989,7 +1022,8 @@ test('电脑端驳回原件只读、不预填、不写原ID，修订打开真实
   for (const kind of ['supervision-diaries', 'supervision-logs']) {
     const s = await setupPc(kind);
     s.record = { ...body(), id: 7, logDate: '2026-09-23', authorId: 1, status: 'rejected', version: 1, lockVersion: 3,
-      rejectReason: '补充现场位置', submittedAt: '2026-10-30T08:00:00', photos: '[{"url":"/api/uploads/v1.jpg","name":"V1照片"}]' };
+      rejectReason: '补充现场位置', submittedAt: '2026-10-30T08:00:00', photos: '[{"url":"/api/uploads/v1.jpg","name":"V1照片"}]',
+      ...(kind === 'supervision-diaries' ? { relatedAttachmentIds: '[]' } : {}) };
     const before = copy(s.record);
     await s.actions.open(7); await tick();
     for (const id of ['fwSave', 'fwSubmit', 'fwDelete', 'fwUploadField', 'fwFork']) assert.equal(s.nodes[id].hidden, true, id);
@@ -1137,7 +1171,7 @@ function setupPage(s) {
     getCurrentPages: () => s.pageStack || [{}, {}],
     require: name => ({ '../../utils/api': s.api, '../../utils/drafts': s.drafts, '../../utils/voice': voice, '../../utils/schema': schema,
       '../../utils/inspection-checklist': C, '../../utils/inspection-editor': editorContext.module.exports,
-      '../../utils/diary-links': require('../utils/diary-links') })[name] });
+      '../../utils/diary-links': require('../utils/diary-links'), '../../utils/daily-inspection-sync': DailySync })[name] });
   page.data = copy(page.data); page.uid = s.uid; page.kind = 'supervision-diaries'; page.visible = true;
   page.setData = values => Object.assign(page.data, copy(values));
   return page;
@@ -1198,8 +1232,8 @@ test('小程序日记气象短输入、正文提示、日期保留与详情人�
   assert.equal(p.data.people.author, '其他记录人'); assert.match(p.data.people.reviewer, /审核负责人/);
   assert.equal(p.data.editable, false);
   p.kind = 'daily-inspections';
-  assert.deepEqual(copy(p.fields({}).filter(f => f.short).map(f => f.key)), ['startTime', 'endTime', 'workerCount', 'manageCount']);
-  assert.equal(p.fields({}).filter(f => f.time).length, 2); assert.equal(p.fields({}).filter(f => f.number).length, 2);
+  assert.deepEqual(copy(p.fields({}).filter(f => f.short).map(f => f.key)), ['startTime', 'workerCount', 'manageCount']);
+  assert.equal(p.fields({}).filter(f => f.time).length, 1); assert.equal(p.fields({}).filter(f => f.number).length, 2);
 });
 test('小程序旁站时间改用日期时间选择器，写入秒位且只读时拒绝修改', () => {
   const s = setup(), p = setupPage(s); p.kind = 'sideline-inspections';
@@ -1396,15 +1430,16 @@ function setupDailyPage() {
   const d = s.drafts.create(p.kind, dailyBody()); p.localId = d.localId; p.showDraft(d);
   return { s, p, d };
 }
-test('巡视模型空态、默认值、必检提交及结果切换保留问题', () => {
+test('巡视模型空态、默认值、提交校验及结果切换保留问题', () => {
   assert.equal(C.summary(null), '未录入检查项'); assert.deepEqual(C.parse(''), C.empty());
   const data = { version: 1, items: [C.newItem()] };
-  assert.equal(data.items[0].required, true); assert.equal(data.items[0].result, 'unchecked');
+  assert.deepEqual(Object.keys(data.items[0]).sort(), ['content', 'id', 'photos', 'problems', 'result']);
+  assert.equal(data.items[0].result, 'unchecked');
   assert.equal(C.stats(data).problems, 0); assert.doesNotThrow(() => C.validate(data, false));
   assert.throws(() => C.validate(data, true), /检查内容/); data.items[0].content = '检查安全网';
-  assert.throws(() => C.validate(data, true), /检查结果/); data.items[0].required = false;
+  assert.throws(() => C.validate(data, true), /检查结果/); data.items[0].result = 'compliant';
   assert.doesNotThrow(() => C.validate(data, true));
-  data.items[0].problems.push(C.newProblem(data.items[0])); data.items[0].result = 'compliant';
+  data.items[0].problems.push(C.newProblem(data.items[0]));
   assert.equal(C.stats(data).problems, 1); assert.equal(C.stats(data).compliant, 1);
   assert.throws(() => C.parse('{broken'), /原始草稿/); assert.throws(() => C.parse('{"version":2,"items":[]}'), /版本/);
   assert.throws(() => C.parse(' '.repeat(60000) + '{"version":1,"items":[]}'), /60000/);
@@ -1422,18 +1457,37 @@ test('巡视模型数量、枚举、文本及附件安全整数边界', () => {
   p.type = '未知'; assert.throws(() => C.stringify(one), /类型/); p.type = C.types[0];
   one.items[0].content = null; assert.throws(() => C.stringify(one), /文本/);
   one.items[0].content = '字'.repeat(10001); assert.throws(() => C.stringify(one), /10000/);
-  one.items[0].content = '字'.repeat(10000); one.items[0].method = '字'.repeat(10000); one.items[0].standard = '字'.repeat(10000);
-  p.name = '字'.repeat(10000); p.description = '字'.repeat(10000); one.items[0].category = '字'.repeat(10000);
+  one.items[0].content = '字'.repeat(10000); p.name = '字'.repeat(10000); p.description = '字'.repeat(10000);
+  for (let n = 0; n < 4; n++) { const extra = C.newItem(); extra.content = '字'.repeat(10000); one.items.push(extra); }
   assert.throws(() => C.stringify(one), /60000/);
 });
-test('巡视时间人数兼容空值、真实日期及提交成对校验', () => {
+test('巡视时间人数兼容空值、真实日期及单一时间校验', () => {
   assert.deepEqual(C.pack({ workerCount: '', manageCount: 0, startTime: '' }, false), { workerCount: null, manageCount: 0, startTime: null });
   const b = { startTime: '2026-10-29T08:30', endTime: '2026-10-29 09:30', workerCount: '12' };
   assert.equal(C.pack(b, true).startTime, '2026-10-29T08:30:00'); assert.equal(C.pack(b, true).workerCount, 12);
   for (const value of ['-1', '1.5', '2147483648', 'abc']) assert.throws(() => C.pack({ workerCount: value }), /非负整数/);
   for (const value of ['2026-02-30T10:00', '2026-10-29T25:00', 'bad']) assert.throws(() => C.pack({ startTime: value }));
-  assert.doesNotThrow(() => C.pack({ startTime: b.startTime }, false)); assert.throws(() => C.pack({ startTime: b.startTime }, true), /补齐/);
-  assert.throws(() => C.pack({ startTime: b.startTime, endTime: b.startTime }), /晚于/);
+  // 巡检时间已合并：只填巡检时间即可提交，历史草稿的结束时间不再发送
+  assert.doesNotThrow(() => C.pack({ startTime: b.startTime }, false)); assert.doesNotThrow(() => C.pack({ startTime: b.startTime }, true));
+  assert.equal('endTime' in C.pack(b, true), false);
+  assert.doesNotThrow(() => C.pack({ startTime: b.startTime, endTime: b.startTime }));
+});
+test('巡视模型检查项照片结构、上限与打印文案', () => {
+  const id = 'ci-photo-1', data = { version: 1, items: [Object.assign(C.newItem(), { id, content: '临边防护', result: 'compliant',
+    photos: [{ url: '/api/uploads/1.jpg', name: '现场1.jpg', size: 10 }] })] };
+  assert.deepEqual(C.parse(C.stringify(data)).items[0].photos.map(f => f.name), ['现场1.jpg']);
+  assert.match(C.format(C.stringify(data)), /照片：现场1.jpg/);
+  // 同步上传后把本机照片并回清单，不重复也不丢失已有凭证
+  const merged = C.parse(C.withMedia(C.stringify(data), [{ id: 'media-2', url: '/api/uploads/2.jpg', name: '本机照片', itemId: id }]));
+  assert.deepEqual(merged.items[0].photos.map(f => f.name), ['现场1.jpg', '本机照片']);
+  data.items[0].photos = Array.from({ length: 11 }, (_, n) => ({ url: '/api/uploads/' + n + '.jpg', name: 'p' + n + '.jpg' }));
+  assert.throws(() => C.stringify(data), /最多 10 张/);
+  data.items[0].photos = [{ name: '缺地址.jpg' }];
+  assert.throws(() => C.stringify(data), /检查项照片尚未上传或格式无效/);
+  // 旧记录没有 photos 字段时按空处理，不影响读取与提交
+  const legacy = { version: 1, items: [{ id: 'ci-legacy', content: '旧项', result: 'unchecked', problems: [] }] };
+  assert.equal(C.parse(JSON.stringify(legacy)).items[0].photos, undefined);
+  assert.doesNotThrow(() => C.pack({ checklist: JSON.stringify(legacy) }, false));
 });
 test('巡视发现人回写只合并元数据，重试比较全部可写内容', () => {
   const local = checklistData(), remote = C.clone(local), p = remote.items[0].problems[0]; p.foundById = 1; p.foundByName = '服务端发现人';
@@ -1442,27 +1496,41 @@ test('巡视发现人回写只合并元数据，重试比较全部可写内容',
   const merged = C.parse(C.mergeFoundBy(local, remote)); assert.equal(merged.items[0].problems[0].description, '后续本机修改'); assert.equal(merged.items[0].problems[0].foundByName, '服务端发现人');
   assert.equal(C.sameBody('daily-inspections', { checklist: C.stringify(remote) }, { checklist: C.stringify(local) }), false);
 });
-test('小程序问题打开不新建，副本恢复，确认与取消不混入父稿', async () => {
+test('小程序点击问题直接展开并聚焦，已有问题不重复新增', async () => {
+  const { s, p, d } = setupDailyPage(), data = checklistData(false), id = data.items[0].id;
+  p.applyChecklist(data); p.openProblems(editEvent(id));
+  assert.equal(p.data.problemPanel.problems.length, 1); assert.equal(C.stats(p.data.body.checklist).problems, 0);
+  const pid = p.problemEdit.problems[0].id;
+  assert.equal(p.data.problemPanel.focusId, pid); assert.equal(s.drafts.get(d.localId).problemEdit.focusId, undefined, '一次性聚焦状态不写入草稿');
+  p.problemInput(editEvent(pid, 'description', '临边防护缺失'));
+  assert.equal(p.data.problemPanel.focusId, '', '后续输入不反复抢焦点');
+  p.confirmProblems(); assert.equal(C.stats(p.data.body.checklist).problems, 1);
+  p.openProblems(editEvent(id)); assert.equal(p.data.problemPanel.problems.length, 1); assert.equal(p.data.problemPanel.focusId, pid);
+  const read = setupDailyPage().p, readData = checklistData(false); read.applyChecklist(readData); read.data.editable = false; read.openProblems(editEvent(readData.items[0].id));
+  assert.equal(read.data.problemPanel.problems.length, 0, '只读查看不自动新增');
+});
+test('小程序问题点开即给出说明输入，副本恢复，确认与取消不混入父稿', async () => {
   const { s, p, d } = setupDailyPage(); p.addCheckItem(); const id = p.data.checkItems[0].id;
   p.checkInput(editEvent(id, 'content', '临边防护')); p.openProblems(editEvent(id));
-  assert.equal(p.data.problemPanel.problems.length, 0); assert.equal(C.stats(p.data.body.checklist).problems, 0);
-  p.addProblem(); const pid = p.problemEdit.problems[0].id; p.problemInput(editEvent(pid, 'description', '仅副本说明'));
+  assert.equal(p.data.problemPanel.problems.length, 1, '点开即给出问题说明输入框'); assert.equal(C.stats(p.data.body.checklist).problems, 0);
+  const pid = p.problemEdit.problems[0].id; p.problemInput(editEvent(pid, 'description', '仅副本说明'));
   await assert.rejects(s.drafts.sync(d.localId), /确认或取消/);
   s.reload(); const restored = setupPage(s); restored.kind = p.kind; restored.localId = d.localId; restored.showDraft(s.drafts.get(d.localId));
   assert.equal(restored.problemEdit.problems[0].description, '仅副本说明'); assert.equal(C.stats(restored.data.body.checklist).problems, 0);
   let cancel = restored.cancelProblems(); s.modal.success({ confirm: true }); await cancel;
   assert.equal(C.stats(restored.data.body.checklist).problems, 0);
-  restored.openProblems(editEvent(id)); restored.addProblem(); restored.confirmProblems();
-  assert.equal(restored.problemEdit, null); assert.equal(C.stats(restored.data.body.checklist).problems, 1);
+  restored.openProblems(editEvent(id)); assert.equal(restored.problemEdit.problems.length, 1);
+  restored.addProblem(); assert.equal(restored.problemEdit.problems.length, 2); restored.confirmProblems();
+  assert.equal(restored.problemEdit, null); assert.equal(C.stats(restored.data.body.checklist).problems, 2);
   assert.equal(s.drafts.get(d.localId).problemEdit, null);
-  restored.checkInput(editEvent(id, 'result', 'compliant')); assert.equal(C.stats(restored.data.body.checklist).problems, 1);
+  restored.checkInput(editEvent(id, 'result', 'compliant')); assert.equal(C.stats(restored.data.body.checklist).problems, 2);
   assert.equal(restored.data.body.issues, '历史补充原文');
 });
-test('小程序方法输入保持展开和勾选，批量删除显示准确问题数量', async () => {
+test('小程序检查内容与勾选状态，批量删除显示准确问题数量', async () => {
   const { s, p } = setupDailyPage(); const data = checklistData(); p.applyChecklist(data); const id = data.items[0].id;
-  p.toggleCheckDetails(editEvent(id)); p.selectCheckItems({ detail: { value: [id] } }); p.checkInput(editEvent(id, 'method', '尺量'));
-  assert.equal(p.data.checkItems[0].expanded, true); assert.equal(p.data.checkItems[0].selected, true);
-  assert.equal(C.parse(p.data.body.checklist).items[0].expanded, undefined);
+  p.selectCheckItems({ detail: { value: [id] } }); p.checkInput(editEvent(id, 'content', '临边防护复核'));
+  assert.equal(p.data.checkItems[0].selected, true);
+  assert.equal(C.parse(p.data.body.checklist).items[0].content, '临边防护复核');
   let work = p.deleteCheckItems(editEvent()); assert.match(s.modal.content, /1 个问题/); s.modal.success({ confirm: false }); await work;
   assert.equal(C.stats(p.data.body.checklist).total, 1);
   work = p.deleteCheckItems(editEvent()); s.modal.success({ confirm: true }); await work; assert.equal(C.stats(p.data.body.checklist).total, 0);
@@ -1478,25 +1546,66 @@ test('小程序问题暂存与确认失败可取消重试，不掩盖父正文�
     await s.drafts.sync(d.localId); assert.equal(s.drafts.get(d.localId).state, '已同步草稿');
   }
 });
-test('小程序问题图片选择迟到不写入取消的面板或另一记录', async () => {
-  const { s, p, d } = setupDailyPage(); p.applyChecklist(checklistData()); p.openProblems(editEvent(p.data.checkItems[0].id));
-  let choice; s.wx.chooseMedia = options => { choice = options; };
-  const work = p.chooseProblemPhoto({ currentTarget: { dataset: { id: p.problemEdit.problems[0].id, source: 'album' } } });
-  await p.cancelProblems(); choice.success({ tempFiles: [{ tempFilePath: '/temp/a.jpg' }] }); await work;
-  assert.equal(s.drafts.get(d.localId).media.length, 0); assert.equal(p.problemEdit, null);
-});
-test('小程序问题图片只在确认后入上传队列，失败可重试且不混入顶层照片', async () => {
-  const { s, p, d } = setupDailyPage(); p.applyChecklist(checklistData()); p.openProblems(editEvent(p.data.checkItems[0].id));
+test('小程序问题面板下线图片上传，历史附件只读展示且确认不丢本机媒体', async () => {
+  const { s, p, d } = setupDailyPage(); const data = checklistData();
+  data.items[0].problems[0].attachments.push({ url: '/api/uploads/old.jpg', name: '历史问题照片.jpg' });
+  p.applyChecklist(data);
   s.wx.chooseMedia = options => options.success({ tempFiles: [{ tempFilePath: '/temp/a.jpg' }] });
   s.wx.compressImage = options => options.success({ tempFilePath: '/temp/compressed.jpg' });
-  await p.chooseProblemPhoto({ currentTarget: { dataset: { id: p.problemEdit.problems[0].id, source: 'camera' } } });
-  assert.equal(s.drafts.get(d.localId).media.length, 0); assert.equal(s.uploads.length, 0);
-  p.confirmProblems(); assert.equal(s.drafts.get(d.localId).media.length, 1);
-  const upload = s.api.upload; s.api.upload = async () => { throw new Error('上传断网'); };
-  await assert.rejects(s.drafts.sync(d.localId), /上传断网/); assert.equal(s.drafts.get(d.localId).media.length, 1);
-  s.api.upload = upload; await s.drafts.sync(d.localId);
-  assert.deepEqual(JSON.parse(s.server.photos), []); assert.equal(C.parse(s.server.checklist).items[0].problems[0].attachments.length, 1);
-  assert.equal(s.server.checklist.includes('/persistent'), false);
+  await p.chooseCheckPhoto({ currentTarget: { dataset: { id: p.data.checkItems[0].id, source: 'camera' } } });
+  assert.equal(s.drafts.get(d.localId).media.length, 1, '检查项照片仍正常入本机');
+  p.openProblems(editEvent(p.data.checkItems[0].id));
+  assert.equal(typeof p.chooseProblemPhoto, 'undefined', '问题拍照方法已下线');
+  assert.equal(typeof p.removeProblemFile, 'undefined', '问题附件移除方法已下线');
+  assert.equal(p.problemEdit.media, undefined, '问题面板不再管理本机媒体');
+  const panel = p.data.problemPanel.problems[0];
+  assert.equal(panel.localMedia, undefined, '不再渲染问题本机媒体');
+  assert.deepEqual(panel.files.map(f => f.name), ['历史问题照片.jpg'], '历史附件仍只读展示');
+  p.confirmProblems();
+  assert.equal(s.drafts.get(d.localId).media.length, 1, '确认问题保留检查项本机照片');
+  assert.equal(C.parse(s.drafts.get(d.localId).body.checklist).items[0].problems[0].attachments.length, 1, '历史问题附件不丢失');
+});
+test('小程序历史问题照片媒体随同步回写附件，不混入整单照片', async () => {
+  const s = setup(), data = checklistData();
+  const d = s.drafts.create('daily-inspections', { ...dailyBody(), checklist: C.stringify(data) });
+  s.drafts.edit(d.localId, { media: [{ id: 'm1', path: '/persistent/a.jpg', url: '/api/uploads/a.jpg', name: '历史问题照片.jpg', itemId: data.items[0].id, problemId: data.items[0].problems[0].id }] });
+  await s.drafts.sync(d.localId);
+  assert.equal(s.uploads.length, 0, '已上传的历史问题照片不再重复上传');
+  assert.equal(C.parse(s.server.checklist).items[0].problems[0].attachments.some(f => f.url === '/api/uploads/a.jpg'), true, '历史问题照片回写附件');
+  assert.deepEqual(JSON.parse(s.server.photos || '[]'), [], '问题照片不混入整单照片');
+});
+test('小程序检查项照片入本机并随同步写入清单，不混入整单照片', async () => {
+  const { s, p, d } = setupDailyPage(); p.applyChecklist(checklistData());
+  const id = p.data.checkItems[0].id;
+  s.wx.chooseMedia = options => options.success({ tempFiles: [{ tempFilePath: '/temp/a.jpg' }] });
+  s.wx.compressImage = options => options.success({ tempFilePath: '/temp/compressed.jpg' });
+  await p.chooseCheckPhoto({ currentTarget: { dataset: { id, source: 'camera' } } });
+  const media = s.drafts.get(d.localId).media;
+  assert.equal(media.length, 1); assert.equal(media[0].itemId, id); assert.equal(media[0].problemId, undefined); assert.equal(media[0].source, 'camera');
+  assert.equal(p.data.checkItems[0].localMedia.length, 1);
+  assert.equal(p.data.checkItems[0].photos.length, 0, '未上传前不写入清单照片');
+  await s.drafts.sync(d.localId);
+  assert.equal(s.uploads.length, 1, '检查项照片进入上传队列');
+  assert.deepEqual(C.parse(s.server.checklist).items[0].photos.map(f => f.url), ['/api/uploads/a.jpg']);
+  assert.deepEqual(JSON.parse(s.server.photos || '[]'), [], '检查项照片不进入整单照片');
+  assert.equal(s.server.checklist.includes('/persistent'), false, '清单只保存远端地址');
+});
+test('小程序本机与远端检查项照片均可按项移除，只读时拒绝新增', async () => {
+  const { s, p, d } = setupDailyPage(); p.applyChecklist(checklistData());
+  s.wx.chooseMedia = options => options.success({ tempFiles: [{ tempFilePath: '/temp/a.jpg' }] });
+  s.wx.compressImage = options => options.success({ tempFilePath: '/temp/compressed.jpg' });
+  await p.chooseCheckPhoto({ currentTarget: { dataset: { id: p.data.checkItems[0].id, source: 'album' } } });
+  const local = s.drafts.get(d.localId).media[0];
+  p.removeCheckPhoto({ currentTarget: { dataset: { id: p.data.checkItems[0].id, media: local.id } } });
+  assert.equal(s.drafts.get(d.localId).media.length, 0); assert.equal(p.data.checkItems[0].localMedia.length, 0);
+  const data = checklistData(); data.items[0].photos.push({ url: '/api/uploads/old.jpg', name: '旧凭证.jpg' });
+  p.applyChecklist(data);
+  assert.equal(C.parse(p.data.body.checklist).items[0].photos.length, 1);
+  p.removeCheckPhoto({ currentTarget: { dataset: { id: data.items[0].id, url: '/api/uploads/old.jpg' } } });
+  assert.equal(C.parse(p.data.body.checklist).items[0].photos.length, 0);
+  p.data.editable = false; let chosen = 0; s.wx.chooseMedia = () => { chosen++; };
+  await p.chooseCheckPhoto({ currentTarget: { dataset: { id: data.items[0].id, source: 'camera' } } });
+  assert.equal(chosen, 0, '只读时不再打开选图');
 });
 test('小程序问题删除后迟到上传不能恢复附件引用', async () => {
   const s = setup(), data = checklistData(), gate = deferred(), entered = deferred();
@@ -1541,21 +1650,27 @@ test('电脑巡检CSV仅服务器结果，含时间人数问题附件名且无�
   await s.actions.create(); s.actions.getDraft().body.content = '不应导出的本机正文';
   s.records.push({ ...dailyBody(), code: '=公式', startTime: '2026-10-29T08:00:00', workerCount: 0, checklist: C.stringify(data), photos: '[{"url":"/api/uploads/a.jpg","name":"现场.jpg"}]' });
   await s.actions.exportRows(); const csv = await s.blob.text();
-  for (const text of ['巡视开始时间', '施工人数', '检查统计', '问题照片.jpg', '现场.jpg', '2026-10-29 08:00:00', "'=公式"]) assert.ok(csv.includes(text), text);
+  for (const text of ['巡检时间', '施工人数', '检查统计', '问题照片.jpg', '现场.jpg', '2026-10-29 08:00:00', "'=公式"]) assert.ok(csv.includes(text), text);
   assert.doesNotMatch(csv, /token=secret|\/api\/uploads|不应导出的本机正文/);
 });
 function setupChecklistView(data = C.empty(), options = {}) {
   const s = { raw: C.stringify(data), errors: [], confirms: [], uploads: [], busy: !!options.busy, confirm: true };
-  const simple = () => ({ dataset: {}, textContent: '', focus() {}, click() {} });
-  const stats = simple(), errorBox = simple(), print = simple(), box = { innerHTML: '', inputs: [], querySelector: () => simple(),
-    querySelectorAll(selector) {
-      if (selector === '[data-problem-upload]') { this.inputs = [...this.innerHTML.matchAll(/data-problem-upload="([^"]+)"/g)].map(m => ({ dataset: { problemUpload: m[1] } })); return this.inputs; }
-      return [];
-    }
-  };
+  const simple = id => ({ dataset: {}, textContent: '', focus() { s.focus = id || 'control'; }, click() {} });
+  // 检查项照片是行内 file 输入：按 data-ic-photo 缓存元素，重渲染后仍复用同一 onchange 绑定
+  const photoInputs = new Map();
+  const stats = simple(), errorBox = simple(), print = simple(), box = { innerHTML: '', querySelector: selector => simple(selector), querySelectorAll: () => [] };
   const host = { innerHTML: '', contains: () => true,
     querySelector: selector => selector === '[data-ic-panel]' ? box : selector === '[data-ic-summary]' ? stats : selector === '.ic-print' ? print : errorBox,
-    querySelectorAll: () => [simple()] };
+    querySelectorAll(selector) {
+      if (selector === '[data-ic-photo]') return [...this.innerHTML.matchAll(/data-ic-photo="([^"]+)"/g)].map(m => {
+        if (!photoInputs.has(m[1])) photoInputs.set(m[1], { dataset: { icPhoto: m[1] }, value: '' });
+        return photoInputs.get(m[1]);
+      });
+      return [simple()];
+    } }, photoInput = id => {
+      if (!photoInputs.has(id)) photoInputs.set(id, { dataset: { icPhoto: id }, value: '' });
+      return photoInputs.get(id);
+    };
   const context = { window: null, document: {}, App: { escape: v => String(v == null ? '' : v).replace(/</g, '&lt;'), getUser: () => ({ userName: '填写人' }),
     confirm: async text => { s.confirms.push(text); return s.confirm; } }, InspectionChecklist: C };
   context.window = context;
@@ -1563,51 +1678,146 @@ function setupChecklistView(data = C.empty(), options = {}) {
   s.view = context.InspectionChecklistView(host, { raw: () => s.raw, readOnly: !!options.readOnly, busy: () => s.busy,
     change: raw => { s.raw = raw; }, error: e => s.errors.push(e.message), openFile: url => { s.opened = url; },
     upload: async file => { s.uploads.push(file.name); return s.upload ? s.upload(file) : { url: '/api/uploads/' + file.name, name: file.name, size: 1 }; } });
-  s.click = (action, itemId, problemId) => {
-    const el = { dataset: { icAction: action }, closest: selector => selector === '[data-ic-action]' ? el : { dataset: { icId: itemId, problemId } } };
+  s.click = (action, itemId, problemId, extra) => {
+    const el = { dataset: Object.assign({ icAction: action }, extra || {}), closest: selector => selector === '[data-ic-action]' ? el : { dataset: { icId: itemId, problemId } } };
     return host.onclick({ target: el });
   };
   s.input = (id, field, value, problem) => host.oninput({ target: { dataset: { [problem ? 'problemField' : 'icField']: field }, value,
     closest: () => ({ dataset: { icId: id, problemId: id } }) } });
-  s.files = files => box.inputs[0].onchange({ target: { files } });
+  s.icFiles = async (itemId, files) => {
+    // 页面 onchange 内部是异步上传，这里等微任务跑完再断言
+    photoInput(itemId).onchange({ stopPropagation() {}, target: { files, value: '' } });
+    for (let n = 0; n < 5; n++) await new Promise(resolve => setImmediate(resolve));
+  };
   return Object.assign(s, { host, box, stats, print });
 }
 test('电脑检查项空表新增、问题独立确认取消、结果不删问题与删除确认', async () => {
   const s = setupChecklistView(); assert.match(s.host.innerHTML, /未录入检查项/);
   await s.click('add'); const id = C.parse(s.raw).items[0].id; await s.input(id, 'content', '检查脚手架');
-  await s.click('problems', id); assert.match(s.box.innerHTML, /尚无问题/); assert.equal(C.stats(s.raw).problems, 0);
-  await s.click('add-problem'); assert.throws(s.view.guard, /确认或取消/); assert.equal(s.view.hasUnsaved(), true);
+  await s.click('problems', id);
+  assert.equal((s.box.innerHTML.match(/data-problem-id=/g) || []).length, 1, '点开即给出问题说明输入框');
+  assert.equal(C.stats(s.raw).problems, 0);
+  assert.throws(s.view.guard, /确认或取消/); assert.equal(s.view.hasUnsaved(), true);
   await s.click('cancel-problems'); assert.equal(C.stats(s.raw).problems, 0);
-  await s.click('problems', id); await s.click('add-problem'); await s.click('confirm-problems'); assert.equal(C.stats(s.raw).problems, 1);
-  await s.input(id, 'result', 'compliant'); assert.equal(C.stats(s.raw).problems, 1);
-  s.confirm = false; await s.click('delete', id); assert.equal(C.stats(s.raw).total, 1); assert.match(s.confirms.at(-1), /1 个问题/);
+  await s.click('problems', id); await s.click('add-problem'); await s.click('confirm-problems'); assert.equal(C.stats(s.raw).problems, 2);
+  await s.input(id, 'result', 'compliant'); assert.equal(C.stats(s.raw).problems, 2);
+  s.confirm = false; await s.click('delete', id); assert.equal(C.stats(s.raw).total, 1); assert.match(s.confirms.at(-1), /2 个问题/);
   s.confirm = true; await s.click('delete', id); assert.equal(C.stats(s.raw).total, 0);
 });
-test('电脑问题名称验证不关闭面板，保存忙状态恢复后仍可编辑，只读不允许写入', async () => {
+test('电脑点击问题直接展开并聚焦，已有问题不重复新增', async () => {
+  const data = checklistData(false), id = data.items[0].id, s = setupChecklistView(data);
+  await s.click('problems', id);
+  const pid = s.box.innerHTML.match(/data-problem-id="([^"]+)"/)[1];
+  assert.equal((s.box.innerHTML.match(/data-problem-id=/g) || []).length, 1);
+  assert.match(s.focus, /data-problem-field="description"/); assert.ok(s.focus.includes(pid));
+  assert.equal(C.stats(s.raw).problems, 0, '确认前不写回检查项');
+  await s.input(pid, 'description', '临边防护缺失', true); await s.click('confirm-problems');
+  assert.equal(C.stats(s.raw).problems, 1);
+  await s.click('problems', id); assert.equal((s.box.innerHTML.match(/data-problem-id=/g) || []).length, 1);
+  assert.ok(s.focus.includes(pid), '再次打开聚焦已有问题而不是新增');
+  // 符合的检查项点开同样直接给出问题说明输入框
+  const ok = checklistData(false); ok.items[0].result = 'compliant'; const s2 = setupChecklistView(ok);
+  await s2.click('problems', ok.items[0].id);
+  assert.equal((s2.box.innerHTML.match(/data-problem-id=/g) || []).length, 1);
+  assert.match(s2.focus, /data-problem-field="description"/); assert.equal(C.stats(s2.raw).problems, 0);
+});
+test('电脑问题面板仅保留问题说明，空说明也可确认，只读不允许写入', async () => {
   const data = checklistData(false), id = data.items[0].id, s = setupChecklistView(data, { busy: true });
   assert.match(s.host.innerHTML, /添加检查项/); await s.click('add'); assert.equal(C.stats(s.raw).total, 1); s.busy = false;
-  await s.click('problems', id); await s.click('add-problem');
-  const pid = s.box.innerHTML.match(/data-problem-id="([^"]+)"/)[1]; await s.input(pid, 'name', '', true); await s.click('confirm-problems');
-  assert.match(s.errors.at(-1), /问题名称/); assert.throws(s.view.guard); assert.equal(C.stats(s.raw).problems, 0);
-  await s.input(pid, 'name', '有效问题', true); await s.click('confirm-problems'); assert.doesNotThrow(s.view.guard);
+  await s.click('problems', id);
+  assert.doesNotMatch(s.box.innerHTML, /问题名称|问题类型/); assert.match(s.box.innerHTML, /data-problem-field="description"/);
+  const pid = s.box.innerHTML.match(/data-problem-id="([^"]+)"/)[1];
+  await s.input(pid, 'description', '', true); await s.click('confirm-problems'); assert.doesNotThrow(s.view.guard);
+  await s.click('problems', id); await s.input(pid, 'description', '有效说明', true); await s.click('confirm-problems'); assert.doesNotThrow(s.view.guard);
   const read = setupChecklistView(C.parse(s.raw), { readOnly: true }); assert.doesNotMatch(read.host.innerHTML, /data-ic-action="add"/);
   await read.click('problems', id); assert.doesNotMatch(read.box.innerHTML, /data-ic-action="add-problem"/);
-  await read.input(pid, 'name', '不应修改', true); await read.click('cancel-problems'); assert.equal(read.raw, s.raw);
+  assert.doesNotMatch(read.box.innerHTML, /问题名称|问题类型/); assert.match(read.box.innerHTML, /data-problem-field="description"/);
+  await read.input(pid, 'description', '不应修改', true); await read.click('cancel-problems'); assert.equal(read.raw, s.raw);
 });
-test('电脑问题附件失败保留重试入口，确认与打印只含名称和已选结果', async () => {
-  const data = checklistData(), s = setupChecklistView(data); await s.click('problems', data.items[0].id);
-  s.upload = async () => { throw new Error('模拟断网'); }; await s.files([{ name: '检查照片.jpg' }]);
-  assert.match(s.box.innerHTML, /重试问题附件/); await s.click('confirm-problems'); assert.match(s.errors.at(-1), /上传未完成/);
-  s.upload = null; await s.click('retry'); await s.click('confirm-problems');
-  assert.equal(C.parse(s.raw).items[0].problems[0].attachments.length, 1); s.view.print();
-  assert.match(s.print.textContent, /检查照片.jpg/); assert.match(s.print.textContent, /结果：不符合/); assert.doesNotMatch(s.print.textContent, /\/api\/uploads|结果：未检查|结果：符合/);
+test('电脑问题面板无上传入口，历史附件只读查看，打印含名称与结果', async () => {
+  const data = checklistData(); data.items[0].problems[0].attachments.push({ url: '/api/uploads/old.jpg', name: '历史问题照片.jpg' });
+  const s = setupChecklistView(data); await s.click('problems', data.items[0].id);
+  assert.doesNotMatch(s.box.innerHTML, /ic-upload|data-problem-upload|添加图片或附件|重试问题附件|data-upload-message/, '问题面板不再渲染任何上传入口');
+  assert.doesNotMatch(s.box.innerHTML, /data-ic-action="remove-file"/, '历史附件不提供移除');
+  assert.match(s.box.innerHTML, /历史问题照片.jpg/); assert.match(s.box.innerHTML, /data-ic-action="file"/, '历史附件仍可查看');
+  await s.click('file', data.items[0].id, undefined, { url: '/api/uploads/old.jpg' });
+  assert.equal(s.opened, '/api/uploads/old.jpg');
+  await s.click('confirm-problems');
+  assert.equal(C.parse(s.raw).items[0].problems[0].attachments.length, 1, '确认后历史附件保留');
+  s.view.print();
+  assert.match(s.print.textContent, /历史问题照片.jpg/); assert.match(s.print.textContent, /结果：不符合/);
+  assert.doesNotMatch(s.print.textContent, /\/api\/uploads|结果：未检查|结果：符合/);
 });
-test('电脑问题上传取消后不再上传剩余文件，迟到响应不写入另一面板', async () => {
-  const data = checklistData(), s = setupChecklistView(data), gate = deferred(); await s.click('problems', data.items[0].id);
-  s.upload = async () => { await gate.promise; throw new Error('迟到失败'); };
-  const work = s.files([{ name: 'a.jpg' }, { name: 'b.jpg' }]); await s.click('cancel-problems'); await s.click('problems', data.items[0].id);
-  gate.resolve(); await work; assert.deepEqual(s.uploads, ['a.jpg']); await s.click('confirm-problems');
-  assert.equal(C.parse(s.raw).items[0].problems[0].attachments.length, 0);
+test('电脑问题面板新增与确认不触发任何上传，仅写回问题说明', async () => {
+  const data = checklistData(false), s = setupChecklistView(data); await s.click('problems', data.items[0].id);
+  const pid = s.box.innerHTML.match(/data-problem-id="([^"]+)"/)[1];
+  await s.input(pid, 'description', '临边防护缺失', true);
+  await s.click('add-problem');
+  assert.equal(s.uploads.length, 0, '问题面板不再上传任何文件');
+  assert.doesNotMatch(s.box.innerHTML, /data-problem-upload|ic-upload/);
+  await s.click('confirm-problems');
+  assert.equal(C.stats(s.raw).problems, 2);
+  assert.equal(s.uploads.length, 0);
+  assert.equal(s.view.hasUnsaved(), false);
+});
+test('电脑检查项现场照片独立上传、重复去重、移除与只读隐藏入口', async () => {
+  const data = checklistData(), id = data.items[0].id, s = setupChecklistView(data);
+  assert.match(s.host.innerHTML, /<th>现场照片<\/th>/);
+  assert.ok(s.host.innerHTML.includes('data-ic-photo="' + id + '"'), '每行有独立照片入口');
+  assert.match(s.host.innerHTML, /未上传/);
+  await s.icFiles(id, [{ name: '现场凭证.jpg' }]);
+  assert.deepEqual(s.uploads, ['现场凭证.jpg']);
+  assert.deepEqual(C.parse(s.raw).items[0].photos.map(f => f.name), ['现场凭证.jpg']);
+  assert.equal(s.view.hasUnsaved(), false, '检查项照片无需问题面板确认');
+  // 同一地址重复选择不重复入库
+  await s.icFiles(id, [{ name: '现场凭证.jpg' }]);
+  assert.equal(C.parse(s.raw).items[0].photos.length, 1);
+  assert.match(s.host.innerHTML, /现场凭证.jpg/);
+  // 只移除该项照片，问题附件与问题本身不受影响
+  await s.click('remove-photo', id, undefined, { url: '/api/uploads/现场凭证.jpg' });
+  assert.equal(C.parse(s.raw).items[0].photos.length, 0);
+  assert.equal(C.parse(s.raw).items[0].problems.length, 1);
+  const read = setupChecklistView(C.parse(s.raw), { readOnly: true });
+  assert.doesNotMatch(read.host.innerHTML, /data-ic-photo="/, '只读视图不渲染上传入口');
+});
+test('电脑检查项照片每项十张与整单五十个附件上限', async () => {
+  const data = checklistData(), item = data.items[0];
+  item.photos = Array.from({ length: 10 }, (_, n) => ({ url: '/api/uploads/p' + n + '.jpg', name: 'p' + n + '.jpg' }));
+  const s = setupChecklistView(data);
+  await s.icFiles(item.id, [{ name: 'extra.jpg' }]);
+  assert.match(s.errors.at(-1), /每项最多 10 张检查项照片/);
+  assert.equal(s.uploads.length, 0, '超限不再上传');
+  const full = checklistData(), target = full.items[0];
+  target.problems[0].attachments = Array.from({ length: 40 }, (_, n) => ({ url: '/api/uploads/a' + n + '.jpg', name: 'a' + n + '.jpg' }));
+  // 另一项已满 10 张照片，本项仍可再加入，但整单已到 50 个附件
+  const sibling = Object.assign(C.newItem(), { content: '安全网', result: 'compliant',
+    photos: Array.from({ length: 10 }, (_, n) => ({ url: '/api/uploads/b' + n + '.jpg', name: 'b' + n + '.jpg' })) });
+  full.items.push(sibling);
+  const s2 = setupChecklistView(full);
+  await s2.icFiles(target.id, [{ name: 'overflow.jpg' }]);
+  assert.match(s2.errors.at(-1), /50 个附件（含检查项照片与问题附件）/);
+  assert.equal(s2.uploads.length, 0);
+});
+test('电脑巡检新建默认当前分钟、单一时间提交且部位内容可留空', async () => {
+  assert.equal(schema.nowMinute(new Date(2026, 0, 2, 3, 4)), '2026-01-02 03:04');
+  const s = await setupPc('daily-inspections'); await s.actions.create();
+  const html = s.nodes.fwForm.innerHTML, body = s.actions.getDraft().body;
+  assert.match(String(body.startTime), /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
+  assert.ok(String(body.startTime).startsWith(schema.today()), '默认带入当前日期');
+  assert.match(html, /data-field="startTime"[^>]*value="\d{4}-\d{2}-\d{2} \d{2}:\d{2}:00"/);
+  assert.equal(html.includes('data-field="endTime"'), false, '不再渲染结束时间');
+  // 检查部位与巡视内容改为选填：不再出现必填标记
+  for (const field of ['location', 'content']) {
+    const at = html.indexOf('id="fwF-' + field + '"');
+    assert.ok(at > 0, field + ' 仍需渲染');
+    assert.doesNotMatch(html.slice(html.lastIndexOf('fd-label', at), at), /fd-req/, field + ' 不再必填');
+  }
+  s.actions.getDraft().body.checklist = C.stringify(checklistData());
+  await s.actions.save(true);
+  const write = s.calls.find(c => c.opts && c.opts.method === 'POST');
+  assert.ok(!write.opts.body.location); assert.ok(!write.opts.body.content);
+  assert.match(write.opts.body.startTime, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00$/);
+  assert.equal('endTime' in write.opts.body, false);
 });
 test('电脑巡检恢复旧pending后新增明细仍留在本机，不提交旧版本', async () => {
   const s = await setupPc('daily-inspections'); await s.actions.create(); const d = s.actions.getDraft();
@@ -1670,6 +1880,18 @@ test('小程序巡检提交即保存并回列表，无审核确认，已保存�
   assert.equal(s2.calls.some(c => c.url.endsWith('/submit')), false);
   assert.equal(s2.modal, undefined); s2.timeouts.forEach(fn => fn()); assert.equal(s2.backed, true);
 });
+test('小程序巡检新建自动带入当前分钟，其他类型不带巡检时间', () => {
+  const s = setup(), p = setupHome(s);
+  p.data.projects = [{ id: 2, name: '测试工程' }]; p.data.projectIndex = 0;
+  s.wx.navigateTo = options => { s.navigation = options.url; };
+  p.create({ currentTarget: { dataset: { kind: 'daily-inspections' } } });
+  const daily = s.drafts.list().at(-1);
+  assert.match(String(daily.body.startTime), /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
+  assert.ok(String(daily.body.startTime).startsWith(schema.today()));
+  assert.match(s.navigation, /pages\/record\/index\?localId=/);
+  p.create({ currentTarget: { dataset: { kind: 'supervision-diaries' } } });
+  assert.equal('startTime' in s.drafts.list().find(d => d.kind === 'supervision-diaries').body, false);
+});
 test('小程序首页巡检不展示待审核，切到巡检回到我的记录且摘要只给草稿与已保存', async () => {
   const s = setup(), p = setupHome(s);
   p.data.projects = [{ id: 2, name: '测试工程' }]; p.data.projectIndex = 0;
@@ -1685,4 +1907,72 @@ test('小程序首页巡检不展示待审核，切到巡检回到我的记录�
   p.mode({ currentTarget: { dataset: { mode: 'todo' } } });
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(p.data.mode, 'mine', '巡检不提供项目待审核模式');
+});
+
+function dailySyncRecord() {
+  return { id: 31, code: 'D-20261109-31', title: '一层', startTime: '2026-11-09T08:30:00', workerCount: 12, manageCount: 3,
+    inspectionContent: '检查临边防护与临时用电', issues: '一处防护需加固',
+    checklist: JSON.stringify({ version: 1, items: [{ id: 'ci-diary-1', content: '临边防护', result: 'noncompliant',
+      photos: [{ url: '/api/uploads/item.jpg', name: '检查项.jpg' }],
+      problems: [{ id: 'cp-diary-1', description: '防护松动，已要求立即加固', attachments: [] }] }] }),
+    syncPhotos: [{ url: '/api/uploads/item.jpg', name: '检查项.jpg', size: 20 }, { url: '/api/uploads/whole.jpg', name: '整单照片.jpg', size: 30 }] };
+}
+test('巡检同步模型分栏追加、保留原文、照片去重且重复操作幂等', () => {
+  const record = dailySyncRecord();
+  const original = { inspection: '手写监理工作\n', newIssues: '原有问题', otherWork: '其他栏目不动' };
+  const current = [{ url: '/api/uploads/item.jpg', name: '日记已有照片', description: '手写说明' }];
+  const merged = DailySync.merge(record, original, current);
+  assert.equal(merged.addedText, 2); assert.equal(merged.addedPhotos, 1);
+  assert.ok(merged.body.inspection.startsWith('手写监理工作\n\n【日常巡检】D-20261109-31'));
+  assert.match(merged.body.inspection, /巡检时间：2026-11-09 08:30/);
+  assert.match(merged.body.inspection, /施工人数：12 人；管理人数：3 人/);
+  assert.match(merged.body.inspection, /检查结果：不符合/);
+  assert.ok(merged.body.newIssues.startsWith('原有问题\n\n【日常巡检】'));
+  assert.match(merged.body.newIssues, /问题说明：防护松动，已要求立即加固/);
+  assert.equal(merged.body.otherWork, '其他栏目不动');
+  assert.equal(merged.photos[0].description, '手写说明');
+  assert.equal(merged.photos[1].sourceId, 31);
+  const repeated = DailySync.merge(record, merged.body, merged.photos);
+  assert.equal(repeated.addedText, 0); assert.equal(repeated.addedPhotos, 0);
+  assert.deepEqual(repeated.body, merged.body);
+  const workOnly = DailySync.merge(record, original, current, { issues: false, photos: false });
+  assert.equal(workOnly.body.newIssues, '原有问题'); assert.equal(workOnly.addedPhotos, 0);
+  assert.throws(() => DailySync.merge(record, { inspection: '字'.repeat(60000) }, []), /60000/);
+  assert.throws(() => DailySync.merge(record, {}, Array.from({ length: 50 }, (_, n) => ({ url: '/api/uploads/' + n + '.jpg' }))), /50/);
+});
+test('电脑端巡检一键追加到日记正文与照片区，不重复上传且不自动保存', async () => {
+  const s = await setupPc(); s.enableControls(); s.workbench = { dailyInspections: [dailySyncRecord()], supervisionNotices: [], workContacts: [], documents: [] };
+  await s.actions.create(); await tick();
+  assert.match(s.nodes.fwDiaryDay.innerHTML, /同步到日记/);
+  s.input('inspection', '手写监理工作');
+  s.actions.syncDailyInspection(0, { inspection: true, issues: true, photos: true });
+  const d = s.actions.getDraft();
+  assert.ok(d.body.inspection.startsWith('手写监理工作\n\n【日常巡检】'));
+  assert.match(d.body.newIssues, /防护松动，已要求立即加固/);
+  assert.equal(JSON.parse(d.body.photos).length, 2);
+  assert.match(s.nodes.fwForm.innerHTML, /D-20261109-31/);
+  assert.equal(s.uploads.length, 0); assert.equal(s.calls.filter(c => c.opts && c.opts.method).length, 0);
+  s.actions.syncDailyInspection(0, { inspection: true, issues: true, photos: true });
+  assert.deepEqual(s.actions.getDraft().body, d.body);
+});
+test('小程序巡检选择面板写回本机草稿并保留已有日记与照片', async () => {
+  const s = setup(), p = setupPage(s), d = create(s); p.localId = d.localId;
+  const existing = Object.assign(body(), { inspection: '手写监理工作', newIssues: '原有问题', photos: JSON.stringify([{ url: '/api/uploads/item.jpg', description: '原有说明' }]) });
+  const local = s.drafts.create('supervision-diaries', existing); p.localId = local.localId; p.showDraft(local);
+  s.workbench = { dailyInspections: [dailySyncRecord()] };
+  await p.loadDailyInspections();
+  assert.equal(p.data.dailyRecords[0].photoCount, 2);
+  p.openDailySync({ currentTarget: { dataset: { index: 0 } } });
+  p.dailySyncChoice({ detail: { value: ['inspection', 'issues', 'photos'] } });
+  p.confirmDailySync(); await tick();
+  const saved = s.drafts.get(local.localId).body;
+  assert.ok(saved.inspection.startsWith('手写监理工作\n\n【日常巡检】'));
+  assert.match(saved.newIssues, /防护松动，已要求立即加固/);
+  assert.equal(JSON.parse(saved.photos).length, 2);
+  assert.equal(JSON.parse(saved.photos)[0].description, '原有说明');
+  assert.equal(p.data.fields.find(f => f.key === 'inspection').value, saved.inspection);
+  assert.equal(p.data.dailySyncIndex, -1); assert.equal(s.uploads.length, 0);
+  p.openDailySync({ currentTarget: { dataset: { index: 0 } } }); p.confirmDailySync();
+  assert.equal(s.drafts.get(local.localId).body.inspection, saved.inspection);
+  assert.equal(JSON.parse(s.drafts.get(local.localId).body.photos).length, 2);
 });

@@ -32,13 +32,23 @@ public class InspectionChecklist {
             for (JsonNode item : root.path("items")) {
                 checkId(item, ids);
                 for (String key : List.of("category", "content", "method", "standard")) checkText(item, key);
-                if (!item.path("required").isBoolean() || !RESULTS.contains(item.path("result").asText())
+                if (!RESULTS.contains(item.path("result").asText())
                         || !item.path("problems").isArray() || item.path("problems").size() > 20)
-                    throw invalid("检查项的必检标记、结果或问题列表无效（每项最多 20 个问题）");
+                    throw invalid("检查项的结果或问题列表无效（每项最多 20 个问题）");
+                // 检查项现场照片：可选，旧记录无此字段；与问题附件共用每份 50 个附件的上限
+                JsonNode itemPhotos = item.path("photos");
+                if (!itemPhotos.isMissingNode()) {
+                    if (!itemPhotos.isArray() || itemPhotos.size() > 10) throw invalid("检查项照片必须为列表且最多 10 张");
+                    for (JsonNode file : itemPhotos) {
+                        checkFile(file, "检查项照片尚未上传或格式无效");
+                        files++;
+                    }
+                }
                 for (JsonNode problem : item.path("problems")) {
                     checkId(problem, problemIds);
                     for (String key : List.of("name", "type", "description")) checkText(problem, key);
-                    if (!TYPES.contains(problem.path("type").asText())) throw invalid("问题类型无效");
+                    // 问题名称与类型已下线：仅保留说明；历史数据的类型仍校验，新记录可不带
+                    if (problem.has("type") && !TYPES.contains(problem.path("type").asText())) throw invalid("问题类型无效");
                     if (!problem.path("attachments").isArray()) throw invalid("问题附件必须为列表");
                     for (JsonNode file : problem.path("attachments")) {
                         if (!file.isObject() || !file.path("url").isTextual() || file.path("url").asText().isBlank())
@@ -51,7 +61,7 @@ public class InspectionChecklist {
                     problems++;
                 }
             }
-            if (problems > 200 || files > 50) throw invalid("每份巡视最多 200 个问题、50 个问题附件");
+            if (problems > 200 || files > 50) throw invalid("每份巡视最多 200 个问题、50 个附件（含检查项照片与问题附件）");
             return (ObjectNode) root;
         } catch (BusinessException e) { throw e; }
         catch (Exception e) { throw invalid("检查明细无法解析，请保留原始草稿"); }
@@ -68,6 +78,15 @@ public class InspectionChecklist {
             throw invalid("检查明细字段 " + key + " 必须为文本且不超过 10000 字符");
     }
 
+    /** 检查项照片与问题附件共用的文件基本校验：必须有 url，name 为文本，size 为非负整数。 */
+    private void checkFile(JsonNode file, String message) {
+        if (!file.isObject() || !file.path("url").isTextual() || file.path("url").asText().isBlank()) throw invalid(message);
+        checkText(file, "name");
+        if (file.has("size") && (!file.path("size").isIntegralNumber() || !file.path("size").canConvertToLong()
+                || file.path("size").asLong() < 0 || file.path("size").asLong() > 9007199254740991L))
+            throw invalid("附件大小无效");
+    }
+
     public String normalize(String raw, String previous, Long uid, String userName) {
         if (raw == null || raw.isBlank()) return previous;
         ObjectNode root = parse(raw);
@@ -78,12 +97,20 @@ public class InspectionChecklist {
         ArrayNode items = result.putArray("items");
         for (JsonNode item : root.path("items")) {
             ObjectNode target = items.addObject();
-            for (String key : List.of("id", "category", "content", "method", "standard", "result")) target.put(key, item.path(key).asText());
-            target.put("required", item.path("required").asBoolean());
+            for (String key : List.of("id", "content", "result")) target.put(key, item.path(key).asText());
+            ArrayNode photos = target.putArray("photos");
+            for (JsonNode file : item.path("photos")) {
+                ObjectNode f = photos.addObject(); f.put("url", file.path("url").asText()); f.put("name", file.path("name").asText());
+                if (file.has("size")) f.set("size", file.get("size"));
+            }
             ArrayNode problemList = target.putArray("problems");
             for (JsonNode problem : item.path("problems")) {
                 ObjectNode p = problemList.addObject();
-                for (String key : List.of("id", "name", "type", "description")) p.put(key, problem.path(key).asText());
+                p.put("id", problem.path("id").asText());
+                // 历史记录的名称与类型原样保留，新建记录仅存说明
+                if (problem.hasNonNull("name")) p.put("name", problem.path("name").asText());
+                if (problem.hasNonNull("type")) p.put("type", problem.path("type").asText());
+                p.put("description", problem.path("description").asText());
                 JsonNode saved = old.get(problem.path("id").asText());
                 p.put("foundById", saved != null && saved.hasNonNull("foundById") ? saved.path("foundById").asLong() : uid);
                 p.put("foundByName", saved != null && saved.hasNonNull("foundByName") ? saved.path("foundByName").asText() : userName);
@@ -104,17 +131,17 @@ public class InspectionChecklist {
         for (JsonNode item : parse(raw).path("items")) {
             n++;
             if (item.path("content").asText().isBlank()) throw invalid("请填写第 " + n + " 项检查内容");
-            if (item.path("required").asBoolean() && "unchecked".equals(item.path("result").asText()))
+            if ("unchecked".equals(item.path("result").asText()))
                 throw invalid("请选择第 " + n + " 项（" + item.path("content").asText() + "）的检查结果");
-            for (JsonNode problem : item.path("problems")) if (problem.path("name").asText().isBlank())
-                throw invalid("请填写第 " + n + " 项的问题名称");
         }
     }
 
     public String fileJson(String raw) {
         ArrayNode files = mapper.createArrayNode();
-        for (JsonNode item : parse(raw).path("items")) for (JsonNode problem : item.path("problems"))
-            problem.path("attachments").forEach(files::add);
+        for (JsonNode item : parse(raw).path("items")) {
+            item.path("photos").forEach(files::add);
+            for (JsonNode problem : item.path("problems")) problem.path("attachments").forEach(files::add);
+        }
         return files.toString();
     }
 }

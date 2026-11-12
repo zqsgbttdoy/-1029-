@@ -1,0 +1,43 @@
+{
+  "base": "http://127.0.0.1:18091",
+  "time": "2026-11-11T07:38:09.543Z",
+  "results": [
+    {
+      "name": "隔离实例真实登录且只访问 18091",
+      "pass": true
+    },
+    {
+      "name": "全局现场照片上传区保留且可用",
+      "pass": true,
+      "detail": {
+        "projectId": 1
+      }
+    },
+    {
+      "name": "检查项级现场照片入口保留（非问题照片）",
+      "pass": true
+    },
+    {
+      "name": "问题编辑面板无任何图片/附件上传按钮或文件选择器",
+      "pass": true,
+      "detail": {}
+    },
+    {
+      "name": "新增问题后面板仍无任何上传入口",
+      "pass": true
+    },
+    {
+      "name": "全局上传区选择图片后显示预览",
+      "pass": true,
+      "detail": {
+        "previews": 1
+      }
+    },
+    {
+      "name": "全程无 JavaScript 异常与接口 4xx/5xx",
+      "pass": true
+    }
+  ],
+  "errors": [],
+  "httpErrors": []
+}

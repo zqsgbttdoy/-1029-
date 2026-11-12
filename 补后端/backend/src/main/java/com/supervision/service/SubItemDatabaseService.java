@@ -26,6 +26,7 @@ public class SubItemDatabaseService {
 
     private final SubItemDatabaseRepository subItemDatabaseRepository;
     private final ProjectAccessService access;
+    private final DirectoryAttachmentTraceService attachmentTraces;
 
     public PageResult<SubItemDatabase> list(int pageNum, int pageSize, Long projectId, String name, String status) {
         pageNum = PageUtils.normalizePageNum(pageNum);
@@ -91,10 +92,16 @@ public class SubItemDatabaseService {
     public List<Map<String, Object>> getTree(Long projectId) {
         access.requireRead(projectId);
         List<SubItemDatabase> all = subItemDatabaseRepository.findByProjectId(projectId);
-        return buildTree(all, null);
+        Map<Long, Map<String, Object>> stats = attachmentTraces.treeStats(all);
+        return buildTree(all, null, stats);
     }
 
-    private List<Map<String, Object>> buildTree(List<SubItemDatabase> all, Long parentId) {
+    public Map<String, Object> getAttachmentSources(Long id) {
+        SubItemDatabase selected = getById(id);
+        return attachmentTraces.detail(selected, subItemDatabaseRepository.findByProjectId(selected.getProjectId()));
+    }
+
+    private List<Map<String, Object>> buildTree(List<SubItemDatabase> all, Long parentId, Map<Long, Map<String, Object>> stats) {
         List<Map<String, Object>> tree = new ArrayList<>();
         for (SubItemDatabase item : all) {
             if ((parentId == null && item.getParentId() == null) ||
@@ -107,7 +114,9 @@ public class SubItemDatabaseService {
                 node.put("sortOrder", item.getSortOrder());
                 node.put("description", item.getDescription());
                 node.put("status", item.getStatus());
-                node.put("children", buildTree(all, item.getId()));
+                node.putAll(stats.getOrDefault(item.getId(), Map.of(
+                        "attachmentCount", 0, "recordCount", 0, "sourceDistribution", List.of())));
+                node.put("children", buildTree(all, item.getId(), stats));
                 tree.add(node);
             }
         }

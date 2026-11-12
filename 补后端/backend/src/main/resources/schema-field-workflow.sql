@@ -133,6 +133,10 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='biz_supervision_log' AND column_name='safety_issues') THEN
         ALTER TABLE biz_supervision_log ADD COLUMN safety_issues TEXT NULL COMMENT '存在的安全问题及处理结果';
     END IF;
+    -- 参会人员只保存用户 ID 数组，新增可空列，不改写历史日志。
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='biz_supervision_log' AND column_name='participants') THEN
+        ALTER TABLE biz_supervision_log ADD COLUMN participants TEXT NULL COMMENT '参会人员用户ID(JSON)';
+    END IF;
     -- 日记填写规范新增栏目只补空列，不拆分或覆盖历史正文。
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='biz_supervision_diary' AND column_name='other_work') THEN
         ALTER TABLE biz_supervision_diary ADD COLUMN other_work TEXT NULL COMMENT '其他工作';
@@ -142,6 +146,19 @@ BEGIN
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='biz_supervision_diary' AND column_name='material_inspection') THEN
         ALTER TABLE biz_supervision_diary ADD COLUMN material_inspection TEXT NULL COMMENT '材料进场检查';
+    END IF;
+    -- 直传资料与日记的实时绑定由专用服务维护，不回填旧正文引用。
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='biz_supervision_diary' AND column_name='related_attachment_ids') THEN
+        ALTER TABLE biz_supervision_diary ADD COLUMN related_attachment_ids TEXT NULL COMMENT '关联直传资料ID(JSON)';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='biz_project_document' AND column_name='diary_id') THEN
+        ALTER TABLE biz_project_document ADD COLUMN diary_id BIGINT NULL COMMENT '关联监理日记ID';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.statistics WHERE table_schema=DATABASE() AND table_name='biz_project_document' AND index_name='idx_biz_project_document_diary_id') THEN
+        ALTER TABLE biz_project_document ADD INDEX idx_biz_project_document_diary_id (diary_id);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.statistics WHERE table_schema=DATABASE() AND table_name='biz_project_document' AND index_name='idx_biz_project_document_diary_day') THEN
+        ALTER TABLE biz_project_document ADD INDEX idx_biz_project_document_diary_day (project_id, upload_date, diary_id);
     END IF;
     -- 巡视只增加可空列，原正文、人员和历史检查结论保持不变。
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='biz_daily_inspection' AND column_name='start_time') THEN

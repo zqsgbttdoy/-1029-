@@ -1,0 +1,726 @@
+
+        // ========== API工具函数 ==========
+        var API_BASE = '/work-contacts';
+        if (window.App) { App.requireAuth(); }
+        function showToast(msg, type) {
+            if (window.App && App.toast) { App.toast(msg, type); return; }
+            var el = document.createElement('div'); el.className = 'toast ' + (type||'success'); el.textContent = msg; document.body.appendChild(el);
+            setTimeout(function(){ el.classList.add('show'); }, 10);
+            setTimeout(function(){ el.classList.remove('show'); setTimeout(function(){ el.remove(); }, 300); }, 2500);
+        }
+
+        var currentUser = (window.App && App.getUser) ? (App.getUser().userName || '') : '';
+        var allData = [];
+        var filteredData = [];
+        var currentPage = 1, pageSize = 10, totalRecords = 0;
+        var loadSeq = 0;
+        var projectsMap = {};
+        var editingId = null;
+        var dirTreeProjectId = null; var dirTreeReady = false; var dirTreeLoadSeq = 0;
+        var dirTreeData = null; var dirTreeLoadError = false;
+        function parseArr(s) { if (!s) return []; if (Array.isArray(s)) return s; try { var a = JSON.parse(s); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+        function recById(id) { for (var i = 0; i < allData.length; i++) { if (String(allData[i].id) === String(id)) return allData[i]; } return null; }
+        function mapWorkContactRow(r) {
+            return {
+                id: r.id,
+                code: r.code || '',
+                projectId: r.projectId,
+                project: projectsMap[r.projectId] || ('项目#' + (r.projectId || '')),
+                sender: currentUser || '—',
+                receiver: r.title || '',
+                sendDate: (r.contactDate || '').slice(0, 10),
+                content: r.content || '',
+                attachments: parseArr(r.attachments),
+                status: r.status || 'draft'
+            };
+        }
+        function loadProjects() {
+            if (!window.App || !App.apiGetPage) return Promise.resolve();
+            return App.apiGetPage('/projects', { pageNum: 1, pageSize: 200 }).then(function (page) {
+                var list = (page && page.list) || [];
+                list.forEach(function (p) { projectsMap[p.id] = p.name; });
+                var opts = list.map(function (p) { return '<option value="' + p.id + '">' + esc(p.name) + '</option>'; }).join('');
+                var ps = document.getElementById('projectSelect');
+                if (ps) ps.innerHTML = '<option value="">请选择项目</option>' + opts;
+                var pf = document.getElementById('projectFilter');
+                if (pf) pf.innerHTML = '<option value="">全部项目</option>' + opts;
+            }).catch(function () { });
+        }
+
+        // ========== 加载列表 ==========
+        function loadData(page) {
+            if (!page) page = currentPage;
+            var search = (document.getElementById('searchInput').value||'').trim();
+            var status = document.getElementById('statusFilter').value||'';
+            var seq = ++loadSeq;
+            App.tableLoading(document.querySelector('.table-container tbody'), 7);
+            App.apiGetPage(API_BASE, { pageNum: page, pageSize: pageSize, code: search || undefined, status: status || undefined })
+                .then(function(pageData){
+                    if (seq !== loadSeq) return;
+                    allData = (pageData.list || []).map(mapWorkContactRow);
+                    filteredData = allData.slice();
+                    totalRecords = pageData.total || 0;
+                    currentPage = pageData.pageNum || page;
+                    renderTable();
+                })
+                .catch(function(){ if (seq !== loadSeq) return; allData = []; filteredData = []; renderTable(); });
+        }
+
+        function esc(s){ return (window.App && App.escape) ? App.escape(s) : String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+        function renderTable() {
+            try {
+                var tbody = document.querySelector('.table-container tbody');
+                if (!tbody) return;
+                var statusMap = {
+                    draft: { text: '草稿', cls: 'status-draft' },
+                    sent: { text: '已发送', cls: 'status-sent' },
+                    replied: { text: '已回复', cls: 'status-replied' },
+                    verified: { text: '已验证', cls: 'status-verified' },
+                    overdue: { text: '已逾期', cls: 'status-overdue' }
+                };
+                var html = '';
+                for (var i = 0; i < filteredData.length; i++) {
+                    var item = filteredData[i];
+                    var s = statusMap[item.status] || { text: item.status, cls: '' };
+                    var codeStyle = item.status === 'draft' ? 'color:#9CA3AF;' : 'color:#2563EB;font-weight:500;';
+                    var sendDateText = item.sendDate || '—';
+                    var actionsHtml = '';
+                    if (item.status === 'draft') {
+                        actionsHtml = '<button class="btn btn-outline btn-sm" onclick="openEditModal(' + item.id + ')">编辑</button><button class="btn btn-danger btn-sm" onclick="confirmDelete(' + item.id + ')">删除</button>';
+                    } else if (item.status === 'overdue') {
+                        actionsHtml = '<button class="btn btn-outline btn-sm" onclick="viewDetail(' + item.id + ')">查看</button><button class="btn btn-outline btn-sm" onclick="reply(' + item.id + ')">回复</button>';
+                    } else if (item.status === 'replied') {
+                        actionsHtml = '<button class="btn btn-outline btn-sm" onclick="viewDetail(' + item.id + ')">查看</button><button class="btn btn-success btn-sm" onclick="verify(' + item.id + ')">验证</button>';
+                    } else {
+                        actionsHtml = '<button class="btn btn-outline btn-sm" onclick="viewDetail(' + item.id + ')">查看</button>';
+                    }
+                    html += '<tr data-status="' + item.status + '">' +
+                        '<td style="' + codeStyle + '">' + esc(item.code) + '</td>' +
+                        '<td>' + esc(item.project) + '</td>' +
+                        '<td>' + esc(item.sender) + '</td>' +
+                        '<td>' + esc(item.receiver) + '</td>' +
+                        '<td>' + sendDateText + '</td>' +
+                        '<td><span class="status-tag ' + s.cls + '">' + s.text + '</span></td>' +
+                        '<td><div class="actions">' + actionsHtml + '</div></td>' +
+                        '</tr>';
+                }
+                tbody.innerHTML = html || '<tr data-app-placeholder="1"><td colspan="7" style="text-align:center;color:#9CA3AF;padding:40px;">暂无数据</td></tr>';
+                var totalPages = Math.ceil(totalRecords / pageSize) || 1;
+                var paginationInfo = document.querySelector('.pagination-info');
+                if (paginationInfo) {
+                    paginationInfo.textContent = '共 ' + totalRecords + ' 条记录，第 ' + currentPage + '/' + totalPages + ' 页';
+                }
+                var btnsEl = document.querySelector('.pagination-btns');
+                if (btnsEl) {
+                    var ph = '<button class="page-btn" onclick="loadData(' + (currentPage-1) + ')"' + (currentPage<=1?' disabled':'') + '>‹</button>';
+                    for (var p = 1; p <= totalPages && p <= 7; p++) { ph += '<button class="page-btn' + (p===currentPage?' active':'') + '" onclick="loadData(' + p + ')">' + p + '</button>'; }
+                    ph += '<button class="page-btn" onclick="loadData(' + (currentPage+1) + ')"' + (currentPage>=totalPages?' disabled':'') + '>›</button>';
+                    btnsEl.innerHTML = ph;
+                }
+            } catch(e) {
+                console.error('渲染表格出错：', e);
+            }
+        }
+
+        function applyFilters() { currentPage = 1; loadData(1); }
+
+        loadProjects().then(function () {
+            loadData(1);
+            var id = new URLSearchParams(location.search).get('id');
+            if (id && /^\d+$/.test(id)) viewDetail(id);
+        });
+
+        function openCreateModal() {
+            editingId = null;
+            document.getElementById('modalTitle').textContent = '新建工作联系单';
+            document.getElementById('senderInput').value = currentUser;
+            document.getElementById('sendDate').value = new Date().toISOString().split('T')[0];
+            ['contactCode', 'receiverUnit', 'contactContent', 'deadlineDate'].forEach(function (fid) { var el = document.getElementById(fid); if (el) el.value = ''; });
+            var ps = document.getElementById('projectSelect'); if (ps) ps.value = '';
+            dirTreeReady = false; dirTreeProjectId = null; dirTreeData = null; dirTreeLoadError = false;
+            resetAttList();
+            var cds = document.getElementById('contactDirSection'); if (cds) cds._dirs = [];
+            document.getElementById('createModal').classList.add('show');
+            ensureDirTree();
+        }
+        function openEditModal(id) {
+            editingId = id;
+            document.getElementById('modalTitle').textContent = '编辑联系单';
+            document.getElementById('senderInput').value = currentUser;
+            var rec = recById(id);
+            if (rec) {
+                var setVal = function (fid, v) { var el = document.getElementById(fid); if (el) el.value = v || ''; };
+                setVal('contactCode', rec.code);
+                setVal('receiverUnit', rec.receiver);
+                setVal('contactContent', rec.content);
+                setVal('sendDate', rec.sendDate || new Date().toISOString().split('T')[0]);
+                var ps = document.getElementById('projectSelect'); if (ps && rec.projectId) ps.value = rec.projectId;
+            }
+            dirTreeReady = false; dirTreeProjectId = null; dirTreeData = null; dirTreeLoadError = false;
+            resetAttList();
+            var cds = document.getElementById('contactDirSection'); if (cds) cds._dirs = [];
+            populateAttList(rec ? rec.attachments : []);
+            document.getElementById('createModal').classList.add('show');
+            ensureDirTree();
+        }
+        function viewDetail(id) {
+            var rec = recById(id);
+            if (!rec) {
+                App.apiFetch(API_BASE + '/' + encodeURIComponent(id)).then(function (record) {
+                    allData.push(mapWorkContactRow(record));
+                    viewDetail(id);
+                }).catch(function () { });
+                return;
+            }
+            var body = document.querySelector('#viewModal .modal-body');
+            if (!body) return;
+            var statusMap = { draft: '草稿', sent: '已发送', replied: '已回复', verified: '已验证', overdue: '已逾期' };
+            var st = statusMap[rec.status] || rec.status || '—';
+            var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">' +
+                '<div><span style="font-size:12px;color:#9CA3AF;">联系单编号</span><div style="font-size:14px;margin-top:4px;color:#2563EB;font-weight:500;">' + esc(rec.code) + '</div></div>' +
+                '<div><span style="font-size:12px;color:#9CA3AF;">所属项目</span><div style="font-size:14px;margin-top:4px;">' + esc(rec.project) + '</div></div>' +
+                '<div><span style="font-size:12px;color:#9CA3AF;">接收单位</span><div style="font-size:14px;margin-top:4px;">' + esc(rec.receiver) + '</div></div>' +
+                '<div><span style="font-size:12px;color:#9CA3AF;">发送日期</span><div style="font-size:14px;margin-top:4px;">' + esc(rec.sendDate || '—') + '</div></div>' +
+                '<div><span style="font-size:12px;color:#9CA3AF;">状态</span><div style="margin-top:4px;"><span class="status-tag">' + esc(st) + '</span></div></div>' +
+                '</div>' +
+                '<div style="margin-top:20px;padding-top:16px;border-top:1px solid #F3F4F6;"><h4 style="font-size:14px;font-weight:600;color:#1E3A5F;margin-bottom:8px;">联系内容</h4><div style="font-size:13px;color:#374151;line-height:1.8;background:#F8FAFC;padding:12px;border-radius:6px;white-space:pre-wrap;">' + (rec.content ? esc(rec.content) : '（未填写）') + '</div></div>' +
+                '<div style="margin-top:16px;padding-top:16px;border-top:1px solid #F3F4F6;"><h4 style="font-size:14px;font-weight:600;color:#1E3A5F;margin-bottom:8px;">附件</h4>';
+            var atts = rec.attachments || [];
+            if (!atts.length) {
+                html += '<div style="font-size:12px;color:#9CA3AF;">无附件</div>';
+            } else {
+                html += '<div style="display:flex;flex-direction:column;gap:6px;">';
+                atts.forEach(function (a) {
+                    var dirs = ((a && a.dirs) || []).filter(Boolean);
+                    var dirHtml = dirs.length ? '<div style="font-size:11px;color:#2563EB;margin-top:2px;">目录：' + dirs.map(function (d) { return esc(d); }).join('；') + '</div>' : '';
+                    html += '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#F8FAFC;border-radius:6px;">' +
+                        '<div style="width:28px;height:28px;border-radius:4px;background:#DBEAFE;color:#2563EB;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;">FILE</div>' +
+                        '<div style="flex:1;min-width:0;"><div style="font-size:12px;color:#374151;word-break:break-all;">' + esc((a && a.name) || '附件') + '</div>' + dirHtml + '</div>' +
+                        '</div>';
+                });
+                html += '</div>';
+            }
+            html += '</div>';
+            body.innerHTML = html;
+            document.getElementById('viewModal').classList.add('show');
+        }
+        var replyTargetId = null;
+        function reply(id) { replyTargetId = id; document.getElementById('replyModal').classList.add('show'); }
+        function verify(id) {
+            App.apiFetch(API_BASE + '/' + id, { method: 'PUT', body: {status: 'verified'} })
+                .then(function(){ showToast('验证通过', 'success'); loadData(); })
+                .catch(function(){ });
+        }
+        var deleteTargetId = null;
+        function confirmDelete(id) { deleteTargetId = id; document.getElementById('deleteModal').classList.add('show'); }
+        function executeDelete() {
+            if (!deleteTargetId) return;
+            App.apiFetch(API_BASE + '/' + deleteTargetId, { method: 'DELETE' })
+                .then(function(){ showToast('已删除', 'success'); closeModal('deleteModal'); deleteTargetId = null; loadData(); })
+                .catch(function(){ });
+        }
+        function collectWorkContactPayload(status) {
+            var val = function (fid) { var el = document.getElementById(fid); return el ? el.value : ''; };
+            var atts = [];
+            document.querySelectorAll('#createAttachmentList .attachment-item[data-url]').forEach(function (el) { var u = el.getAttribute('data-url'); if (u) atts.push({ url: u, name: el.getAttribute('data-fname') || '', size: el.getAttribute('data-fsize') || '', dirs: (el._dirs || []).slice() }); });
+            return {
+                code: val('contactCode').trim(),
+                projectId: Number(val('projectSelect')),
+                contactDate: val('sendDate') || new Date().toISOString().slice(0, 10),
+                title: val('receiverUnit').trim(),
+                content: val('contactContent'),
+                status: status,
+                photos: '[]',
+                attachments: JSON.stringify(atts)
+            };
+        }
+        function saveWorkContact(status, msg) {
+            var dto = collectWorkContactPayload(status);
+            if (!dto.code) { showToast('请输入联系单编号', 'warning'); return; }
+            if (!dto.projectId) { showToast('请选择所属项目', 'warning'); return; }
+            if (!dto.title) { showToast('请填写接收单位名称', 'warning'); return; }
+            if (document.querySelector('#createAttachmentList .attachment-item .pending-badge')) { showToast('附件正在上传中，请稍候', 'warning'); return; }
+            var p = editingId !== null ? App.apiFetch(API_BASE + '/' + editingId, { method: 'PUT', body: dto }) : App.apiFetch(API_BASE, { method: 'POST', body: dto });
+            p.then(function () { showToast(msg, 'success'); closeModal('createModal'); editingId = null; loadData(); }).catch(function () { });
+        }
+        function saveDraft() { saveWorkContact('draft', '草稿已保存'); }
+        function sendContact() { saveWorkContact('sent', '联系单已发送'); }
+        function submitReply() {
+            if (!replyTargetId) return;
+            var replyContent = document.getElementById('replyContent') ? document.getElementById('replyContent').value.trim() : '';
+            if (!replyContent) { showToast('请填写回复内容', 'warning'); return; }
+            App.apiFetch(API_BASE + '/' + replyTargetId + '/reply', { method: 'POST', body: {replyContent: replyContent} })
+                .then(function(){ showToast('回复已提交', 'success'); closeModal('replyModal'); replyTargetId = null; loadData(); })
+                .catch(function(){ });
+        }
+        function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+        function searchData() {
+            try {
+                applyFilters();
+            } catch(e) {
+                console.error('搜索出错：', e);
+            }
+        }
+        function filterData() { currentPage = 1; loadData(1); }
+        function resetFilters() {
+            try {
+                document.getElementById('searchInput').value = '';
+                document.getElementById('projectFilter').value = '';
+                document.getElementById('statusFilter').value = '';
+                currentPage = 1; loadData(1);
+                var tip = document.querySelector('.filter-tip');
+                if (tip) tip.remove();
+            } catch(e) {
+                console.error('重置出错：', e);
+            }
+        }
+        function exportData() {
+            try {
+                if (filteredData.length === 0) {
+                    alert('当前没有可导出的数据');
+                    return;
+                }
+                var statusMap = { draft: '草稿', sent: '已发送', replied: '已回复', verified: '已验证', overdue: '已逾期' };
+                var headers = ['联系单编号', '所属项目', '发送方', '接收单位', '发送日期', '状态'];
+                var csvContent = '\uFEFF' + headers.join(',') + '\n';
+                for (var i = 0; i < filteredData.length; i++) {
+                    var item = filteredData[i];
+                    csvContent += [item.code, item.project, item.sender, item.receiver, item.sendDate || '', statusMap[item.status] || item.status].join(',') + '\n';
+                }
+                var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                var link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = '工作联系单_' + new Date().toISOString().split('T')[0] + '.csv';
+                link.click();
+                URL.revokeObjectURL(link.href);
+            } catch(e) {
+                console.error('导出错：', e);
+                alert('导出失败，请重试');
+            }
+        }
+        function handleReplyPhoto(input) {
+            var grid = document.getElementById('replyPhotoGrid');
+            var files = input.files;
+            for (var i = 0; i < files.length; i++) {
+                var file = files[i];
+                var reader = new FileReader();
+                reader.onload = (function(f) {
+                    return function(e) {
+                        var item = document.createElement('div');
+                        item.className = 'photo-item';
+                        item.innerHTML = '<img src="' + e.target.result + '"><span class="remove-photo" onclick="this.parentElement.remove()">✕</span>';
+                        grid.insertBefore(item, grid.lastElementChild);
+                    };
+                })(file);
+                reader.readAsDataURL(file);
+            }
+            input.value = '';
+        }
+        function handleReplyFile(input) {
+            var list = document.getElementById('replyAttachmentList');
+            var emptyTip = document.getElementById('replyAttTip');
+            if (emptyTip) emptyTip.remove();
+            var files = input.files;
+            for (var i = 0; i < files.length; i++) {
+                var file = files[i];
+                var ext = file.name.split('.').pop().toLowerCase();
+                var iconClass = 'doc';
+                var iconText = ext.toUpperCase().substring(0,3);
+                if (ext === 'pdf') { iconClass = 'pdf'; iconText = 'PDF'; }
+                else if (['xls','xlsx'].indexOf(ext) > -1) { iconClass = 'xls'; iconText = 'XLS'; }
+                var item = document.createElement('div');
+                item.className = 'attachment-item';
+                item.innerHTML = '<div class="file-icon ' + iconClass + '">' + iconText + '</div><div class="file-name">' + file.name + '</div><span class="remove-att" onclick="this.parentElement.remove()">✕</span>';
+                list.appendChild(item);
+            }
+            input.value = '';
+        }
+
+        function resetAttList() {
+            var list = document.getElementById('createAttachmentList');
+            if (list) list.innerHTML = '<div style="font-size:12px;color:#9CA3AF;padding:12px 0;text-align:center;" id="emptyAttTip">暂无附件，点击下方按钮添加</div>';
+        }
+
+        function attachmentDirSectionHtml() {
+            return '<div class="doc-section attachment-dir-section">' +
+                '<h5><span>📂 所属工程资料</span><span class="dir-selected-count">已选 0 项</span></h5>' +
+                '<div class="doc-desc">根据工程资料目录设置绑定，一个附件可对应多个目录</div>' +
+                '<div class="doc-tree dir-tree-container"><div class="demo-placeholder" style="padding:20px;text-align:center;color:#9CA3AF;font-size:13px;">请先选择所属项目</div></div>' +
+                '<div class="selected-docs dir-selected-tags att-dir-tags"><span class="selected-doc-empty">未选择工程资料目录</span></div>' +
+                '</div>';
+        }
+
+        function renderAttachmentDirs(item, paths) {
+            if (!item) return;
+            item._dirs = (paths || []).filter(Boolean).slice();
+            renderAttachmentDirTree(item);
+        }
+
+        function defaultContactDirs() {
+            var section = document.getElementById('contactDirSection');
+            return section && section._dirs ? section._dirs.slice() : [];
+        }
+
+        function populateAttList(atts) {
+            resetAttList();
+            atts = atts || [];
+            if (!atts.length) return;
+            var list = document.getElementById('createAttachmentList');
+            var tip = document.getElementById('emptyAttTip'); if (tip) tip.remove();
+            atts.forEach(function (a, i) {
+                if (!a || !a.url) return;
+                var itemId = 'att-edit-' + Date.now() + '-' + i;
+                var item = document.createElement('div');
+                item.className = 'attachment-item';
+                item.id = itemId;
+                item.setAttribute('data-url', a.url);
+                item.setAttribute('data-fname', a.name || '');
+                item.setAttribute('data-fsize', a.size || '');
+                item.innerHTML = '<div class="file-icon doc">FILE</div>' +
+                    '<div style="flex:1;min-width:0;">' +
+                        '<div class="file-name">' + esc(a.name || '附件') + '</div>' +
+                        attachmentDirSectionHtml() +
+                    '</div>' +
+                    '<span class="remove-att" onclick="this.parentElement.remove()">✕</span>';
+                list.appendChild(item);
+                renderAttachmentDirs(item, (a.dirs || []).filter(Boolean));
+            });
+        }
+
+        function handleCreateFile(input) {
+            var list = document.getElementById('createAttachmentList');
+            var emptyTip = document.getElementById('emptyAttTip');
+            if (emptyTip) emptyTip.remove();
+            var files = input.files;
+            for (var i = 0; i < files.length; i++) {
+                var file = files[i];
+                var ext = file.name.split('.').pop().toLowerCase();
+                var iconClass = 'doc';
+                var iconText = ext.toUpperCase().substring(0, 3);
+                if (ext === 'pdf') { iconClass = 'pdf'; iconText = 'PDF'; }
+                else if (['xls', 'xlsx'].indexOf(ext) > -1) { iconClass = 'xls'; iconText = 'XLS'; }
+                else if (['jpg', 'jpeg', 'png', 'gif', 'bmp'].indexOf(ext) > -1) { iconClass = 'doc'; iconText = 'IMG'; }
+                var itemId = 'att-' + Date.now() + '-' + i;
+                var item = document.createElement('div');
+                item.className = 'attachment-item';
+                item.id = itemId;
+                item.innerHTML = '<div class="file-icon ' + iconClass + '">' + iconText + '</div>' +
+                    '<div style="flex:1;min-width:0;">' +
+                        '<div class="file-name">' + esc(file.name) + '<span class="pending-badge">上传中</span></div>' +
+                        attachmentDirSectionHtml() +
+                    '</div>' +
+                    '<span class="remove-att" onclick="this.parentElement.remove()">✕</span>';
+                list.appendChild(item);
+                item.setAttribute('data-fname', file.name);
+                renderAttachmentDirs(item, defaultContactDirs());
+                (function (f, it) {
+                    if (window.App && App.uploadFile) {
+                        App.uploadFile(f).then(function (res) {
+                            it.setAttribute('data-url', (res && res.url) || '');
+                            if (res && res.size != null) it.setAttribute('data-fsize', res.size);
+                            var b = it.querySelector('.pending-badge'); if (b) b.remove();
+                        }).catch(function () {
+                            var b = it.querySelector('.pending-badge'); if (b) { b.textContent = '上传失败'; b.style.color = '#EF4444'; }
+                            showToast('附件上传失败：' + f.name, 'error');
+                        });
+                    }
+                })(file, item);
+            }
+            input.value = '';
+            ensureDirTree();
+        }
+
+        function setDirTreePlaceholder(container, text) {
+            if (!container) return;
+            container.innerHTML = '';
+            var placeholder = document.createElement('div');
+            placeholder.className = 'demo-placeholder';
+            placeholder.style.cssText = 'padding:20px;text-align:center;color:#9CA3AF;font-size:13px;';
+            placeholder.textContent = text;
+            container.appendChild(placeholder);
+        }
+
+        function renderAllAttachmentDirTrees() {
+            renderAttachmentDirTree(document.getElementById('contactDirSection'));
+            document.querySelectorAll('#createAttachmentList .attachment-item').forEach(function (item) {
+                renderAttachmentDirTree(item);
+            });
+        }
+
+        function appendDirTreeNodes(nodes, container, parentPath, item) {
+            var leafCount = 0;
+            (nodes || []).forEach(function (node) {
+                if (!node || node.status === 'inactive') return;
+                var path = parentPath ? parentPath + ' / ' + node.name : String(node.name || '');
+                var children = (node.children || []).filter(function (child) { return child && child.status !== 'inactive'; });
+                var row = document.createElement('div');
+                row.className = 'doc-tree-node dir-tree-node ' + (children.length ? 'doc-parent-node parent-node' : 'doc-leaf-node leaf-node');
+                row.setAttribute('data-path', path);
+                row.setAttribute('data-project-id', String(node.projectId || ''));
+
+                var checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.disabled = children.length > 0;
+                if (!children.length) {
+                    checkbox.setAttribute('data-id', String(node.id));
+                    checkbox.setAttribute('data-label', path);
+                    checkbox.addEventListener('change', function () { updateSelectedDirList(item); });
+                }
+                checkbox.addEventListener('click', function (event) { event.stopPropagation(); });
+                row.appendChild(checkbox);
+
+                var expand = document.createElement('span');
+                expand.className = 'expand-icon';
+                expand.textContent = children.length ? '▼' : '';
+                if (!children.length) expand.style.visibility = 'hidden';
+                row.appendChild(expand);
+                var icon = document.createElement('span');
+                icon.className = 'node-icon';
+                icon.textContent = children.length ? '📁' : '📄';
+                row.appendChild(icon);
+                var label = document.createElement('span');
+                label.className = 'node-label';
+                label.textContent = node.name || '';
+                label.title = path;
+                row.appendChild(label);
+                row.addEventListener('click', function () {
+                    if (children.length) { toggleDirTreeNode(row); return; }
+                    checkbox.checked = !checkbox.checked;
+                    updateSelectedDirList(item);
+                });
+                container.appendChild(row);
+
+                if (children.length) {
+                    var childContainer = document.createElement('div');
+                    childContainer.className = 'doc-tree-children dir-tree-children';
+                    container.appendChild(childContainer);
+                    leafCount += appendDirTreeNodes(children, childContainer, path, item);
+                } else {
+                    leafCount++;
+                }
+            });
+            return leafCount;
+        }
+
+        function ensureDirTree() {
+            var pidEl = document.getElementById('projectSelect');
+            var pid = pidEl ? pidEl.value : '';
+            var seq = ++dirTreeLoadSeq;
+            if (!pid) {
+                dirTreeProjectId = null; dirTreeData = null; dirTreeReady = false; dirTreeLoadError = false;
+                renderAllAttachmentDirTrees();
+                return Promise.resolve();
+            }
+            if (dirTreeReady && dirTreeProjectId === pid && dirTreeData) {
+                renderAllAttachmentDirTrees();
+                return Promise.resolve();
+            }
+            dirTreeProjectId = pid; dirTreeData = null; dirTreeReady = false; dirTreeLoadError = false;
+            renderAllAttachmentDirTrees();
+            if (!window.App || !App.apiFetch) {
+                dirTreeLoadError = true;
+                renderAllAttachmentDirTrees();
+                return Promise.resolve();
+            }
+            return App.apiFetch('/sub-item-databases/tree?projectId=' + encodeURIComponent(pid)).then(function (tree) {
+                if (seq !== dirTreeLoadSeq || (document.getElementById('projectSelect') || {}).value !== pid) return;
+                dirTreeData = Array.isArray(tree) ? tree : [];
+                dirTreeReady = true;
+                renderAllAttachmentDirTrees();
+            }).catch(function () {
+                if (seq !== dirTreeLoadSeq || (document.getElementById('projectSelect') || {}).value !== pid) return;
+                dirTreeLoadError = true;
+                renderAllAttachmentDirTrees();
+            });
+        }
+
+        function renderAttachmentDirTree(item) {
+            var container = item ? item.querySelector('.dir-tree-container') : null;
+            if (!container) return;
+            var pidEl = document.getElementById('projectSelect');
+            var pid = pidEl ? pidEl.value : '';
+            if (!pid) {
+                setDirTreePlaceholder(container, '请先选择所属项目');
+                renderAttachmentDirTags(item);
+                return;
+            }
+            if (dirTreeLoadError && dirTreeProjectId === pid) {
+                setDirTreePlaceholder(container, '工程资料目录加载失败，请稍后重试');
+                renderAttachmentDirTags(item);
+                return;
+            }
+            if (!dirTreeReady || dirTreeProjectId !== pid || !dirTreeData) {
+                setDirTreePlaceholder(container, '正在加载工程资料目录…');
+                renderAttachmentDirTags(item);
+                return;
+            }
+            container.innerHTML = '';
+            var leafCount = appendDirTreeNodes(dirTreeData, container, '', item);
+            if (!leafCount) {
+                setDirTreePlaceholder(container, '暂无工程资料目录，请先在“工程资料目录设置”中创建');
+                renderAttachmentDirTags(item);
+                return;
+            }
+            applyDirSelection(item);
+        }
+
+        function applyDirSelection(item) {
+            var selected = item._dirs || [];
+            var checkboxes = item.querySelectorAll('.dir-tree-container input[type="checkbox"][data-label]');
+            for (var i = 0; i < checkboxes.length; i++) {
+                checkboxes[i].checked = selected.indexOf(checkboxes[i].getAttribute('data-label')) > -1;
+            }
+            updateSelectedDirList(item);
+        }
+
+        function toggleDirTreeNode(nodeEl) {
+            var children = nodeEl.nextElementSibling;
+            if (children && children.classList.contains('doc-tree-children')) {
+                children.classList.toggle('collapsed');
+                var icon = nodeEl.querySelector('.expand-icon');
+                if (icon && icon.style.visibility !== 'hidden') {
+                    icon.textContent = children.classList.contains('collapsed') ? '▶' : '▼';
+                }
+            }
+        }
+
+        function updateSelectedDirList(item) {
+            var checkboxes = item.querySelectorAll('.dir-tree-container input[type="checkbox"][data-label]');
+            var selected = [];
+            for (var i = 0; i < checkboxes.length; i++) {
+                if (checkboxes[i].checked) selected.push(checkboxes[i].getAttribute('data-label'));
+            }
+            item._dirs = selected;
+            renderAttachmentDirTags(item);
+            syncDirParentCheckboxes(item);
+        }
+
+        function renderAttachmentDirTags(item) {
+            var tagsEl = item.querySelector('.dir-selected-tags');
+            var countEl = item.querySelector('.dir-selected-count');
+            if (!tagsEl || !countEl) return;
+            var selected = item._dirs || [];
+            countEl.textContent = '已选 ' + selected.length + ' 项';
+            tagsEl.innerHTML = '';
+            if (!selected.length) {
+                var empty = document.createElement('span');
+                empty.className = 'selected-doc-empty';
+                empty.textContent = '未选择工程资料目录';
+                tagsEl.appendChild(empty);
+                return;
+            }
+            selected.forEach(function (path) {
+                var tag = document.createElement('span');
+                tag.className = 'selected-doc-tag att-dir-tag';
+                tag.setAttribute('data-path', path);
+                tag.setAttribute('role', 'button');
+                tag.setAttribute('tabindex', '0');
+                tag.title = path + '（点击定位到目录树，可重新修改）';
+                tag.appendChild(document.createTextNode(path));
+                tag.addEventListener('click', function () { focusAttachmentDir(item, path); });
+                tag.addEventListener('keydown', function (event) {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        focusAttachmentDir(item, path);
+                    }
+                });
+                var remove = document.createElement('span');
+                remove.className = 'remove-tag remove-dir-tag';
+                remove.textContent = '✕';
+                remove.addEventListener('click', function (event) {
+                    event.stopPropagation();
+                    removeDirTag(item, path);
+                });
+                tag.appendChild(remove);
+                tagsEl.appendChild(tag);
+            });
+        }
+
+        function focusAttachmentDir(item, path) {
+            var checkboxes = item.querySelectorAll('.dir-tree-container input[type="checkbox"][data-label]');
+            for (var i = 0; i < checkboxes.length; i++) {
+                if (checkboxes[i].getAttribute('data-label') === path) {
+                    checkboxes[i].scrollIntoView({ block: 'center', behavior: 'smooth' });
+                    checkboxes[i].focus({ preventScroll: true });
+                    return;
+                }
+            }
+            item.querySelector('.dir-tree-container').scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+
+        function removeDirTag(item, path) {
+            var checkboxes = item.querySelectorAll('.dir-tree-container input[type="checkbox"][data-label]');
+            var found = false;
+            for (var i = 0; i < checkboxes.length; i++) {
+                if (checkboxes[i].getAttribute('data-label') === path) {
+                    checkboxes[i].checked = false;
+                    found = true;
+                    break;
+                }
+            }
+            if (found) updateSelectedDirList(item);
+            else {
+                item._dirs = (item._dirs || []).filter(function (p) { return p !== path; });
+                renderAttachmentDirTags(item);
+            }
+        }
+
+        function syncDirParentCheckboxes(item) {
+            var parentNodes = item.querySelectorAll('.dir-tree-container .doc-tree-node');
+            for (var i = parentNodes.length - 1; i >= 0; i--) {
+                var checkbox = parentNodes[i].querySelector('input[type="checkbox"]');
+                if (!checkbox) continue;
+                var children = parentNodes[i].nextElementSibling;
+                if (!children || !children.classList.contains('doc-tree-children')) continue;
+                var directChildBoxes = children.querySelectorAll(':scope > .doc-tree-node input[type="checkbox"]');
+                if (!directChildBoxes.length) continue;
+                var allChecked = true;
+                var anyChecked = false;
+                for (var j = 0; j < directChildBoxes.length; j++) {
+                    if (directChildBoxes[j].checked) anyChecked = true;
+                    else allChecked = false;
+                }
+                checkbox.checked = allChecked;
+                checkbox.indeterminate = !allChecked && anyChecked;
+            }
+        }
+
+        function onProjectChange() {
+            dirTreeReady = false; dirTreeProjectId = null; dirTreeData = null; dirTreeLoadError = false;
+            var cds = document.getElementById('contactDirSection'); if (cds) cds._dirs = [];
+            document.querySelectorAll('#createAttachmentList .attachment-item').forEach(function (item) {
+                item._dirs = [];
+            });
+            ensureDirTree();
+        }
+
+        (function() {
+            var params = new URLSearchParams(window.location.search);
+            var status = params.get('status');
+            if (!status) return;
+
+            var statusFilter = document.getElementById('statusFilter');
+            var statusMap = { overdue: '已逾期', replied: '已回复', verified: '已验证', draft: '草稿', sent: '已发送' };
+            var statusLabel = statusMap[status];
+            if (!statusLabel) return;
+
+            if (statusFilter) {
+                statusFilter.value = status;
+            }
+
+            applyFilters();
+
+            var toolbar = document.querySelector('.toolbar');
+            if (toolbar) {
+                var tip = document.createElement('div');
+                tip.className = 'filter-tip';
+                tip.innerHTML = '<span>当前仅显示' + statusLabel + '的联系单</span><span class="close-tip">✕</span>';
+                toolbar.parentNode.insertBefore(tip, toolbar.nextSibling);
+
+                tip.querySelector('.close-tip').addEventListener('click', function() {
+                    resetFilters();
+                });
+            }
+        })();
+    

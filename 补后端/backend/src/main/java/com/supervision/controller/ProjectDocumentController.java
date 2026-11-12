@@ -30,8 +30,9 @@ public class ProjectDocumentController {
             @RequestParam(defaultValue = "10") int pageSize,
             @RequestParam(required = false) Long projectId,
             @RequestParam(required = false) Long subItemId,
-            @RequestParam(required = false) String name) {
-        return ApiResponse.success(projectDocumentService.list(pageNum, pageSize, projectId, subItemId, name));
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String diaryFilter) {
+        return ApiResponse.success(projectDocumentService.list(pageNum, pageSize, projectId, subItemId, name, diaryFilter));
     }
 
     @GetMapping("/{id}")

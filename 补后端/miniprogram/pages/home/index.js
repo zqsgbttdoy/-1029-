@@ -1,6 +1,6 @@
 const api = require('../../utils/api');
 const drafts = require('../../utils/drafts');
-const { schemas, today, statusText } = require('../../utils/schema');
+const { schemas, today, nowMinute, statusText } = require('../../utils/schema');
 Page({
   data: { projects: [], projectIndex: 0, types: Object.keys(schemas).map(kind => ({ kind, title: schemas[kind].title })),
     kind: 'supervision-diaries', mode: 'mine', records: [], drafts: [], summary: [], error: '', loading: false, more: false, date: today() },
@@ -68,6 +68,8 @@ Page({
     const project = this.data.projects[this.data.projectIndex]; if (!project) { this.fail(new Error('没有获授权的项目，请联系管理员')); return; }
     const kind = e.currentTarget.dataset.kind || this.data.kind;
     const body = { projectId: project.id, photos: '[]', attachments: '[]' }; body[schemas[kind].date] = today();
+    // 日常巡检新建时自动带入当前系统时间（精确到分钟），进入页面后可在时间面板内调整
+    if (kind === 'daily-inspections') body.startTime = nowMinute();
     try {
       const draft = drafts.create(kind, body); draft.projectName = project.name; drafts.save(draft);
       wx.navigateTo({ url: '/pages/record/index?localId=' + draft.localId });

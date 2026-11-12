@@ -80,6 +80,10 @@ public class SupervisionDiary extends FieldRecord {
     @Column(columnDefinition = "TEXT")
     private String attachments;
 
+    /** 直传资料关联由 DiaryAttachmentService 统一维护，普通正文保存不接受客户端覆盖。 */
+    @Column(name = "related_attachment_ids", columnDefinition = "TEXT")
+    private String relatedAttachmentIds;
+
     @Column(name = "morning_meeting", columnDefinition = "TEXT")
     private String morningMeeting;
 

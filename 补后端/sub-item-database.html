@@ -75,6 +75,35 @@
         .form-control:focus { border-color: #2563EB; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
         .form-error { font-size: 12px; color: #EF4444; margin-top: 4px; display: none; }
         .modal-box-footer { padding: 16px 24px; border-top: 1px solid #E5E7EB; display: flex; justify-content: flex-end; gap: 12px; }
+        .node-attachment-count { flex-shrink: 0; padding: 1px 7px; border-radius: 10px; background: #E0ECFF; color: #2563EB; font-size: 11px; font-weight: 400; }
+        .node-attachment-count.empty { background: #F3F4F6; color: #9CA3AF; }
+        .source-modal { width: min(920px, calc(100vw - 40px)); max-height: calc(100vh - 48px); display: flex; flex-direction: column; }
+        .source-modal .modal-box-body { overflow-y: auto; }
+        .source-path { color: #2563EB; font-size: 13px; margin-bottom: 14px; word-break: break-all; }
+        .source-summary { display: flex; gap: 12px; margin-bottom: 14px; }
+        .source-summary-item { flex: 1; padding: 12px 16px; border-radius: 8px; background: #F0F5FF; }
+        .source-summary-item strong { display: block; color: #1E3A5F; font-size: 22px; }
+        .source-summary-item span { color: #6B7280; font-size: 12px; }
+        .source-distribution { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
+        .source-distribution span { padding: 4px 9px; border-radius: 12px; background: #EFF6FF; color: #1D4ED8; font-size: 12px; }
+        .source-group { margin-top: 18px; }
+        .source-group-title { display: flex; align-items: center; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid #E5E7EB; color: #1E3A5F; font-size: 14px; font-weight: 600; }
+        .source-group-title span { color: #6B7280; font-size: 12px; font-weight: 400; }
+        .source-diary-filter { margin-left: auto; height: 30px; padding: 0 26px 0 8px; border: 1px solid #D1D5DB; border-radius: 6px; background: #fff; color: #374151; font-size: 12px; font-weight: 400; }
+        .source-diary-state { display: inline-flex; margin-top: 5px; padding: 2px 7px; border-radius: 9px; font-size: 11px; }
+        .source-diary-state.linked { background: #DBEAFE; }
+        .source-diary-state.unlinked { background: #F3F4F6; color: #6B7280; }
+        .source-diary-link { color: #2563EB; text-decoration: none; }
+        .source-diary-link:hover { text-decoration: underline; }
+        .source-record { padding: 12px 0; border-bottom: 1px solid #F3F4F6; }
+        .source-record-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .source-record-title { flex: 1; min-width: 0; color: #374151; font-size: 13px; font-weight: 600; }
+        .source-record-meta { color: #9CA3AF; font-size: 11px; font-weight: 400; margin-left: 8px; }
+        .source-record-link { flex-shrink: 0; color: #2563EB; font-size: 12px; text-decoration: none; }
+        .source-file { display: flex; align-items: center; gap: 8px; padding: 7px 10px; margin-top: 5px; border-radius: 6px; background: #F8FAFC; }
+        .source-file-name { flex: 1; min-width: 0; color: #4B5563; font-size: 12px; word-break: break-all; }
+        .source-file-path { color: #9CA3AF; font-size: 11px; margin-top: 2px; }
+        .source-empty { padding: 36px 12px; text-align: center; color: #9CA3AF; font-size: 13px; }
     </style>
     <script src="assets/app.js"></script>
     <link rel="stylesheet" href="assets/style.css">
@@ -219,12 +248,30 @@
     <div class="context-menu" id="contextMenu">
         <div class="context-menu-item" onclick="ctxAddSibling()">📁 新增同级文件夹</div>
         <div class="context-menu-item" onclick="ctxAddChild()">📂 新增子文件夹</div>
+        <div class="context-menu-item" onclick="ctxViewSources()">🔗 查看数据来源</div>
         <div class="context-menu-divider"></div>
         <div class="context-menu-item" id="ctxMoveUp" onclick="ctxMoveUp()">⬆ 上移</div>
         <div class="context-menu-item" id="ctxMoveDown" onclick="ctxMoveDown()">⬇ 下移</div>
         <div class="context-menu-divider"></div>
         <div class="context-menu-item" onclick="ctxRename()">✏️ 重命名</div>
         <div class="context-menu-item danger" onclick="ctxDelete()">🗑️ 删除</div>
+    </div>
+
+    <div class="modal-overlay" id="sourceModal">
+        <div class="modal-box source-modal">
+            <div class="modal-box-header">
+                <h3>目录数据来源</h3>
+                <button class="modal-close" onclick="closeSourceModal()">✕</button>
+            </div>
+            <div class="modal-box-body">
+                <div class="source-path" id="sourceDirectoryPath"></div>
+                <div id="sourceSummary"></div>
+                <div id="sourceGroups"></div>
+            </div>
+            <div class="modal-box-footer">
+                <button class="btn btn-outline" onclick="closeSourceModal()">关闭</button>
+            </div>
+        </div>
     </div>
 
     <div class="modal-overlay" id="nameModal">
@@ -266,17 +313,21 @@
         var currentProjectId = null;
         var nodeMap = {};        // id -> {id, projectId, name, parentId, sortOrder, description, status}
         var deleteTargetId = null;
+        var sourceLoadSeq = 0;
+        var sourceData = null, sourceDiaryFilter = '';
 
-        function selectNode(el) {
+        function selectNode(el, skipSources) {
             document.querySelectorAll('.tree-node').forEach(function(n) { n.classList.remove('active'); });
             el.classList.add('active');
+            var id = getNodeId(el);
+            if (!skipSources && id && nodeMap[id]) openAttachmentSources(id);
         }
 
         function onTreeContext(e, el) {
             e.preventDefault();
             e.stopPropagation();
             ctxTarget = el;
-            selectNode(el);
+            selectNode(el, true);
             updateMoveMenuState();
             var menu = document.getElementById('contextMenu');
             var x = e.clientX, y = e.clientY;
@@ -326,7 +377,7 @@
         function escapeHtml(text) {
             var d = document.createElement('div');
             d.textContent = text == null ? '' : text;
-            return d.innerHTML;
+            return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         }
 
         // ---------- 项目与数据加载 ----------
@@ -385,7 +436,10 @@
                 node.setAttribute('oncontextmenu', 'onTreeContext(event, this)');
                 var html = '';
                 if (hasChildren) html += '<span class="expand" onclick="event.stopPropagation();toggleExpand(this)">▼</span>';
+                var attachmentCount = Number(n.attachmentCount) || 0;
+                var distribution = (n.sourceDistribution || []).map(function(s) { return s.sourceName + ' ' + s.attachmentCount + ' 个'; }).join('，');
                 html += '<span class="node-icon">📂</span><span class="node-name">' + escapeHtml(n.name) + '</span>';
+                html += '<span class="node-attachment-count' + (attachmentCount ? '' : ' empty') + '" title="' + escapeHtml(distribution || '暂无关联附件') + '">' + attachmentCount + ' 附件</span>';
                 node.innerHTML = html;
                 container.appendChild(node);
                 if (hasChildren) {
@@ -395,6 +449,110 @@
                     renderNodes(n.children, childrenDiv);
                 }
             });
+        }
+
+        function closeSourceModal() {
+            sourceLoadSeq++;
+            document.getElementById('sourceModal').classList.remove('show');
+        }
+
+        function openAttachmentSources(id) {
+            var seq = ++sourceLoadSeq;
+            sourceData = null;
+            sourceDiaryFilter = '';
+            document.getElementById('sourceDirectoryPath').textContent = '正在读取目录…';
+            document.getElementById('sourceSummary').innerHTML = '';
+            document.getElementById('sourceGroups').innerHTML = '<div class="source-empty">正在加载数据来源…</div>';
+            document.getElementById('sourceModal').classList.add('show');
+            apiFetch('/sub-item-databases/' + encodeURIComponent(id) + '/attachment-sources').then(function(data) {
+                if (seq !== sourceLoadSeq) return;
+                sourceData = data;
+                renderAttachmentSources(data);
+            }).catch(function(error) {
+                if (seq !== sourceLoadSeq) return;
+                document.getElementById('sourceDirectoryPath').textContent = '';
+                document.getElementById('sourceGroups').innerHTML = '<div class="source-empty">数据来源加载失败：' + escapeHtml(error.message || '请稍后重试') + '</div>';
+            });
+        }
+
+        function changeSourceDiaryFilter(value) {
+            sourceDiaryFilter = value;
+            if (sourceData) renderAttachmentSources(sourceData);
+        }
+
+        function renderAttachmentSources(data) {
+            document.getElementById('sourceDirectoryPath').textContent = (data.directoryPath || data.directoryName || '') + '（含下级目录）';
+            var summary = '<div class="source-summary">' +
+                '<div class="source-summary-item"><strong>' + (Number(data.attachmentCount) || 0) + '</strong><span>关联附件</span></div>' +
+                '<div class="source-summary-item"><strong>' + (Number(data.recordCount) || 0) + '</strong><span>来源记录</span></div></div>';
+            var distribution = data.sourceDistribution || [];
+            if (distribution.length) {
+                summary += '<div class="source-distribution">' + distribution.map(function(s) {
+                    return '<span>' + escapeHtml(s.sourceName) + '：' + (Number(s.attachmentCount) || 0) + ' 个附件 / ' + (Number(s.recordCount) || 0) + ' 条记录</span>';
+                }).join('') + '</div>';
+            }
+            document.getElementById('sourceSummary').innerHTML = summary;
+            var groups = data.sources || [];
+            if (!groups.length) {
+                document.getElementById('sourceGroups').innerHTML = '<div class="source-empty">当前目录及下级目录暂无关联附件</div>';
+                return;
+            }
+            var html = '';
+            groups.forEach(function(group) {
+                var directUpload = group.sourceType === 'project-documents';
+                html += '<section class="source-group"><div class="source-group-title">' + escapeHtml(group.sourceName) +
+                    '<span>' + (Number(group.attachmentCount) || 0) + ' 个附件 · ' + (Number(group.recordCount) || 0) + ' 条记录</span>' +
+                    (directUpload ? '<select class="source-diary-filter" aria-label="直接上传资料日记关联筛选" onchange="changeSourceDiaryFilter(this.value)">' +
+                        '<option value=""' + (sourceDiaryFilter === '' ? ' selected' : '') + '>全部</option>' +
+                        '<option value="linked"' + (sourceDiaryFilter === 'linked' ? ' selected' : '') + '>已关联日记</option>' +
+                        '<option value="unlinked"' + (sourceDiaryFilter === 'unlinked' ? ' selected' : '') + '>未关联日记</option></select>' : '') + '</div>';
+                var records = group.records || [];
+                var visibleRecords = 0;
+                records.forEach(function(record) {
+                    var files = record.attachments || [];
+                    if (directUpload && sourceDiaryFilter) files = files.filter(function(file) {
+                        var diary = file.relatedDiary || record.relatedDiary;
+                        return sourceDiaryFilter === 'linked' ? !!diary : !diary;
+                    });
+                    if (directUpload && sourceDiaryFilter && !files.length) return;
+                    visibleRecords++;
+                    var title = record.code || record.title || ('记录#' + record.id);
+                    var meta = [record.date, record.title && record.code ? record.title : '', record.status].filter(Boolean).join(' · ');
+                    html += '<div class="source-record"><div class="source-record-head"><div class="source-record-title">' + escapeHtml(title) +
+                        (meta ? '<span class="source-record-meta">' + escapeHtml(meta) + '</span>' : '') + '</div>' +
+                        '<a class="source-record-link" href="' + escapeHtml(record.route || '#') + '" target="_blank" rel="noopener">打开单据 ↗</a></div>';
+                    files.forEach(function(file) {
+                        var diary = directUpload ? (file.relatedDiary || record.relatedDiary) : null;
+                        var diaryRoute = diary ? (file.diaryRoute || record.diaryRoute || ('supervision-diary.html?id=' + Number(diary.id) + '&readonly=true')) : '';
+                        var diaryState = !directUpload ? '' : diary
+                            ? '<a class="source-diary-state linked source-diary-link" href="' + escapeHtml(diaryRoute) + '" target="_blank" rel="noopener">已关联监理日记 [' + escapeHtml(diary.code || ('#' + diary.id)) + '] · ' + escapeHtml(diary.diaryDate || '') + '</a>'
+                            : '<span class="source-diary-state unlinked">未关联日记</span>';
+                        html += '<div class="source-file"><div class="source-file-name">' + escapeHtml(file.name || '附件') +
+                            ((file.directoryPaths || []).length ? '<div class="source-file-path">' + escapeHtml(file.directoryPaths.join('；')) + '</div>' : '') + diaryState + '</div>' +
+                            '<button type="button" class="btn btn-outline btn-sm" data-file-url="' + escapeHtml(file.url || '') + '" data-file-name="' + escapeHtml(file.name || '附件') + '" onclick="viewSourceAttachment(this)">查看附件</button></div>';
+                    });
+                    html += '</div>';
+                });
+                if (directUpload && sourceDiaryFilter && !visibleRecords) html += '<div class="source-empty">当前筛选下暂无直接上传资料</div>';
+                html += '</section>';
+            });
+            document.getElementById('sourceGroups').innerHTML = html;
+        }
+
+        function viewSourceAttachment(button) {
+            var url = button.getAttribute('data-file-url');
+            if (!url || !window.App || !App.fileUrl) return;
+            var target = window.open('about:blank', '_blank');
+            App.fileUrl(url).then(function(link) {
+                if (target) target.location.href = link;
+                else window.location.href = link;
+            }).catch(function() { if (target) target.close(); });
+        }
+
+        function ctxViewSources() {
+            var id = getNodeId(ctxTarget);
+            hideCtxMenu();
+            if (id) openAttachmentSources(id);
         }
 
         function getNodeId(el) { return el ? Number(el.getAttribute('data-id')) : null; }

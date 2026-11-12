@@ -123,40 +123,26 @@
         .attachment-item .remove-att:hover { color: #EF4444; }
         .upload-btn { display: inline-flex; align-items: center; gap: 4px; padding: 6px 14px; border: 1px dashed #D1D5DB; border-radius: 6px; font-size: 12px; color: #6B7280; cursor: pointer; transition: all 0.2s; background: transparent; }
         .upload-btn:hover { border-color: #2563EB; color: #2563EB; }
-        .dir-path { font-size: 12px; color: #6B7280; margin-top: 4px; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
-        .dir-path .dir-label { color: #9CA3AF; }
-        .dir-path .dir-label.set { color: #059669; }
-        .dir-path .change-dir { color: #2563EB; cursor: pointer; text-decoration: underline; margin-left: 4px; }
         .pending-badge { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 10px; background: #FEF3C7; color: #D97706; margin-left: 6px; }
-        .dir-tree-modal .modal { width: 560px; }
-        .dir-tree-container { max-height: 380px; overflow-y: auto; border: 1px solid #E5E7EB; border-radius: 8px; padding: 8px; background: #FAFBFC; }
-        .dir-tree-node { padding: 7px 12px; border-radius: 5px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 6px; transition: background 0.15s; user-select: none; }
-        .dir-tree-node:hover { background: #EFF6FF; }
-        .dir-tree-node.selected { background: #DBEAFE; color: #1D4ED8; font-weight: 500; }
-        .dir-tree-node .expand { font-size: 10px; color: #9CA3AF; width: 16px; cursor: pointer; flex-shrink: 0; }
-        .dir-tree-node .expand:hover { color: #2563EB; }
-        .dir-tree-node .node-icon { font-size: 14px; }
-        .dir-tree-node input[type="checkbox"] { accent-color: #2563EB; width: 15px; height: 15px; cursor: pointer; flex-shrink: 0; }
-        .dir-tree-node.parent-node input[type="checkbox"] { accent-color: #9CA3AF; cursor: default; opacity: 0.5; }
-        .dir-tree-node.parent-node { color: #6B7280; cursor: default; }
-        .dir-tree-node.parent-node:hover { background: transparent; }
-        .dir-tree-node.leaf-node { cursor: pointer; }
-        .dir-tree-node.leaf-node:hover { background: #EFF6FF; }
-        .dir-selected-list { margin-top: 12px; padding: 10px; background: #F0F5FF; border: 1px solid #BFDBFE; border-radius: 6px; min-height: 36px; }
-        .dir-selected-list .selected-title { font-size: 12px; font-weight: 600; color: #1E3A5F; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; }
-        .dir-selected-list .selected-title .count { font-weight: 400; color: #6B7280; }
-        .dir-selected-tags { display: flex; flex-wrap: wrap; gap: 6px; }
-        .dir-selected-tag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 12px; font-size: 11px; background: #DBEAFE; color: #1D4ED8; }
-        .dir-selected-tag .remove-dir-tag { cursor: pointer; font-size: 12px; color: #6B7280; margin-left: 2px; }
-        .dir-selected-tag .remove-dir-tag:hover { color: #DC2626; }
-        .dir-selected-empty { font-size: 12px; color: #9CA3AF; }
-        .att-dir-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
-        .att-dir-tag { display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 10px; font-size: 10px; background: #D1FAE5; color: #059669; }
-        .dir-tree-children { padding-left: 20px; overflow: hidden; }
-        .dir-tree-children.collapsed { display: none; }
-        .dir-breadcrumb { font-size: 12px; color: #6B7280; margin-bottom: 12px; padding: 8px 12px; background: #F0F5FF; border-radius: 6px; display: flex; align-items: center; gap: 4px; }
-        .dir-breadcrumb .dir-sep { color: #D1D5DB; }
-        .dir-breadcrumb .dir-current { color: #1E3A5F; font-weight: 500; }
+        .doc-section { background: #F0F5FF; border: 1px solid #BFDBFE; border-radius: 8px; padding: 16px; margin-top: 16px; }
+        .doc-section h5 { font-size: 13px; font-weight: 600; color: #1E40AF; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; }
+        .doc-section .doc-desc { font-size: 11px; color: #6B7280; margin-bottom: 12px; }
+        .doc-tree { background: #fff; border: 1px solid #E5E7EB; border-radius: 6px; padding: 8px; max-height: 240px; overflow-y: auto; }
+        .doc-tree-node { padding: 6px 8px; border-radius: 4px; font-size: 13px; display: flex; align-items: center; gap: 6px; cursor: pointer; transition: background 0.15s; }
+        .doc-tree-node:hover { background: #F0F5FF; }
+        .doc-tree-node .expand-icon { font-size: 10px; color: #9CA3AF; width: 16px; text-align: center; flex-shrink: 0; }
+        .doc-tree-node .node-icon { font-size: 13px; flex-shrink: 0; }
+        .doc-tree-node .node-label { flex: 1; }
+        .doc-tree-node input[type="checkbox"] { accent-color: #2563EB; width: 15px; height: 15px; cursor: pointer; flex-shrink: 0; }
+        .doc-tree-children { padding-left: 24px; }
+        .doc-tree-children.collapsed { display: none; }
+        .selected-docs { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; min-height: 28px; }
+        .selected-doc-tag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 12px; font-size: 11px; background: #DBEAFE; color: #1D4ED8; }
+        .selected-doc-tag .remove-tag { cursor: pointer; font-size: 12px; color: #6B7280; margin-left: 2px; }
+        .selected-doc-tag .remove-tag:hover { color: #DC2626; }
+        .selected-doc-empty { font-size: 12px; color: #9CA3AF; }
+        .att-dir-tag { cursor: pointer; }
+        .doc-tree .demo-placeholder { padding: 20px; text-align: center; color: #9CA3AF; font-size: 13px; }
         .form-row-compact { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
         .form-row-3-compact { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
         .readonly-field { height: 36px; border: 1px solid #E5E7EB; border-radius: 6px; padding: 0 12px; font-size: 13px; background: #F9FAFB; color: #374151; display: flex; align-items: center; cursor: default; }
@@ -481,16 +467,6 @@
             <div class="modal-body">
                 <div class="form-main">
                 <div class="fd-error" id="safetyFormError" role="status" aria-live="polite"></div>
-                <div class="fd-info">
-                    <div class="fd-info-col">
-                        <div class="fd-info-title">填写提示</div>
-                        <div class="fd-info-item on">准确记录当天的气象信息，并在“施工部位及形象进度”栏简要概述本专业工程的当日形象进度。</div>
-                    </div>
-                    <div class="fd-info-col">
-                        <div class="fd-info-title">附件要求</div>
-                        <div class="fd-info-item on">现场照片与验收材料请一并上传，每个附件均需选择存储目录。</div>
-                    </div>
-                </div>
                 <h4 class="fd-section-heading">基础信息</h4>
                 <div class="fd-grid">
                     <div class="fd-field">
@@ -554,6 +530,13 @@
                     <div class="fd-field">
                         <textarea class="fd-textarea" id="safetyMajorIssue" placeholder="如发生安全事故、停工、重要会议、主管部门检查等需记录的重大事件，应在此栏填写。"></textarea>
                     </div>
+                </div>
+
+                <div class="doc-section" id="defaultDirSection">
+                    <h5><span>📂 所属工程资料</span><span class="dir-selected-count" style="font-size:11px;font-weight:400;color:#6B7280;">已选 0 项</span></h5>
+                    <div class="doc-desc">根据工程资料目录设置绑定，新上传的附件默认关联到所选目录，每个附件下方仍可单独调整</div>
+                    <div class="doc-tree dir-tree-container"><div class="demo-placeholder">暂无工程资料目录，请先在“工程资料目录设置”中创建</div></div>
+                    <div class="selected-docs dir-selected-tags"><span class="selected-doc-empty">未选择工程资料目录</span></div>
                 </div>
 
                 <div class="fd-sec">
@@ -647,28 +630,6 @@
         </div>
     </div>
 
-    <div class="modal-overlay dir-tree-modal" id="dirTreeModal">
-        <div class="modal">
-            <div class="modal-header"><div class="modal-header-row"><h3>选择存储目录</h3><button class="modal-close" onclick="closeModal('dirTreeModal')">✕</button></div></div>
-            <div class="modal-body">
-                <div style="font-size:12px;color:#6B7280;margin-bottom:12px;">请为附件 <strong id="currentFileName" style="color:#1E3A5F;"></strong> 选择存储位置（仅可选择最低一级目录，可多选）</div>
-                <div class="dir-selected-list" id="dirSelectedList">
-                    <div class="selected-title"><span>已选目录</span><span class="count" id="dirSelectedCount">0 项</span></div>
-                    <div class="dir-selected-tags" id="dirSelectedTags">
-                        <span class="dir-selected-empty">未选择任何目录</span>
-                    </div>
-                </div>
-                <div class="dir-tree-container" id="dirTreeContainer">
-                    <div class="demo-placeholder" style="padding:24px;text-align:center;color:#9CA3AF;font-size:13px;">正在加载项目目录...</div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-outline" onclick="closeModal('dirTreeModal')">取消</button>
-                <button class="btn btn-primary" onclick="confirmDirSelection()">确认选择</button>
-            </div>
-        </div>
-    </div>
-
     <script>
         var currentRole = 'initiator';
         var editingId = null;
@@ -696,6 +657,7 @@
             safetySaving = value;
             document.getElementById('createModal').setAttribute('aria-busy', String(value));
             document.querySelectorAll('#createModal input, #createModal textarea, #createModal button').forEach(function (el) { el.disabled = value; });
+            syncDirectoryControls();
         }
 
         var safetyViewRecord = null, safetyViewSequence = 0;
@@ -992,27 +954,9 @@
                     item.setAttribute('data-fname', a.name || '');
                     item.setAttribute('data-fsize', a.size || '');
                     item.safetyMetadata = a;
-                    item.innerHTML = '<div class="file-icon doc">FILE</div><div style="flex:1;min-width:0;"><div class="file-name">' + (esc(a.name) || '附件') + '</div></div><span class="remove-att" onclick="this.parentElement.remove()">✕</span>';
-                    var savedDirs = (a.dirs || []).filter(Boolean);
-                    if (savedDirs.length) {
-                        var dirBody = item.querySelector('.file-name').parentNode;
-                        var dirPathDiv = document.createElement('div');
-                        dirPathDiv.className = 'dir-path';
-                        dirPathDiv.innerHTML = '<span class="dir-label set">' + esc(savedDirs.length === 1 ? savedDirs[0] : savedDirs.length + '个目录') + '</span>';
-                        var tagsDiv = document.createElement('div');
-                        tagsDiv.className = 'att-dir-tags';
-                        savedDirs.forEach(function (p) {
-                            var tag = document.createElement('span');
-                            tag.className = 'att-dir-tag';
-                            tag.setAttribute('data-path', p);
-                            tag.textContent = p.split(' / ').pop();
-                            tag.title = p;
-                            tagsDiv.appendChild(tag);
-                        });
-                        dirBody.appendChild(dirPathDiv);
-                        dirBody.appendChild(tagsDiv);
-                    }
+                    item.innerHTML = '<div class="file-icon doc">FILE</div><div style="flex:1;min-width:0;"><div class="file-name">' + (esc(a.name) || '附件') + '</div>' + attachmentDirSectionHtml() + '</div><span class="remove-att" onclick="this.parentElement.remove()">✕</span>';
                     list.appendChild(item);
+                    renderAttachmentDirs(item, (a.dirs || []).filter(Boolean));
                 });
             }
         }
@@ -1048,6 +992,8 @@
             ['safetyWeather', 'safetyWind', 'safetyTemp', 'safetyContent', 'safetyInspection', 'safetySafety', 'safetyMajorIssue', 'createPhotoInput', 'createFileInput'].forEach(function (id) { document.getElementById(id).value = ''; });
             document.getElementById('safetyReviewer').textContent = '—';
             fillSafetyProject(pid);
+            dirTreeInvalidate();
+            document.getElementById('defaultDirSection')._dirs = [];
             resetUploadAreas();
             document.getElementById('modalTitle').textContent = '新建监理安全日志';
             fillAuthorAndDate();
@@ -1069,6 +1015,7 @@
             document.getElementById('createModal').classList.add('show');
             document.body.classList.add('fw-modal-open');
             modalBody.scrollTop = 0;
+            ensureDirTree();
         }
         async function openEditModal(id) {
             if (safetySaving) return;
@@ -1090,6 +1037,8 @@
             finally { setSafetySaving(false); }
             editingId = id;
             editingRecord = d;
+            dirTreeInvalidate();
+            document.getElementById('defaultDirSection')._dirs = [];
             document.getElementById('safetyFormError').textContent = '';
             document.getElementById('safetyAuthor').textContent = d.author || '未记录';
             document.getElementById('safetyReviewer').textContent = d.reviewer || '—';
@@ -1107,6 +1056,7 @@
             document.getElementById('createModal').classList.add('show');
             document.body.classList.add('fw-modal-open');
             document.querySelector('#createModal .modal-body').scrollTop = 0;
+            ensureDirTree();
             var modalHeader = document.querySelector('#createModal .modal-header');
             var existingTabs = modalHeader.querySelector('.version-tabs');
             if (existingTabs) existingTabs.remove();
@@ -1344,7 +1294,7 @@
             var photos = [];
             document.querySelectorAll('#createPhotoGrid .photo-item[data-url]').forEach(function (el) { var u = el.getAttribute('data-url'); if (u) photos.push(Object.assign({}, el.safetyMetadata || {}, { url: u, name: el.getAttribute('data-fname') || '' })); });
             var atts = [];
-            document.querySelectorAll('#createAttachmentList .attachment-item[data-url]').forEach(function (el) { var u = el.getAttribute('data-url'); if (u) atts.push(Object.assign({}, el.safetyMetadata || {}, { url: u, name: el.getAttribute('data-fname') || '', size: el.getAttribute('data-fsize') || '' })); });
+            document.querySelectorAll('#createAttachmentList .attachment-item[data-url]').forEach(function (el) { var u = el.getAttribute('data-url'); if (u) atts.push(Object.assign({}, el.safetyMetadata || {}, { url: u, name: el.getAttribute('data-fname') || '', size: el.getAttribute('data-fsize') || '', dirs: (el._dirs || []).slice() })); });
             return {
                 code: rec ? rec.code : ('AQ-' + new Date().getFullYear() + '-' + String(Date.now()).slice(-6)),
                 projectId: rec ? rec.projectId : Number(val('projectSelect')),
@@ -1692,11 +1642,8 @@
             }
         }
 
-        var pendingAttIds = [];
-        var pendingAttId = '';
-        var pendingFileName = '';
-        var pendingAttIndex = 0;
-        var selectedDirPaths = [];
+        var dirTreeProjectId = null, dirTreeReady = false, dirTreeLoadSeq = 0;
+        var dirTreeData = null, dirTreeLoadError = false;
 
         function handleCreateFile(input) {
             var files = Array.prototype.slice.call(input.files || []);
@@ -1709,7 +1656,6 @@
             var list = document.getElementById('createAttachmentList');
             var emptyTip = document.getElementById('emptyAttTip');
             if (emptyTip) emptyTip.remove();
-            pendingAttIds = [];
             for (var i = 0; i < files.length; i++) {
                 var file = files[i];
                 var ext = file.name.split('.').pop().toLowerCase();
@@ -1718,43 +1664,31 @@
                 if (ext === 'pdf') { iconClass = 'pdf'; iconText = 'PDF'; }
                 else if (['xls', 'xlsx'].indexOf(ext) > -1) { iconClass = 'xls'; iconText = 'XLS'; }
                 else if (['jpg', 'jpeg', 'png', 'gif', 'bmp'].indexOf(ext) > -1) { iconClass = 'img'; iconText = 'IMG'; }
-                var itemId = 'att-' + Date.now() + '-' + i;
                 var item = document.createElement('div');
                 item.className = 'attachment-item';
-                item.id = itemId;
                 item.innerHTML = '<div class="file-icon ' + iconClass + '">' + iconText + '</div>' +
                     '<div style="flex:1;min-width:0;">' +
-                        '<div class="file-name">' + esc(file.name) + '<span class="pending-badge">待选目录</span></div>' +
-                        '<div class="dir-path">存储位置：<span class="dir-label">未选择</span><span class="change-dir" onclick="openDirSelector(\'' + itemId + '\',\'' + jsAttr(file.name) + '\')">选择目录</span></div><div class="att-dir-tags"></div>' +
+                        '<div class="file-name">' + esc(file.name) + '<span class="pending-badge">上传中</span></div>' +
+                        attachmentDirSectionHtml() +
                     '</div>' +
                     '<span class="remove-att" onclick="this.parentElement.remove()">✕</span>';
                 list.appendChild(item);
                 item.setAttribute('data-fname', file.name);
+                renderAttachmentDirs(item, defaultAttachmentDirs());
                 (function (f, it) {
                     if (window.App && App.uploadFile) {
                         App.uploadFile(f).then(function (res) {
                             it.setAttribute('data-url', (res && res.url) || '');
                             if (res && res.size != null) it.setAttribute('data-fsize', res.size);
-                            var b = it.querySelector('.pending-badge'); if (b) { b.textContent = '已上传'; b.style.color = '#10B981'; }
+                            var b = it.querySelector('.pending-badge'); if (b) b.remove();
                         }).catch(function () {
                             var b = it.querySelector('.pending-badge'); if (b) { b.textContent = '上传失败'; b.style.color = '#EF4444'; }
                             App.toast('附件上传失败：' + f.name, 'error');
                         });
                     }
                 })(file, item);
-                pendingAttIds.push({ id: itemId, name: file.name });
             }
-            if (pendingAttIds.length > 0) {
-                pendingAttId = pendingAttIds[0].id;
-                pendingFileName = pendingAttIds[0].name;
-                pendingAttIndex = 0;
-                document.getElementById('currentFileName').textContent = pendingFileName;
-                document.querySelectorAll('.dir-tree-node').forEach(function(n) { n.classList.remove('selected'); });
-                selectedDirPaths = [];
-                updateSelectedDirList();
-                document.getElementById('dirTreeModal').classList.add('show');
-                ensureDirTree();
-            }
+            ensureDirTree();
         }
 
         // 拖拽上传：与共用记录组件的交互保持一致（点击仍由 label 触发隐藏的 input）
@@ -1780,209 +1714,262 @@
             });
         })();
 
-        function toggleDirExpand(el) {
-            var parentNode = el.parentElement;
-            var childrenDiv = parentNode.nextElementSibling;
-            if (!childrenDiv || !childrenDiv.classList.contains('dir-tree-children')) return;
-            if (childrenDiv.classList.contains('collapsed')) {
-                childrenDiv.classList.remove('collapsed');
-                el.textContent = '▼';
-            } else {
-                childrenDiv.classList.add('collapsed');
-                el.textContent = '▶';
+        // 常驻目录树：默认目录仅供新附件继承，附件自身仍以 dirs 完整路径数组落库。
+        function attachmentDirSectionHtml() {
+            return '<div class="doc-section attachment-dir-section">' +
+                '<h5><span>📂 所属工程资料</span><span class="dir-selected-count">已选 0 项</span></h5>' +
+                '<div class="doc-desc">根据工程资料目录设置绑定，一个附件可对应多个目录</div>' +
+                '<div class="doc-tree dir-tree-container"><div class="demo-placeholder">暂无工程资料目录，请先在“工程资料目录设置”中创建</div></div>' +
+                '<div class="selected-docs dir-selected-tags att-dir-tags"><span class="selected-doc-empty">未选择工程资料目录</span></div></div>';
+        }
+        function syncAttachmentDirMetadata(item) {
+            if (item && item.classList.contains('attachment-item')) {
+                item.safetyMetadata = Object.assign({}, item.safetyMetadata || {}, { dirs: (item._dirs || []).slice() });
             }
         }
-
-        function selectDirNode(el, path) {
-            if (el.classList.contains('parent-node')) return;
-            var checkbox = el.querySelector('input[type="checkbox"]');
-            if (checkbox) {
-                checkbox.checked = !checkbox.checked;
-            }
-            updateSelectedDirList();
+        function renderAttachmentDirs(item, paths) {
+            if (!item) return;
+            item._dirs = (paths || []).filter(Boolean).slice();
+            syncAttachmentDirMetadata(item);
+            renderAttachmentDirTree(item);
         }
-
-        // 目录树按当前填报项目实时加载，数据源与“工程资料目录设置”一致，仅末级目录可选
-        var dirTreeProjectId = null;
-        var dirTreeReady = false;
-
-        function setDirTreePlaceholder(text) {
-            var container = document.getElementById('dirTreeContainer');
+        function defaultAttachmentDirs() {
+            var section = document.getElementById('defaultDirSection');
+            return section && section._dirs ? section._dirs.slice() : [];
+        }
+        function dirTreeInvalidate() {
+            dirTreeLoadSeq++;
+            dirTreeReady = false; dirTreeLoadError = false; dirTreeProjectId = null; dirTreeData = null;
+        }
+        function directoryHosts() {
+            return Array.from(document.querySelectorAll('#defaultDirSection, #createAttachmentList .attachment-item'));
+        }
+        function setDirTreePlaceholder(container, text) {
             if (!container) return;
-            container.innerHTML = '<div class="demo-placeholder" style="padding:24px;text-align:center;color:#9CA3AF;font-size:13px;">' + esc(text) + '</div>';
+            container.innerHTML = '';
+            var placeholder = document.createElement('div');
+            placeholder.className = 'demo-placeholder';
+            placeholder.textContent = text;
+            container.appendChild(placeholder);
         }
-
-        function appendDirTreeNodes(nodes, container, parentPath) {
+        function renderAllAttachmentDirTrees() { directoryHosts().forEach(renderAttachmentDirTree); }
+        function appendDirTreeNodes(nodes, container, parentPath, item) {
+            var leafCount = 0;
             (nodes || []).forEach(function (node) {
                 if (!node || node.status === 'inactive') return;
-                var path = parentPath ? parentPath + ' / ' + node.name : node.name;
-                var children = (node.children || []).filter(function (c) { return c && c.status !== 'inactive'; });
+                var path = parentPath ? parentPath + ' / ' + node.name : String(node.name || '');
+                var children = (node.children || []).filter(function (child) { return child && child.status !== 'inactive'; });
                 var row = document.createElement('div');
-                row.className = 'dir-tree-node ' + (children.length ? 'parent-node' : 'leaf-node');
+                row.className = 'doc-tree-node dir-tree-node ' + (children.length ? 'doc-parent-node parent-node' : 'doc-leaf-node leaf-node');
                 row.setAttribute('data-path', path);
-
-                var cb = document.createElement('input');
-                cb.type = 'checkbox';
-                cb.value = path;
-                if (children.length) {
-                    cb.disabled = true;
-                    cb.style.cssText = 'accent-color:#9CA3AF;width:15px;height:15px;cursor:default;flex-shrink:0;margin-right:4px;opacity:0.5;';
-                } else {
-                    cb.style.cssText = 'accent-color:#2563EB;width:15px;height:15px;cursor:pointer;flex-shrink:0;margin-right:4px;';
-                    cb.onclick = function (e) { e.stopPropagation(); };
+                row.setAttribute('data-project-id', String(node.projectId || ''));
+                var checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.disabled = children.length > 0 || safetySaving;
+                if (!children.length) {
+                    checkbox.setAttribute('data-id', String(node.id));
+                    checkbox.setAttribute('data-label', path);
+                    checkbox.addEventListener('change', function () { updateSelectedDirList(item); });
                 }
-                row.appendChild(cb);
-
+                checkbox.addEventListener('click', function (event) { event.stopPropagation(); });
+                row.appendChild(checkbox);
                 var expand = document.createElement('span');
-                expand.className = 'expand';
+                expand.className = 'expand-icon';
                 expand.textContent = children.length ? '▼' : '';
-                if (children.length) expand.onclick = function (e) { e.stopPropagation(); toggleDirExpand(expand); };
+                if (!children.length) expand.style.visibility = 'hidden';
                 row.appendChild(expand);
-
                 var icon = document.createElement('span');
                 icon.className = 'node-icon';
                 icon.textContent = children.length ? '📁' : '📄';
                 row.appendChild(icon);
-                row.appendChild(document.createTextNode(node.name));
-
-                row.onclick = function () { selectDirNode(row, path); };
+                var label = document.createElement('span');
+                label.className = 'node-label';
+                label.textContent = node.name || '';
+                label.title = path;
+                row.appendChild(label);
+                row.addEventListener('click', function () {
+                    if (children.length) { toggleDirTreeNode(row); return; }
+                    if (safetySaving) return;
+                    checkbox.checked = !checkbox.checked;
+                    updateSelectedDirList(item);
+                });
                 container.appendChild(row);
-
                 if (children.length) {
-                    var childBox = document.createElement('div');
-                    childBox.className = 'dir-tree-children';
-                    container.appendChild(childBox);
-                    appendDirTreeNodes(children, childBox, path);
-                }
+                    var childContainer = document.createElement('div');
+                    childContainer.className = 'doc-tree-children dir-tree-children';
+                    container.appendChild(childContainer);
+                    leafCount += appendDirTreeNodes(children, childContainer, path, item);
+                } else leafCount++;
             });
+            return leafCount;
         }
-
-        function applyDirSelection(paths) {
-            var container = document.getElementById('dirTreeContainer');
-            var leafCheckboxes = container.querySelectorAll('.leaf-node input[type="checkbox"]');
-            for (var i = 0; i < leafCheckboxes.length; i++) {
-                leafCheckboxes[i].checked = paths.indexOf(leafCheckboxes[i].value) > -1;
-            }
-            updateSelectedDirList();
-        }
-
         function ensureDirTree() {
-            if (!window.App || !App.apiFetch) { setDirTreePlaceholder('目录加载失败：当前页面缺少请求组件'); return Promise.resolve(); }
-            var pid = document.getElementById('projectSelect').value;
-            if (!pid) { setDirTreePlaceholder('未带入填报项目，请关闭后重新选择项目'); return Promise.resolve(); }
-            if (dirTreeReady && dirTreeProjectId === pid) return Promise.resolve();
-            dirTreeProjectId = pid;
-            dirTreeReady = false;
-            setDirTreePlaceholder('正在加载项目目录...');
+            var pidEl = document.getElementById('projectSelect');
+            var pid = pidEl ? String(pidEl.value || '') : '', seq = ++dirTreeLoadSeq;
+            if (!pid) {
+                dirTreeProjectId = null; dirTreeData = null; dirTreeReady = false; dirTreeLoadError = false;
+                renderAllAttachmentDirTrees();
+                return Promise.resolve();
+            }
+            if (dirTreeReady && dirTreeProjectId === pid && dirTreeData) {
+                renderAllAttachmentDirTrees();
+                return Promise.resolve();
+            }
+            dirTreeProjectId = pid; dirTreeData = null; dirTreeReady = false; dirTreeLoadError = false;
+            renderAllAttachmentDirTrees();
+            if (!window.App || !App.apiFetch) {
+                dirTreeLoadError = true; renderAllAttachmentDirTrees();
+                return Promise.resolve();
+            }
             return App.apiFetch('/sub-item-databases/tree?projectId=' + encodeURIComponent(pid)).then(function (tree) {
-                var nodes = (tree || []).filter(function (n) { return n && n.status !== 'inactive'; });
-                if (!nodes.length) { setDirTreePlaceholder('该项目暂无资料目录，请先在“工程资料目录设置”中创建'); return; }
-                var container = document.getElementById('dirTreeContainer');
-                container.innerHTML = '';
-                appendDirTreeNodes(nodes, container, '');
+                if (seq !== dirTreeLoadSeq || String((document.getElementById('projectSelect') || {}).value || '') !== pid) return;
+                dirTreeData = Array.isArray(tree) ? tree : [];
                 dirTreeReady = true;
+                renderAllAttachmentDirTrees();
             }).catch(function () {
-                setDirTreePlaceholder('目录加载失败，请稍后重试');
+                if (seq !== dirTreeLoadSeq || String((document.getElementById('projectSelect') || {}).value || '') !== pid) return;
+                dirTreeLoadError = true;
+                renderAllAttachmentDirTrees();
             });
         }
-
-        function updateSelectedDirList() {
-            var container = document.getElementById('dirTreeContainer');
-            var leafCheckboxes = container.querySelectorAll('.leaf-node input[type="checkbox"]');
-            selectedDirPaths = [];
-            for (var i = 0; i < leafCheckboxes.length; i++) {
-                if (leafCheckboxes[i].checked) {
-                    selectedDirPaths.push(leafCheckboxes[i].value);
+        function renderAttachmentDirTree(item) {
+            var container = item ? item.querySelector('.dir-tree-container') : null;
+            if (!container) return;
+            var pidEl = document.getElementById('projectSelect');
+            var pid = pidEl ? String(pidEl.value || '') : '';
+            if (!pid) {
+                setDirTreePlaceholder(container, '暂无工程资料目录，请先在“工程资料目录设置”中创建');
+                renderAttachmentDirTags(item);
+                return;
+            }
+            if (dirTreeLoadError && dirTreeProjectId === pid) {
+                setDirTreePlaceholder(container, '工程资料目录加载失败，请稍后重试');
+                renderAttachmentDirTags(item);
+                return;
+            }
+            if (!dirTreeReady || dirTreeProjectId !== pid || !dirTreeData) {
+                setDirTreePlaceholder(container, '正在加载工程资料目录…');
+                renderAttachmentDirTags(item);
+                return;
+            }
+            container.innerHTML = '';
+            var leafCount = appendDirTreeNodes(dirTreeData, container, '', item);
+            if (!leafCount) {
+                setDirTreePlaceholder(container, '暂无工程资料目录，请先在“工程资料目录设置”中创建');
+                renderAttachmentDirTags(item);
+                return;
+            }
+            applyDirSelection(item);
+        }
+        function applyDirSelection(item) {
+            var selected = item._dirs || [];
+            item.querySelectorAll('.dir-tree-container input[type="checkbox"][data-label]').forEach(function (checkbox) {
+                checkbox.checked = selected.indexOf(checkbox.getAttribute('data-label')) > -1;
+            });
+            updateSelectedDirList(item);
+        }
+        function toggleDirTreeNode(nodeEl) {
+            var children = nodeEl.nextElementSibling;
+            if (!children || !children.classList.contains('doc-tree-children')) return;
+            children.classList.toggle('collapsed');
+            var icon = nodeEl.querySelector('.expand-icon');
+            if (icon && icon.style.visibility !== 'hidden') icon.textContent = children.classList.contains('collapsed') ? '▶' : '▼';
+        }
+        function updateSelectedDirList(item) {
+            var selected = [];
+            item.querySelectorAll('.dir-tree-container input[type="checkbox"][data-label]').forEach(function (checkbox) {
+                if (checkbox.checked) selected.push(checkbox.getAttribute('data-label'));
+            });
+            item._dirs = selected;
+            syncAttachmentDirMetadata(item);
+            renderAttachmentDirTags(item);
+            syncDirParentCheckboxes(item);
+        }
+        function renderAttachmentDirTags(item) {
+            var tagsEl = item.querySelector('.dir-selected-tags'), countEl = item.querySelector('.dir-selected-count');
+            if (!tagsEl || !countEl) return;
+            var selected = item._dirs || [];
+            countEl.textContent = '已选 ' + selected.length + ' 项';
+            tagsEl.innerHTML = '';
+            if (!selected.length) {
+                var empty = document.createElement('span');
+                empty.className = 'selected-doc-empty';
+                empty.textContent = '未选择工程资料目录';
+                tagsEl.appendChild(empty);
+                return;
+            }
+            selected.forEach(function (path) {
+                var tag = document.createElement('span');
+                tag.className = 'selected-doc-tag att-dir-tag';
+                tag.setAttribute('data-path', path);
+                tag.setAttribute('role', 'button');
+                tag.setAttribute('tabindex', '0');
+                tag.title = path + '（点击定位到目录树，可重新修改）';
+                tag.appendChild(document.createTextNode(path));
+                tag.addEventListener('click', function () { focusAttachmentDir(item, path); });
+                tag.addEventListener('keydown', function (event) {
+                    if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); focusAttachmentDir(item, path); }
+                });
+                var remove = document.createElement('span');
+                remove.className = 'remove-tag remove-dir-tag';
+                remove.textContent = '✕';
+                remove.addEventListener('click', function (event) { event.stopPropagation(); removeDirTag(item, path); });
+                tag.appendChild(remove);
+                tagsEl.appendChild(tag);
+            });
+        }
+        function focusAttachmentDir(item, path) {
+            var checkboxes = item.querySelectorAll('.dir-tree-container input[type="checkbox"][data-label]');
+            for (var i = 0; i < checkboxes.length; i++) {
+                if (checkboxes[i].getAttribute('data-label') !== path) continue;
+                var children = checkboxes[i].closest('.doc-tree-children');
+                while (children) {
+                    children.classList.remove('collapsed');
+                    var parentRow = children.previousElementSibling;
+                    var icon = parentRow && parentRow.querySelector('.expand-icon');
+                    if (icon) icon.textContent = '▼';
+                    children = children.parentElement.closest('.doc-tree-children');
+                }
+                checkboxes[i].scrollIntoView({ block: 'center', behavior: 'smooth' });
+                checkboxes[i].focus({ preventScroll: true });
+                return;
+            }
+            var container = item.querySelector('.dir-tree-container');
+            if (container) container.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+        function removeDirTag(item, path) {
+            if (safetySaving) return;
+            var checkboxes = item.querySelectorAll('.dir-tree-container input[type="checkbox"][data-label]');
+            for (var i = 0; i < checkboxes.length; i++) {
+                if (checkboxes[i].getAttribute('data-label') === path) {
+                    checkboxes[i].checked = false;
+                    updateSelectedDirList(item);
+                    return;
                 }
             }
-            var tagsEl = document.getElementById('dirSelectedTags');
-            var countEl = document.getElementById('dirSelectedCount');
-            countEl.textContent = selectedDirPaths.length + ' 项';
-            if (selectedDirPaths.length === 0) {
-                tagsEl.innerHTML = '<span class="dir-selected-empty">未选择任何目录</span>';
-            } else {
-                var html = '';
-                for (var j = 0; j < selectedDirPaths.length; j++) {
-                    html += '<span class="dir-selected-tag">' + esc(selectedDirPaths[j]) + '<span class="remove-dir-tag" onclick="removeDirTag(\'' + jsAttr(selectedDirPaths[j]) + '\')">✕</span></span>';
-                }
-                tagsEl.innerHTML = html;
+            item._dirs = (item._dirs || []).filter(function (value) { return value !== path; });
+            syncAttachmentDirMetadata(item);
+            renderAttachmentDirTags(item);
+        }
+        function syncDirParentCheckboxes(item) {
+            var rows = Array.from(item.querySelectorAll('.dir-tree-container .doc-tree-node'));
+            for (var i = rows.length - 1; i >= 0; i--) {
+                var checkbox = rows[i].querySelector('input[type="checkbox"]'), children = rows[i].nextElementSibling;
+                if (!checkbox || !children || !children.classList.contains('doc-tree-children')) continue;
+                var direct = Array.from(children.querySelectorAll(':scope > .doc-tree-node > input[type="checkbox"]'));
+                if (!direct.length) continue;
+                var allChecked = direct.every(function (child) { return child.checked; });
+                var anyChecked = direct.some(function (child) { return child.checked || child.indeterminate; });
+                checkbox.checked = allChecked;
+                checkbox.indeterminate = !allChecked && anyChecked;
             }
         }
-
-        function removeDirTag(path) {
-            var container = document.getElementById('dirTreeContainer');
-            var leafCheckboxes = container.querySelectorAll('.leaf-node input[type="checkbox"]');
-            for (var i = 0; i < leafCheckboxes.length; i++) {
-                if (leafCheckboxes[i].value === path) {
-                    leafCheckboxes[i].checked = false;
-                    break;
-                }
-            }
-            updateSelectedDirList();
-        }
-
-        function openDirSelector(attId, fileName) {
-            pendingAttId = attId;
-            pendingFileName = fileName;
-            var attItem = document.getElementById(pendingAttId);
-            var existingTags = attItem ? attItem.querySelectorAll('.att-dir-tag') : [];
-            var existingPaths = [];
-            for (var i = 0; i < existingTags.length; i++) {
-                existingPaths.push(existingTags[i].getAttribute('data-path'));
-            }
-            selectedDirPaths = existingPaths.slice();
-            document.getElementById('currentFileName').textContent = fileName;
-            updateSelectedDirList();
-            document.getElementById('dirTreeModal').classList.add('show');
-            ensureDirTree().then(function () { applyDirSelection(existingPaths); });
-        }
-
-        function confirmDirSelection() {
-            updateSelectedDirList();
-            if (selectedDirPaths.length === 0) { alert('请至少选择一个存储目录'); return; }
-            var attItem = document.getElementById(pendingAttId);
-            if (attItem) {
-                var dirLabel = attItem.querySelector('.dir-label');
-                var dirPathEl = attItem.querySelector('.dir-path');
-                var oldTags = attItem.querySelectorAll('.att-dir-tags');
-                for (var t = 0; t < oldTags.length; t++) { oldTags[t].remove(); }
-                if (selectedDirPaths.length === 1) {
-                    dirLabel.textContent = selectedDirPaths[0];
-                    dirLabel.className = 'dir-label set';
-                } else {
-                    dirLabel.textContent = selectedDirPaths.length + '个目录';
-                    dirLabel.className = 'dir-label set';
-                }
-                var tagsDiv = document.createElement('div');
-                tagsDiv.className = 'att-dir-tags';
-                for (var j = 0; j < selectedDirPaths.length; j++) {
-                    var tag = document.createElement('span');
-                    tag.className = 'att-dir-tag';
-                    tag.setAttribute('data-path', selectedDirPaths[j]);
-                    tag.textContent = selectedDirPaths[j].split(' / ').pop();
-                    tag.title = selectedDirPaths[j];
-                    tagsDiv.appendChild(tag);
-                }
-                dirPathEl.parentNode.insertBefore(tagsDiv, dirPathEl.nextSibling);
-                var badge = attItem.querySelector('.pending-badge');
-                if (badge) badge.remove();
-                attItem.safetyMetadata = Object.assign({}, attItem.safetyMetadata || {}, { dirs: selectedDirPaths.slice() });
-            }
-            pendingAttIndex++;
-            if (pendingAttIndex < pendingAttIds.length) {
-                pendingAttId = pendingAttIds[pendingAttIndex].id;
-                pendingFileName = pendingAttIds[pendingAttIndex].name;
-                document.getElementById('currentFileName').textContent = pendingFileName;
-                var container = document.getElementById('dirTreeContainer');
-                var leafCheckboxes = container.querySelectorAll('.leaf-node input[type="checkbox"]');
-                for (var k = 0; k < leafCheckboxes.length; k++) {
-                    leafCheckboxes[k].checked = false;
-                }
-                selectedDirPaths = [];
-                updateSelectedDirList();
-            } else {
-                closeModal('dirTreeModal');
-            }
+        function syncDirectoryControls() {
+            directoryHosts().forEach(function (item) {
+                item.querySelectorAll('input[type="checkbox"]').forEach(function (checkbox) {
+                    checkbox.disabled = !checkbox.hasAttribute('data-label') || safetySaving;
+                });
+            });
         }
 
         document.querySelectorAll('#createModal input[placeholder], #createModal textarea[placeholder]').forEach(function (el) {
@@ -1998,7 +1985,10 @@
         if (window.App) {
             App.requireAuth();
             App.initTopbar();
-            loadProjects().then(loadData);
+            loadProjects().then(loadData).then(function () {
+                var id = new URLSearchParams(location.search).get('id');
+                if (id && /^\d+$/.test(id)) viewDetail(0, id);
+            });
         }
 
         function closeFilterTip(el) {

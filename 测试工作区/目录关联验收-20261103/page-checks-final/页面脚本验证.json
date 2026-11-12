@@ -1,0 +1,1517 @@
+{
+  "note": "原页面内联JS+DOM桩/接口桩，不是浏览器渲染/点击测试，也不是真实大量数据负载测试。",
+  "counts": {
+    "通过": 100
+  },
+  "results": [
+    {
+      "id": "P001",
+      "page": "index",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P002",
+      "page": "welcome",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P003",
+      "page": "project-ledger",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P004",
+      "page": "daily-inspection",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 0
+      }
+    },
+    {
+      "id": "P005",
+      "page": "sideline-inspection",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 0
+      }
+    },
+    {
+      "id": "P006",
+      "page": "supervision-notice",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P007",
+      "page": "work-contact",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P008",
+      "page": "supervision-diary",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 0
+      }
+    },
+    {
+      "id": "P009",
+      "page": "supervision-log",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 0
+      }
+    },
+    {
+      "id": "P010",
+      "page": "safety-log",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P011",
+      "page": "meeting-minutes",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P012",
+      "page": "supervision-monthly-report",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P013",
+      "page": "sub-item-database",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P014",
+      "page": "project-data-upload",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P015",
+      "page": "diary-statistics",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P016",
+      "page": "log-statistics",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P017",
+      "page": "safety-log-statistics",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P018",
+      "page": "diary-report",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P019",
+      "page": "message-center",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P020",
+      "page": "department-management",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P021",
+      "page": "personnel-management",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P022",
+      "page": "permission-settings",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P023",
+      "page": "process-management",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P024",
+      "page": "operation-log",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P025",
+      "page": "work-standard-config",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P026",
+      "page": "login",
+      "title": "内联JavaScript语法检查",
+      "result": "通过",
+      "actual": {
+        "scripts": 1
+      }
+    },
+    {
+      "id": "P027",
+      "page": "assets/app.js",
+      "title": "共享脚本语法检查",
+      "result": "通过"
+    },
+    {
+      "id": "P028",
+      "page": "assets/field-records.js",
+      "title": "共享脚本语法检查",
+      "result": "通过"
+    },
+    {
+      "id": "P029",
+      "page": "miniprogram/utils/schema.js",
+      "title": "共享脚本语法检查",
+      "result": "通过"
+    },
+    {
+      "id": "P030",
+      "page": "assets/field-records.js",
+      "title": "记录类页面导出按钮统一使用“导出”文案",
+      "result": "通过"
+    },
+    {
+      "id": "P031",
+      "page": "全部页面",
+      "title": "导出按钮文案已统一精简（无“导出CSV/导出Excel/导出日志/导出筛选结果”）",
+      "result": "通过",
+      "actual": []
+    },
+    {
+      "id": "P032",
+      "page": "全部页面",
+      "title": "日记报表、操作日志、安全日志与人员管理均使用“📥 导出”",
+      "result": "通过",
+      "actual": [
+        {
+          "page": "supervision-notice",
+          "label": "📥 导出"
+        },
+        {
+          "page": "work-contact",
+          "label": "📥 导出"
+        },
+        {
+          "page": "safety-log",
+          "label": "📥 导出"
+        },
+        {
+          "page": "safety-log",
+          "label": "📄 导出Word"
+        },
+        {
+          "page": "safety-log",
+          "label": "📄 导出Word"
+        },
+        {
+          "page": "diary-report",
+          "label": "📥 导出"
+        },
+        {
+          "page": "personnel-management",
+          "label": "📥 导出"
+        },
+        {
+          "page": "operation-log",
+          "label": "📥 导出"
+        }
+      ]
+    },
+    {
+      "id": "P033",
+      "page": "全部页面",
+      "title": "记录页“项目成员授权”入口、面板及遗留选择器已移除",
+      "result": "通过",
+      "actual": []
+    },
+    {
+      "id": "P034",
+      "page": "assets/field-records.js",
+      "title": "记录页新建按钮只显示“新建”，不再拼接记录类型名",
+      "result": "通过"
+    },
+    {
+      "id": "P035",
+      "page": "assets/field-records.js",
+      "title": "关闭与取消直接关闭编辑器并丢弃未保存暂存，不经离开确认",
+      "result": "通过"
+    },
+    {
+      "id": "P036",
+      "page": "assets/field-records.js",
+      "title": "巡检旁站新建不再要求先选工具栏项目，改由表单项目下拉选择",
+      "result": "通过"
+    },
+    {
+      "id": "P037",
+      "page": "project-ledger",
+      "title": "项目状态与总监理师下拉未被硬编码禁用",
+      "result": "通过",
+      "actual": [
+        "<select class=\"form-control\" id=\"projectStatus\">",
+        "<select class=\"form-control\" id=\"chiefEngineer\">"
+      ]
+    },
+    {
+      "id": "P038",
+      "page": "project-ledger",
+      "title": "下拉使用白底深色文字而非默认灰底",
+      "result": "通过"
+    },
+    {
+      "id": "P039",
+      "page": "project-ledger",
+      "title": "新建弹窗打开时清除两个下拉的禁用状态并重置为未选择",
+      "result": "通过"
+    },
+    {
+      "id": "P040",
+      "page": "project-ledger",
+      "title": "编辑状态准确传入通用PUT：paused",
+      "result": "通过",
+      "actual": {
+        "route": "/projects/7101",
+        "method": "PUT",
+        "body": {
+          "code": "QA-STATUS-7101",
+          "name": "模拟项目状态回归",
+          "status": "paused",
+          "buildUnit": "模拟建设单位",
+          "startDate": "2026-01-01",
+          "endDate": "2026-12-31",
+          "address": "",
+          "description": "",
+          "managerId": 9001
+        }
+      }
+    },
+    {
+      "id": "P041",
+      "page": "project-ledger",
+      "title": "保存后重新查询列表并更新中文状态：paused",
+      "result": "通过"
+    },
+    {
+      "id": "P042",
+      "page": "project-ledger",
+      "title": "再次编辑回显新状态：paused",
+      "result": "通过"
+    },
+    {
+      "id": "P043",
+      "page": "project-ledger",
+      "title": "详情刷新展示新状态：paused",
+      "result": "通过"
+    },
+    {
+      "id": "P044",
+      "page": "project-ledger",
+      "title": "编辑状态准确传入通用PUT：completed",
+      "result": "通过",
+      "actual": {
+        "route": "/projects/7101",
+        "method": "PUT",
+        "body": {
+          "code": "QA-STATUS-7101",
+          "name": "模拟项目状态回归",
+          "status": "completed",
+          "buildUnit": "模拟建设单位",
+          "startDate": "2026-01-01",
+          "endDate": "2026-12-31",
+          "address": "",
+          "description": "",
+          "managerId": 9001
+        }
+      }
+    },
+    {
+      "id": "P045",
+      "page": "project-ledger",
+      "title": "保存后重新查询列表并更新中文状态：completed",
+      "result": "通过"
+    },
+    {
+      "id": "P046",
+      "page": "project-ledger",
+      "title": "再次编辑回显新状态：completed",
+      "result": "通过"
+    },
+    {
+      "id": "P047",
+      "page": "project-ledger",
+      "title": "详情刷新展示新状态：completed",
+      "result": "通过"
+    },
+    {
+      "id": "P048",
+      "page": "project-ledger",
+      "title": "编辑状态准确传入通用PUT：planning",
+      "result": "通过",
+      "actual": {
+        "route": "/projects/7101",
+        "method": "PUT",
+        "body": {
+          "code": "QA-STATUS-7101",
+          "name": "模拟项目状态回归",
+          "status": "planning",
+          "buildUnit": "模拟建设单位",
+          "startDate": "2026-01-01",
+          "endDate": "2026-12-31",
+          "address": "",
+          "description": "",
+          "managerId": 9001
+        }
+      }
+    },
+    {
+      "id": "P049",
+      "page": "project-ledger",
+      "title": "保存后重新查询列表并更新中文状态：planning",
+      "result": "通过"
+    },
+    {
+      "id": "P050",
+      "page": "project-ledger",
+      "title": "再次编辑回显新状态：planning",
+      "result": "通过"
+    },
+    {
+      "id": "P051",
+      "page": "project-ledger",
+      "title": "详情刷新展示新状态：planning",
+      "result": "通过"
+    },
+    {
+      "id": "P052",
+      "page": "project-ledger",
+      "title": "编辑状态准确传入通用PUT：active",
+      "result": "通过",
+      "actual": {
+        "route": "/projects/7101",
+        "method": "PUT",
+        "body": {
+          "code": "QA-STATUS-7101",
+          "name": "模拟项目状态回归",
+          "status": "active",
+          "buildUnit": "模拟建设单位",
+          "startDate": "2026-01-01",
+          "endDate": "2026-12-31",
+          "address": "",
+          "description": "",
+          "managerId": 9001
+        }
+      }
+    },
+    {
+      "id": "P053",
+      "page": "project-ledger",
+      "title": "保存后重新查询列表并更新中文状态：active",
+      "result": "通过"
+    },
+    {
+      "id": "P054",
+      "page": "project-ledger",
+      "title": "再次编辑回显新状态：active",
+      "result": "通过"
+    },
+    {
+      "id": "P055",
+      "page": "project-ledger",
+      "title": "详情刷新展示新状态：active",
+      "result": "通过"
+    },
+    {
+      "id": "P056",
+      "page": "project-ledger",
+      "title": "保留旧状态筛选时变更后的项目从结果消失",
+      "result": "通过"
+    },
+    {
+      "id": "P057",
+      "page": "project-ledger",
+      "title": "保存失败不提示成功、不关闭编辑框、不刷新为未保存的状态",
+      "result": "通过"
+    },
+    {
+      "id": "P058",
+      "page": "project-ledger",
+      "title": "迟到的旧查询不会覆盖最新状态",
+      "result": "通过"
+    },
+    {
+      "id": "P059",
+      "page": "project-ledger",
+      "title": "项目状态交互无脚本或局部渲染异常",
+      "result": "通过",
+      "actual": []
+    },
+    {
+      "id": "P060",
+      "page": "log-statistics",
+      "title": "当日只有草稿不得显示已提交",
+      "result": "通过",
+      "actual": [
+        {
+          "name": "项目#1",
+          "totalDays": 1,
+          "passed": 0,
+          "todaySubmitted": false,
+          "submittedBy": "",
+          "submittedAt": "",
+          "days": {
+            "2026-11-04": true
+          },
+          "approvedDays": {},
+          "todayRecords": []
+        }
+      ]
+    },
+    {
+      "id": "P061",
+      "page": "log-statistics",
+      "title": "同一天两条记录不能当作两个应写工作日",
+      "result": "通过",
+      "actual": [
+        {
+          "name": "项目#1",
+          "totalDays": 1,
+          "passed": 1,
+          "todaySubmitted": true,
+          "submittedBy": "",
+          "submittedAt": "",
+          "days": {
+            "2026-11-04": true
+          },
+          "approvedDays": {
+            "2026-11-04": true
+          },
+          "todayRecords": [
+            {
+              "projectId": 1,
+              "logDate": "2026-11-04",
+              "status": "approved"
+            },
+            {
+              "projectId": 1,
+              "logDate": "2026-11-04",
+              "status": "approved"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P062",
+      "page": "log-statistics",
+      "title": "渲染后的草稿行应显示未提交",
+      "result": "通过",
+      "actual": "<tr><td>项目#1</td><td>1</td><td>0</td><td><div style=\"display:flex;align-items:center;gap:8px;\"><div class=\"progress-bar\"><div class=\"progress-fill red\" style=\"width:0%\"></div></div><span style=\"font-size:12px;\">0%</span></div></td><td><span class=\"submit-status unsubmitted\">○ 未提交</span></td><td><span style=\"color:#9CA3AF;\">—</span></td><td><span style=\"color:#9CA3AF;\">—</span></td><td><button class=\"btn btn-outline btn-sm\" disabled title=\"只读模式，无法提交\">查看</button></td></tr>"
+    },
+    {
+      "id": "P063",
+      "page": "log-statistics",
+      "title": "无记录项目应纳入未提交统计",
+      "result": "通过",
+      "actual": [
+        {
+          "name": "模拟A项目",
+          "totalDays": 0,
+          "passed": 0,
+          "todaySubmitted": false,
+          "submittedBy": "",
+          "submittedAt": "",
+          "days": {},
+          "approvedDays": {},
+          "todayRecords": []
+        },
+        {
+          "name": "模拟B项目（无记录）",
+          "totalDays": 0,
+          "passed": 0,
+          "todaySubmitted": false,
+          "submittedBy": "",
+          "submittedAt": "",
+          "days": {},
+          "approvedDays": {},
+          "todayRecords": []
+        }
+      ]
+    },
+    {
+      "id": "P064",
+      "page": "log-statistics",
+      "title": "总数超过第一页时不能静默少计",
+      "result": "通过",
+      "actual": {
+        "requests": [
+          {
+            "route": "/supervision-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 1
+            }
+          },
+          {
+            "route": "/supervision-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 2
+            }
+          },
+          {
+            "route": "/supervision-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 3
+            }
+          },
+          {
+            "route": "/supervision-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 4
+            }
+          },
+          {
+            "route": "/supervision-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 5
+            }
+          },
+          {
+            "route": "/supervision-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 6
+            }
+          },
+          {
+            "route": "/supervision-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 7
+            }
+          },
+          {
+            "route": "/supervision-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 8
+            }
+          },
+          {
+            "route": "/supervision-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 9
+            }
+          },
+          {
+            "route": "/supervision-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 10
+            }
+          },
+          {
+            "route": "/supervision-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 11
+            }
+          },
+          {
+            "route": "/supervision-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 12
+            }
+          },
+          {
+            "route": "/supervision-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 13
+            }
+          },
+          {
+            "route": "/supervision-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 14
+            }
+          },
+          {
+            "route": "/supervision-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 15
+            }
+          },
+          {
+            "route": "/supervision-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 16
+            }
+          },
+          {
+            "route": "/supervision-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 17
+            }
+          },
+          {
+            "route": "/supervision-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 18
+            }
+          },
+          {
+            "route": "/supervision-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 19
+            }
+          },
+          {
+            "route": "/supervision-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 20
+            }
+          }
+        ],
+        "displayedRows": 20,
+        "totalFromApi": 2001,
+        "errors": [
+          "监理日志统计取数未完成：已取 20 条，接口总数 2001 条，统计结果可能少计"
+        ]
+      }
+    },
+    {
+      "id": "P065",
+      "page": "safety-log-statistics",
+      "title": "当日只有草稿不得显示已提交",
+      "result": "通过",
+      "actual": [
+        {
+          "name": "项目#1",
+          "totalDays": 1,
+          "passed": 0,
+          "todaySubmitted": false,
+          "submittedBy": "",
+          "submittedAt": "",
+          "days": {
+            "2026-11-04": true
+          },
+          "approvedDays": {}
+        }
+      ]
+    },
+    {
+      "id": "P066",
+      "page": "safety-log-statistics",
+      "title": "同一天两条记录不能当作两个应写工作日",
+      "result": "通过",
+      "actual": [
+        {
+          "name": "项目#1",
+          "totalDays": 1,
+          "passed": 1,
+          "todaySubmitted": true,
+          "submittedBy": "",
+          "submittedAt": "",
+          "days": {
+            "2026-11-04": true
+          },
+          "approvedDays": {
+            "2026-11-04": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "P067",
+      "page": "safety-log-statistics",
+      "title": "渲染后的草稿行应显示未提交",
+      "result": "通过",
+      "actual": "<tr><td>项目#1</td><td>1</td><td>0</td><td><div style=\"display:flex;align-items:center;gap:8px;\"><div class=\"progress-bar\"><div class=\"progress-fill red\" style=\"width:0%\"></div></div><span style=\"font-size:12px;\">0%</span></div></td><td><span class=\"submit-status unsubmitted\">○ 未提交</span></td><td><span style=\"color:#9CA3AF;\">—</span></td><td><span style=\"color:#9CA3AF;\">—</span></td><td><button class=\"btn btn-outline btn-sm\" disabled title=\"只读模式，无法提交\">查看</button></td></tr>"
+    },
+    {
+      "id": "P068",
+      "page": "safety-log-statistics",
+      "title": "无记录项目应纳入未提交统计",
+      "result": "通过",
+      "actual": [
+        {
+          "name": "模拟A项目",
+          "totalDays": 0,
+          "passed": 0,
+          "todaySubmitted": false,
+          "submittedBy": "",
+          "submittedAt": "",
+          "days": {},
+          "approvedDays": {}
+        },
+        {
+          "name": "模拟B项目（无记录）",
+          "totalDays": 0,
+          "passed": 0,
+          "todaySubmitted": false,
+          "submittedBy": "",
+          "submittedAt": "",
+          "days": {},
+          "approvedDays": {}
+        }
+      ]
+    },
+    {
+      "id": "P069",
+      "page": "safety-log-statistics",
+      "title": "总数超过第一页时不能静默少计",
+      "result": "通过",
+      "actual": {
+        "requests": [
+          {
+            "route": "/safety-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 1
+            }
+          },
+          {
+            "route": "/safety-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 2
+            }
+          },
+          {
+            "route": "/safety-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 3
+            }
+          },
+          {
+            "route": "/safety-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 4
+            }
+          },
+          {
+            "route": "/safety-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 5
+            }
+          },
+          {
+            "route": "/safety-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 6
+            }
+          },
+          {
+            "route": "/safety-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 7
+            }
+          },
+          {
+            "route": "/safety-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 8
+            }
+          },
+          {
+            "route": "/safety-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 9
+            }
+          },
+          {
+            "route": "/safety-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 10
+            }
+          },
+          {
+            "route": "/safety-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 11
+            }
+          },
+          {
+            "route": "/safety-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 12
+            }
+          },
+          {
+            "route": "/safety-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 13
+            }
+          },
+          {
+            "route": "/safety-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 14
+            }
+          },
+          {
+            "route": "/safety-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 15
+            }
+          },
+          {
+            "route": "/safety-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 16
+            }
+          },
+          {
+            "route": "/safety-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 17
+            }
+          },
+          {
+            "route": "/safety-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 18
+            }
+          },
+          {
+            "route": "/safety-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 19
+            }
+          },
+          {
+            "route": "/safety-logs",
+            "params": {
+              "pageSize": 2000,
+              "pageNum": 20
+            }
+          }
+        ],
+        "displayedRows": 20,
+        "totalFromApi": 2001,
+        "errors": [
+          "安全日志统计取数未完成：已取 20 条，接口总数 2001 条，统计结果可能少计"
+        ]
+      }
+    },
+    {
+      "id": "P070",
+      "page": "diary-statistics",
+      "title": "已通过和草稿数量分别展示",
+      "result": "通过",
+      "actual": {
+        "approved": "1",
+        "draft": "1"
+      }
+    },
+    {
+      "id": "P071",
+      "page": "diary-statistics",
+      "title": "同人同日多记录不能直接当作应写天数",
+      "result": "通过",
+      "actual": "<tr><td>模拟监理甲</td><td>模拟项目A</td><td>1</td><td>1</td><td><div style=\"display:flex;align-items:center;gap:8px;\"><div class=\"progress-bar\"><div class=\"progress-fill green\" style=\"width:100%\"></div></div><span style=\"font-size:12px;\">100%</span></div></td><td style=\"color:#10B981;\">0</td><td><a href=\"diary-report.html\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看详情</a></td></tr>"
+    },
+    {
+      "id": "P072",
+      "page": "diary-statistics",
+      "title": "超过1000条应继续取数或显式报错",
+      "result": "通过",
+      "actual": {
+        "calls": [
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 1
+            }
+          },
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 2
+            }
+          },
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 3
+            }
+          },
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 4
+            }
+          },
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 5
+            }
+          },
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 6
+            }
+          },
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 7
+            }
+          },
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 8
+            }
+          },
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 9
+            }
+          },
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 10
+            }
+          },
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 11
+            }
+          },
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 12
+            }
+          },
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 13
+            }
+          },
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 14
+            }
+          },
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 15
+            }
+          },
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 16
+            }
+          },
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 17
+            }
+          },
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 18
+            }
+          },
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 19
+            }
+          },
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 20
+            }
+          }
+        ],
+        "shown": "2",
+        "actualTotal": 1001
+      }
+    },
+    {
+      "id": "P073",
+      "page": "diary-report",
+      "title": "状态与附件数量正确渲染",
+      "result": "通过",
+      "actual": "<tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr><tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr><tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr><tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr><tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr><tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr><tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr><tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr><tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr><tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr><tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr><tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr><tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr><tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr><tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr><tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr><tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr><tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr><tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr><tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr>"
+    },
+    {
+      "id": "P074",
+      "page": "diary-report",
+      "title": "查看日记链接应携带该条记录ID",
+      "result": "通过",
+      "actual": "<tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr><tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr><tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr><tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr><tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr><tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr><tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr><tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr><tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr><tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr><tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr><tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr><tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr><tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr><tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr><tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr><tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr><tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr><tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr><tr data-status=\"approved\"><td>2026-09-23</td><td>周三</td><td>晴</td><td><span class=\"status-tag status-approved\">通过</span></td><td>1</td><td><a href=\"supervision-diary.html?readonly=true&id=123\" style=\"color:#2563EB;text-decoration:none;font-size:12px;\">查看日记</a></td></tr>"
+    },
+    {
+      "id": "P075",
+      "page": "diary-report",
+      "title": "报表不能忽略超过1000条的后续记录",
+      "result": "通过",
+      "actual": {
+        "calls": [
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 1
+            }
+          },
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 2
+            }
+          },
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 3
+            }
+          },
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 4
+            }
+          },
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 5
+            }
+          },
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 6
+            }
+          },
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 7
+            }
+          },
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 8
+            }
+          },
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 9
+            }
+          },
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 10
+            }
+          },
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 11
+            }
+          },
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 12
+            }
+          },
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 13
+            }
+          },
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 14
+            }
+          },
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 15
+            }
+          },
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 16
+            }
+          },
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 17
+            }
+          },
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 18
+            }
+          },
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 19
+            }
+          },
+          {
+            "route": "/supervision-diaries",
+            "params": {
+              "pageSize": 1000,
+              "pageNum": 20
+            }
+          }
+        ],
+        "displayed": 20,
+        "actualTotal": 1001
+      }
+    },
+    {
+      "id": "P076",
+      "page": "diary-report",
+      "title": "可生成包含真实渲染记录的CSV文本",
+      "result": "通过",
+      "actual": "工程名称,日期,星期,记录人,审核人及审核记录,日记状态,关联资料数,天气,风力,气温,施工部位及形象进度,施工管理情况,监理工作情况,其他工作,其他事项,晨会计划工作安排,工作中的新问题,材料进场检查,审图情况\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n"
+    },
+    {
+      "id": "P077",
+      "page": "diary-report",
+      "title": "CSV逗号字段应加引号以防列错位",
+      "result": "通过",
+      "actual": "工程名称,日期,星期,记录人,审核人及审核记录,日记状态,关联资料数,天气,风力,气温,施工部位及形象进度,施工管理情况,监理工作情况,其他工作,其他事项,晨会计划工作安排,工作中的新问题,材料进场检查,审图情况\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,\"晴,间多云\",,,,,,,,,,,\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n项目#1,2026-09-23,周三,用户#1,历史记录已审核，审核人员／时间缺失,通过,1,晴,,,,,,,,,,,\n"
+    },
+    {
+      "id": "P078",
+      "page": "miniprogram/utils/schema.js",
+      "title": "巡检保存态文案与可编辑判定集中在 schema 并对外导出",
+      "result": "通过"
+    },
+    {
+      "id": "P079",
+      "page": "miniprogram/pages/home",
+      "title": "小程序首页巡检不展示“项目待审核”，摘要只给草稿与已保存",
+      "result": "通过"
+    },
+    {
+      "id": "P080",
+      "page": "miniprogram/pages/home",
+      "title": "小程序首页巡检列表不按待审核拉取，状态文案改用 statusText",
+      "result": "通过"
+    },
+    {
+      "id": "P081",
+      "page": "miniprogram/pages/record",
+      "title": "小程序记录页巡检隐藏审核入口、提交按钮按类型显示文案",
+      "result": "通过"
+    },
+    {
+      "id": "P082",
+      "page": "daily-inspection.html",
+      "title": "检查项数据、schema 视图与记录页脚本按依赖顺序引入",
+      "result": "通过",
+      "actual": [
+        15392,
+        15462,
+        15518,
+        15631
+      ]
+    },
+    {
+      "id": "P083",
+      "page": "process-management.html",
+      "title": "巡检流程卡改为现场备忘录，不再提供审批配置",
+      "result": "通过"
+    },
+    {
+      "id": "P084",
+      "page": "演示数据生成.cjs",
+      "title": "巡检样例只生成草稿/已保存，不调用审核接口",
+      "result": "通过",
+      "actual": []
+    },
+    {
+      "id": "P085",
+      "page": "FieldRecordKind.java",
+      "title": "日常巡检在服务端定义为无需审核，历史状态统一按已保存判定",
+      "result": "通过"
+    },
+    {
+      "id": "P086",
+      "page": "FieldRecordService.java",
+      "title": "服务端拒绝巡检审核，提交状态归一为已保存且已保存可再编辑",
+      "result": "通过"
+    },
+    {
+      "id": "P087",
+      "page": "work-standard-config",
+      "title": "已存截止时间同步到控件和预览",
+      "result": "通过"
+    },
+    {
+      "id": "P088",
+      "page": "work-standard-config",
+      "title": "提前提醒按真实配置计算",
+      "result": "通过"
+    },
+    {
+      "id": "P089",
+      "page": "work-standard-config",
+      "title": "缺失预览与选项一致",
+      "result": "通过"
+    },
+    {
+      "id": "P090",
+      "page": "work-standard-config",
+      "title": "更新时间来自接口",
+      "result": "通过"
+    },
+    {
+      "id": "P091",
+      "page": "work-standard-config",
+      "title": "编辑配置后预览联动",
+      "result": "通过"
+    },
+    {
+      "id": "P092",
+      "page": "work-standard-config",
+      "title": "保存成功更新元数据且重复点击不重复发起",
+      "result": "通过",
+      "actual": {
+        "writes": 11
+      }
+    },
+    {
+      "id": "P093",
+      "page": "work-standard-config",
+      "title": "权限失败不显示保存成功",
+      "result": "通过"
+    },
+    {
+      "id": "P094",
+      "page": "work-standard-config",
+      "title": "接口缺失不伪报保存成功",
+      "result": "通过"
+    },
+    {
+      "id": "P095",
+      "page": "work-standard-config",
+      "title": "读取失败禁止保存而非当作默认值",
+      "result": "通过"
+    },
+    {
+      "id": "P096",
+      "page": "work-standard-config",
+      "title": "未完整加载时禁止保存",
+      "result": "通过"
+    },
+    {
+      "id": "P097",
+      "page": "work-standard-config",
+      "title": "同名配置冲突显式拒绝保存",
+      "result": "通过"
+    },
+    {
+      "id": "P098",
+      "page": "work-standard-config",
+      "title": "重置同步预览且不自动保存",
+      "result": "通过"
+    },
+    {
+      "id": "P099",
+      "page": "work-standard-config",
+      "title": "未实现调度明确告知且无立即生效承诺",
+      "result": "通过"
+    },
+    {
+      "id": "P100",
+      "page": "work-standard-config",
+      "title": "预览和元数据拥有真实DOM锚点",
+      "result": "通过"
+    }
+  ]
+}

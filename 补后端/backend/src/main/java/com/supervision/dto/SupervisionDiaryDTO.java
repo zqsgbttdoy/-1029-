@@ -33,6 +33,8 @@ public class SupervisionDiaryDTO {
     private String status;
     private String photos;
     private String attachments;
+    @com.fasterxml.jackson.annotation.JsonProperty(access = com.fasterxml.jackson.annotation.JsonProperty.Access.READ_ONLY)
+    private String relatedAttachmentIds;
     private String morningMeeting;
     private String drawingReview;
     private Long reviewerId;

@@ -34,6 +34,7 @@ public class FieldRecordService {
     private final PlatformTransactionManager transactions;
     private final DiaryReferenceService diaryReferences;
     private final FieldRecordVisibility visibility;
+    private final DiaryAttachmentService diaryAttachments;
 
     @Transactional(readOnly = true)
     public PageResult<? extends FieldRecord> list(FieldRecordKind kind, int pageNum, int pageSize, Long projectId,
@@ -121,6 +122,7 @@ public class FieldRecordService {
                 FieldRecord previous = byRequest(kind, key);
                 if (previous != null) return replay(kind, previous, fingerprint);
                 FieldRecord record = candidate(kind, input, null);
+                if (record instanceof SupervisionDiary diary) diary.setRelatedAttachmentIds("[]");
                 access.requireRead(record.getProjectId());
                 bean(record).setPropertyValue(kind.getAuthorField(), access.currentUser().getId());
                 record.setStatus("draft");
@@ -235,6 +237,7 @@ public class FieldRecordService {
         requireEditable(kind, record);
         if (kind == FieldRecordKind.DAILY && !Set.of("draft", "recorded", "submitted", "pending").contains(record.getStatus()))
             throw new BusinessException(409, "只能删除本人草稿或已保存的日常巡检记录；已审核的历史记录不可删除");
+        if (record instanceof SupervisionDiary diary) diaryAttachments.detachAll(diary);
         record.setStatus("inactive");
         em.flush();
         if (kind == FieldRecordKind.DIARY) diaryReferences.deleteDiary(id);
@@ -341,12 +344,12 @@ public class FieldRecordService {
             FieldRecord record = kind.getEntityClass().getDeclaredConstructor().newInstance();
             for (String field : kind.getFields()) bean(record).setPropertyValue(field, bean(dto).getPropertyValue(field));
             if (record instanceof DailyInspection daily) {
-                if (daily.getStartTime() != null && daily.getEndTime() != null && !daily.getEndTime().isAfter(daily.getStartTime()))
-                    throw new BusinessException(400, "巡视结束时间必须晚于开始时间");
+                // 巡视时间已合并为单一 startTime：历史记录的 endTime 仅原样保留，不再参与先后校验
                 daily.setChecklist(checklists.normalize(daily.getChecklist(), previous instanceof DailyInspection old ? old.getChecklist() : null,
                         access.currentUser().getId(), access.currentUser().getName()));
             }
             if (record instanceof SupervisionLog log) {
+                log.setParticipants(validateParticipants(log, fields.get("participants")));
                 Object source = input.containsKey("diarySources") ? input.get("diarySources") : previous instanceof SupervisionLog old ? old.getDiarySources() : null;
                 log.setDiarySources(validateSources(log, source));
             }
@@ -380,17 +383,18 @@ public class FieldRecordService {
                     : Set.of(primary, "management", "inspection");
             boolean hasText = Arrays.stream(kind.getFields()).filter(workFields::contains)
                     .map(f -> bean(record).getPropertyValue(f)).anyMatch(v -> v != null && !v.toString().isBlank());
-            if (!hasText) throw new BusinessException(400, "请填写实际工作内容后提交");
+            // 日常巡检的检查部位、巡视内容已改为选填，仍以检查项作为实际内容
+            if (kind != FieldRecordKind.DAILY && !hasText) throw new BusinessException(400, "请填写实际工作内容后提交");
             if (kind == FieldRecordKind.DIARY) {
                 if (((SupervisionDiary) record).getWeather() == null || ((SupervisionDiary) record).getWeather().isBlank())
                     throw new BusinessException(400, "请填写天气");
                 if (attachments.urls(record.getPhotos()).isEmpty()) throw new BusinessException(400, "监理日记至少上传一张现场照片");
             }
-            if (kind.isInspection() && (bean(record).getPropertyValue("location") == null || bean(record).getPropertyValue("location").toString().isBlank()))
+            // 日常巡检的检查部位已改为选填；旁站仍要求填写具体部位
+            if (kind == FieldRecordKind.SIDELINE && (bean(record).getPropertyValue("location") == null || bean(record).getPropertyValue("location").toString().isBlank()))
                 throw new BusinessException(400, "请填写检查部位");
             if (record instanceof DailyInspection daily) {
-                if ((daily.getStartTime() == null) != (daily.getEndTime() == null))
-                    throw new BusinessException(400, "提交时请补齐巡视开始和结束时间");
+                // 巡视时间已合并为单一 startTime：允许只填巡检时间，历史记录的结束时间不再强制配对
                 checklists.validateForSubmit(daily.getChecklist());
             }
             if (kind == FieldRecordKind.SIDELINE) {
@@ -519,6 +523,24 @@ public class FieldRecordService {
         fields.put("construction", String.join("\n\n", construction));
         fields.put("sources", sources.stream().map(d -> Map.of("id", d.getId(), "code", d.getCode(), "date", d.getDiaryDate(), "lockVersion", d.getLockVersion())).toList());
         return fields;
+    }
+
+    private String validateParticipants(SupervisionLog log, Object raw) {
+        if (raw == null || raw.toString().isBlank()) return "[]";
+        try {
+            var array = raw instanceof CharSequence ? mapper.readTree(raw.toString()) : mapper.valueToTree(raw);
+            if (!array.isArray() || array.size() > 200) throw new IllegalArgumentException();
+            Set<Long> allowed = access.memberOptions(log.getProjectId()).stream()
+                    .map(option -> ((Number) option.get("userId")).longValue()).collect(Collectors.toSet());
+            LinkedHashSet<Long> ids = new LinkedHashSet<>();
+            for (var item : array) {
+                if (!item.isIntegralNumber() || !item.canConvertToLong() || item.asLong() <= 0 || !allowed.contains(item.asLong()))
+                    throw new BusinessException(400, "参会人员必须是本项目的启用人员，请重新勾选");
+                ids.add(item.asLong());
+            }
+            return json(ids);
+        } catch (BusinessException e) { throw e; }
+        catch (Exception e) { throw new BusinessException(400, "参会人员格式不正确，请重新勾选"); }
     }
 
     private String validateSources(SupervisionLog log, Object raw) {

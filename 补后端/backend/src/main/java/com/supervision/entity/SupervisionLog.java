@@ -47,6 +47,9 @@ public class SupervisionLog extends FieldRecord {
     @Column(name = "safety_issues", columnDefinition = "TEXT")
     private String safetyIssues;
 
+    @Column(name = "participants", columnDefinition = "TEXT")
+    private String participants;
+
     @Column(name = "diary_sources", columnDefinition = "LONGTEXT")
     private String diarySources;
 
